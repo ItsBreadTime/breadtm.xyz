@@ -1,65 +1,50 @@
-<!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/html">
 <head>
-    <meta charset="UTF-8">
-    <title>404 - BreadTM</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- Favicons -->
-    <link href="assets/img/logo.png" rel="icon">
-    <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
-
-    <!-- Redirect to home page -->
-    <meta http-equiv="refresh" content="15; url=https://breadtm.xyz/">
+    <link href="404.css" rel="stylesheet">
+    <title>404 -BreadTM</title>
 </head>
-<style>
-    html {
-        background: lightskyblue;
-        text-align: center;
-        font-family: "Poppins", sans-serif;
-        font-size: 1.25rem;
-        color: whitesmoke
-    }
-    #div {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        padding: 50px;
-        margin: 20px;
-        background: dodgerblue;
-        border-radius: 20px;
-    }
-    button {
-        padding: 10%;
-        border-radius: 10px;
-        background: yellow;
-        font-size: xx-large;
-    }
-    .container {
-        display: grid;
-        grid-template-columns: 2fr 3fr; /*Here you set how many columns will be and how much of the space they will take, for example there are 3 values, meaning 3 columns, the first and the last one will take 1 space of the row, and the second one will take 4 spaces*/
-        align-items: center;
-        grid-gap: 1em; /*The gap between items*/
-    }
+<div class="moon"></div>
+<div class="moon__crater moon__crater1"></div>
+<div class="moon__crater moon__crater2"></div>
+<div class="moon__crater moon__crater3"></div>
 
-    .container .item:nth-child(2) {
-        text-align: center;
-    }
-</style>
-<body>
-    <div id="div">
-        <h1>404 - Thats an error!</h1>
-        <h4>This page does not exist on the server. If you think this is a mistake, <a href="mailto:me@breadtm.xyz" style="color: whitesmoke">please email me at me@breadtm.xyz</a></h4><br>
-        <p>You will automatically be redirected to the home page in 15 seconds.</p>
-        <div class="container">
-            <div class="item">
-                <button onclick="window.location.href='https://breadtm.xyz/'">Go back to the homepage</button>
-            </div>
-            <div class="item">
-                <img src="https://cdn.discordapp.com/attachments/943284354627534868/946030105585680424/unknown.png" width="75%" alt="breadpensive">
-            </div>
-        </div>
+<div class="star star1"></div>
+<div class="star star2"></div>
+<div class="star star3"></div>
+<div class="star star4"></div>
+<div class="star star5"></div>
+
+<div class="error">
+    <div class="error__title">404</div>
+    <div class="error__subtitle">Hmmm...</div>
+    <div class="error__description">The page you're looking for does not exist on the server.</div>
+    <button class="error__button error__button--active" onclick="window.open('https://breadtm.xyz/')">GO BACK</button>
+</div>
+
+<div class="astronaut">
+    <div class="astronaut__backpack"></div>
+    <div class="astronaut__body"></div>
+    <div class="astronaut__body__chest"></div>
+    <div class="astronaut__arm-left1"></div>
+    <div class="astronaut__arm-left2"></div>
+    <div class="astronaut__arm-right1"></div>
+    <div class="astronaut__arm-right2"></div>
+    <div class="astronaut__arm-thumb-left"></div>
+    <div class="astronaut__arm-thumb-right"></div>
+    <div class="astronaut__leg-left"></div>
+    <div class="astronaut__leg-right"></div>
+    <div class="astronaut__foot-left"></div>
+    <div class="astronaut__foot-right"></div>
+    <div class="astronaut__wrist-left"></div>
+    <div class="astronaut__wrist-right"></div>
+
+    <div class="astronaut__cord">
+        <canvas id="cord" height="500px" width="500px"></canvas>
     </div>
-</body>
-</html>
+
+    <div class="astronaut__head">
+        <canvas id="visor" width="60px" height="60px"></canvas>
+        <div class="astronaut__head-visor-flare1"></div>
+        <div class="astronaut__head-visor-flare2"></div>
+    </div>
+</div>
+<script src="404.js"></script>
