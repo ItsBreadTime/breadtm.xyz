@@ -1,0 +1,10 @@
+PC specs (unfinished)
+CPU: Intel core i5-12400
+GPU: Intel UHD 730 (Discrete GPU planned)
+RAM: 16GB DDR4 3200MHz
+Drive 1: Samsung 980 500GB SSD
+Drive 2: 1TB WD 7200RPM HDD
+Motherboard: [redacted] B660 DDR4 Micro-ATX
+PSU: [redacted] 550W 
+Case: [redacted]
+Monitor: Lenovo G24e-20 23.8" 1080P 100Hz
