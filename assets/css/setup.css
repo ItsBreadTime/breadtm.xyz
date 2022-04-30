@@ -1,0 +1,117 @@
+/*noinspection CssUnknownTarget*/
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,700;1,400&display=swap');
+
+html {
+    font-family: "Roboto", "Arial", sans-serif;
+    background: pink;
+    scroll-behavior: smooth;
+}
+body, div {
+    display: grid;
+    place-items: center;
+
+}
+.new {
+    background: darkorange;
+    margin: 0.1em;
+}
+h1 span, h2 span {
+    font-size: 0.8em;
+    padding: 0.2em;
+    border-radius: 10px;
+}
+th:first-of-type {
+    border-top-left-radius: 16px;
+}
+th:last-of-type {
+    border-top-right-radius: 16px;
+}
+tr:last-of-type td:first-of-type {
+    border-bottom-left-radius: 16px;
+}
+tr:last-of-type td:last-of-type {
+    border-bottom-right-radius: 16px;
+}
+table {
+    width: 100%;
+    font-size: 1.5em;
+    text-align: center;
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
+}
+div {
+    padding: 0.5em;
+}
+.pc table thead th:nth-child(1) {
+    width: 30%;
+}
+.pc table thead th:nth-child(2) {
+    width: 70%;
+}
+.mb table thead th:nth-child(1) {
+    width: 30%;
+}
+.mb table thead th:nth-child(2) {
+    width: 50%;
+}
+.mb table thead th:nth-child(3) {
+    width: 20%;
+}
+td, th {
+    padding: 0.25em;
+    border: 2px solid;
+    border-collapse: separate;
+}
+.info {
+    display: inline-block;
+    background: mediumspringgreen;
+    font-size: 0.8em;
+    padding: 0.2em;
+    border-radius: 10px;
+    margin: 0.2em;
+    border: 0;
+}
+p {
+    font-size: 1.25em;
+}
+th {
+    background: dodgerblue;
+}
+td {
+    background: deepskyblue;
+}
+p {
+    margin: 0.25em;
+}
+h1 {
+    margin-bottom: 0.2rem;
+}
+.info:hover {
+    display: inline-block;
+    transform: translateX(.15em) scale(125%);
+    background: lightseagreen;
+    transition: 200ms;
+}
+a {
+    text-decoration: none;
+}
+a:hover {
+    color: white;
+    transition: 250ms;
+}
+.color {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 0.25em;
+    background: lightskyblue;
+    margin: 0.1em;
+    border-radius: .2em;
+}
+.color[valign="top"][style="width: 15%"] {
+    white-space: nowrap;
+    display: table-cell;
+}
+.info[valign="top"][style="width: 15%"] {
+    white-space: nowrap;
+    display: table-cell;
+}
