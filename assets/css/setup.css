@@ -3,17 +3,22 @@
 
 html {
     font-family: "Roboto", "Arial", sans-serif;
-    background: pink;
+    background: #212121;
     scroll-behavior: smooth;
+    color: white;
 }
 body, div {
     display: grid;
     place-items: center;
-
+}
+span {
+    display: inline-flex;
+    align-items: center;
 }
 .new {
-    background: darkorange;
-    margin: 0.1em;
+    background: #263238;
+    margin: 0.2em;
+    padding: 0.35em;
 }
 h1 span, h2 span {
     font-size: 0.8em;
@@ -59,12 +64,12 @@ div {
 }
 td, th {
     padding: 0.25em;
-    border: 2px solid;
+    border: 0;
     border-collapse: separate;
 }
 .info {
     display: inline-block;
-    background: mediumspringgreen;
+    background: #383036;
     font-size: 0.8em;
     padding: 0.2em;
     border-radius: 10px;
@@ -75,10 +80,10 @@ p {
     font-size: 1.25em;
 }
 th {
-    background: dodgerblue;
+    background: #2b3731;
 }
 td {
-    background: deepskyblue;
+    background: #3d4c45;
 }
 p {
     margin: 0.25em;
@@ -89,21 +94,21 @@ h1 {
 .info:hover {
     display: inline-block;
     transform: translateX(.15em) scale(125%);
-    background: lightseagreen;
+    background: #6c5653;
     transition: 200ms;
 }
 a {
     text-decoration: none;
+    color: white;
 }
 a:hover {
-    color: white;
     transition: 250ms;
 }
 .color {
     display: inline-block;
     font-size: 0.75em;
     padding: 0.25em;
-    background: lightskyblue;
+    background-color: #292a1c;
     margin: 0.1em;
     border-radius: .2em;
 }
