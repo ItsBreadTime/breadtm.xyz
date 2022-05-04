@@ -3,7 +3,7 @@
 
 html {
     font-family: "Roboto", "Arial", sans-serif;
-    background: #616161;
+    background: #212121;
     scroll-behavior: smooth;
     color: white;
 }
@@ -16,7 +16,7 @@ span {
     align-items: center;
 }
 .new {
-    background: #3d444c;
+    background: #263238;
     margin: 0.2em;
     padding: 0.35em;
 }
@@ -69,7 +69,7 @@ td, th {
 }
 .info {
     display: inline-block;
-    background: #4c3d3d;
+    background: #383036;
     font-size: 0.8em;
     padding: 0.2em;
     border-radius: 10px;
@@ -80,10 +80,10 @@ p {
     font-size: 1.25em;
 }
 th {
-    background: #3d4c45;
+    background: #2b3731;
 }
 td {
-    background: #5d7468;
+    background: #3d4c45;
 }
 p {
     margin: 0.25em;
@@ -108,7 +108,7 @@ a:hover {
     display: inline-block;
     font-size: 0.75em;
     padding: 0.25em;
-    background-color: #4b4c3d;
+    background-color: #292a1c;
     margin: 0.1em;
     border-radius: .2em;
 }
