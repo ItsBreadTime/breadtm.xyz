@@ -51,7 +51,7 @@ table {
     font-size: 1.5em;
     text-align: center;
     margin-top: 0.25em;
-    margin-bottom: 0.25em;
+    margin-bottom: 1em;
 }
 div {
     padding: 0.5em;
@@ -72,7 +72,7 @@ div {
     width: 20%;
 }
 td, th {
-    padding: 0.25em;
+    padding: 0.5em;
     border: 0;
     border-collapse: separate;
 }
@@ -99,6 +99,9 @@ p {
 }
 h1 {
     margin-bottom: 0.2rem;
+}
+h3 {
+    margin: 0.35em;
 }
 .info:hover {
     display: inline-block;
@@ -128,4 +131,17 @@ a:hover {
 .info[valign="top"][style="width: 15%"] {
     white-space: nowrap;
     display: table-cell;
+}
+li, h3 {
+    font-size: 1.25em;
+}
+img {
+    height: 1.25em;
+    margin-left: 0.25em;
+}
+h2 {
+    display: flex;
+}
+th img, td img {
+    vertical-align: top;
 }
