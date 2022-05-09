@@ -9,6 +9,7 @@
     --info-tag: #383036;
     --info-tag-hover: #6c5653;
     --color-tag: #292a1c;
+    --table-head-ish: #2b3737;
 }
 html {
     font-family: "Roboto", "Arial", sans-serif;
@@ -109,7 +110,7 @@ h3 {
     background: var(--info-tag-hover);
     transition: 200ms;
 }
-a {
+.info a {
     text-decoration: none;
     color: var(--text-color);
 }
@@ -144,4 +145,13 @@ h2 {
 }
 th img, td img {
     vertical-align: top;
+}
+td a {
+    color: white;
+}
+td a:hover {
+    color: lightskyblue;
+}
+.th-ish {
+    background-color: var(--table-head-ish);
 }
