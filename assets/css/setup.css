@@ -142,11 +142,12 @@ img {
 }
 h2 {
     display: flex;
+    margin: .125em;
 }
 th img, td img {
     vertical-align: top;
 }
-td a {
+a {
     color: white;
 }
 td a:hover {
@@ -154,4 +155,23 @@ td a:hover {
 }
 .th-ish {
     background-color: var(--table-head-ish);
+}
+#index {
+    padding: 1em;
+    background: var(--table-data);
+    margin-top: 1.5em;
+    margin-bottom: 1.5em;
+    border-radius: 16px;
+}
+#index a {
+    font-size: 1.25em;
+    margin: 0.125em;
+    padding: 0.25em;
+    background: var(--table-head-ish);
+    text-decoration: none;
+    border-radius: 5px;
+}
+#index a:hover {
+    transform: scale(125%) translateX(10px);
+    background: var(--table-head);
 }
