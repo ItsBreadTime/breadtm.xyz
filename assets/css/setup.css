@@ -10,6 +10,7 @@
     --info-tag-hover: #6c5653;
     --color-tag: #292a1c;
     --table-head-ish: #2b3737;
+    --damages-color: #400000;
 }
 html {
     font-family: "Roboto", "Arial", sans-serif;
@@ -174,4 +175,17 @@ td a:hover {
 #index a:hover {
     transform: scale(125%) translateX(10px);
     background: var(--table-head);
+}
+.damages {
+    background: var(--damages-color);
+    font-size: 0.75em;
+    padding: 0.25em;
+    border-radius: 5px;
+}
+#server {
+    text-align: center;
+}
+#server div {
+    background: var(--table-head-ish);
+    padding: 2em;
 }
