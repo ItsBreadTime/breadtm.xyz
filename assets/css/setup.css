@@ -189,3 +189,13 @@ td a:hover {
     background: var(--table-head-ish);
     padding: 2em;
 }
+.damages:hover {
+    background: #696969;
+    transition: 4.2069s;
+    transform: rotate(180deg) translate(-6.9420%) rotate(180deg) scale(200%) rotate(420deg) rotate(-420deg) rotate(69deg) translate(4.20%) translate(40%) scale(420%);
+    position: absolute;
+    padding: 69px;
+    text-align: right;
+    display: flow;
+    font-size: 69em;
+}
