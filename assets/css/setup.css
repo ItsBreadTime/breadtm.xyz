@@ -184,10 +184,9 @@ td a:hover {
 }
 #server {
     text-align: center;
-}
-#server div {
     background: var(--table-head-ish);
     padding: 2em;
+    border-radius: 25px;
 }
 .damages:hover {
     background: #696969;
