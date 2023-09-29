@@ -16,7 +16,7 @@
                 <h3 class="font-bold text-3xl m-4 text-center text-purple-100">
                     BreadImagine
                 </h3>
-                <img src="https://placehold.co/500x300" alt="placeholder" />
+                <img src="https://placehold.co/750x450" alt="placeholder" />
                 <span class="text-purple-100">
                     Lorem ipsum dolor sit amet, consectetur adipiscing elit.
                     Etiam sit amet condimentum ligula, non pellentesque sem.
@@ -34,7 +34,7 @@
                 <h3 class="font-bold text-3xl m-4 text-center text-purple-100">
                     BreadImagine
                 </h3>
-                <img src="https://placehold.co/500x300" alt="placeholder" />
+                <img src="https://placehold.co/750x450" alt="placeholder" />
 
                 <span class="text-purple-100">
                     Lorem ipsum dolor sit amet, consectetur adipiscing elit.
@@ -53,7 +53,7 @@
                 <h3 class="font-bold text-3xl m-4 text-center text-purple-100">
                     BreadImagine
                 </h3>
-                <img src="https://placehold.co/500x300" alt="placeholder" />
+                <img src="https://placehold.co/750x450" alt="placeholder" />
 
                 <span class="text-purple-100">
                     Lorem ipsum dolor sit amet, consectetur adipiscing elit.
