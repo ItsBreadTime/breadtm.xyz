@@ -32,7 +32,6 @@
                     <span class="text-teal-100">
                         My personal website, but now with cute color scheme i guess? Idk... :3
                     </span>
-                    <br />
                 </div>
                 <div class="flex justify-between mt-2">
                     <a
@@ -48,7 +47,7 @@
                 </div>
             </div>
             <div
-                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-r-4 border-black flex flex-col"
+                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-r-4 border-black flex flex-col justify-between"
             >
                 <div>
                     <h3
@@ -69,7 +68,6 @@
                     <span class="text-teal-100">
                        Simple Stable Diffusion AI image generator, powered by Stable Horde.
                     </span>
-                    <br />
                 </div>
                 <div class="flex justify-between mt-2">
                     <a
@@ -104,9 +102,8 @@
                         /> Status: Unknown
                     </span>
                     <span class="text-teal-100">
-                        This project is currently not released, check back later! (if you want I guess?)
+                        This project is currently not released, check back later! (if you want)
                     </span>
-                    <br />
                 </div>
                 <div class="flex justify-between mt-2">
                     <a
