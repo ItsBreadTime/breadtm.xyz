@@ -9,62 +9,117 @@
                 </h2>
             </div>
         </div>
-        <div class="grid grid-cols-3 border-y-4 my-12 border-black">
+        <div class="grid grid-cols-3 border-y-4 border-l-4 my-12 border-black">
             <div
-                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-x-4 border-black"
+                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-r-4 border-black flex flex-col justify-between"
             >
-                <h3 class="font-bold text-3xl m-4 text-center text-teal-100">
-                    BreadImagine
-                </h3>
-                <img src="https://placehold.co/750x450" alt="placeholder" />
-                <span class="text-teal-100">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Etiam sit amet condimentum ligula, non pellentesque sem.
-                    Maecenas fringilla quam nisi, dignissim porta dolor
-                    tincidunt sit amet. Vivamus id sem pellentesque,
-                    pellentesque augue nec, tincidunt sem. Maecenas et odio
-                    pellentesque, convallis nulla vel, consectetur lacus. Nullam
-                    sit amet mi sed nisi venenatis vulputate. Mauris tincidunt
-                    tincidunt interdum.
-                </span>
+                <div>
+                    <h3
+                        class="font-bold text-3xl m-4 text-center text-teal-100"
+                    >
+                        This website
+                    </h3>
+                    <img
+                        src="breadtm-xyz.png"
+                        alt="placeholder"
+                        class="rounded-xl mb-4 border-black border-4 brightness-50 hover:brightness-100 transition-all"
+                    />
+                    <span class="block bg-emerald-800 rounded-md p-2 my-2">
+                        <span
+                            class="bg-yellow-500 p-2 rounded-full inline-block mx-1"
+                        /> Status: In development
+                    </span>
+                    <span class="text-teal-100">
+                        My personal website, but now with cute color scheme i guess? Idk... :3
+                    </span>
+                    <br />
+                </div>
+                <div class="flex justify-between mt-2">
+                    <a
+                    href="https://github.com/ItsBreadTime/breadtm.xyz"
+                    class="inline-block mt-3 text-2xl py-2 px-4 bg-black rounded hover:bg-emerald-950 transition-all mr-4"
+                    >Source</a
+                    >
+                    <a
+                    href="https://breadtm.xyz"
+                    class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-emerald-950 transition-all cursor-not-allowed"
+                    >Visit</a
+                    >
+                </div>
             </div>
             <div
-                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold"
+                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-r-4 border-black flex flex-col"
             >
-                <h3 class="font-bold text-3xl m-4 text-center text-teal-100">
-                    BreadImagine
-                </h3>
-                <img src="https://placehold.co/750x450" alt="placeholder" />
-
-                <span class="text-teal-100">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Etiam sit amet condimentum ligula, non pellentesque sem.
-                    Maecenas fringilla quam nisi, dignissim porta dolor
-                    tincidunt sit amet. Vivamus id sem pellentesque,
-                    pellentesque augue nec, tincidunt sem. Maecenas et odio
-                    pellentesque, convallis nulla vel, consectetur lacus. Nullam
-                    sit amet mi sed nisi venenatis vulputate. Mauris tincidunt
-                    tincidunt interdum.
-                </span>
+                <div>
+                    <h3
+                        class="font-bold text-3xl m-4 text-center text-teal-100"
+                    >
+                        BreadImagine
+                    </h3>
+                    <img
+                        src="breadimagine.png"
+                        alt="placeholder"
+                        class="rounded-xl mb-4 border-black border-4 brightness-75 hover:brightness-100 transition-all"
+                    />
+                    <span class="block bg-emerald-800 rounded-md p-2 my-2">
+                        <span
+                            class="bg-orange-500 p-2 rounded-full inline-block mx-1"
+                        /> Status: Updates paused
+                    </span>
+                    <span class="text-teal-100">
+                       Simple Stable Diffusion AI image generator, powered by Stable Horde.
+                    </span>
+                    <br />
+                </div>
+                <div class="flex justify-between mt-2">
+                    <a
+                    href="https://github.com/ItsBreadTime/breadtm.xyz"
+                    class="inline-block mt-3 text-2xl py-2 px-4 bg-black rounded hover:bg-emerald-950 transition-all mr-4"
+                    >Source</a
+                    >
+                    <a
+                    href="https://breadtm.xyz"
+                    class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-emerald-950 transition-all cursor-not-allowed"
+                    >Visit</a
+                    >
+                </div>
             </div>
             <div
-                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-x-4 border-black"
+                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-r-4 border-black flex flex-col justify-between"
             >
-                <h3 class="font-bold text-3xl m-4 text-center text-teal-100">
-                    BreadImagine
-                </h3>
-                <img src="https://placehold.co/750x450" alt="placeholder" />
-
-                <span class="text-teal-100">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Etiam sit amet condimentum ligula, non pellentesque sem.
-                    Maecenas fringilla quam nisi, dignissim porta dolor
-                    tincidunt sit amet. Vivamus id sem pellentesque,
-                    pellentesque augue nec, tincidunt sem. Maecenas et odio
-                    pellentesque, convallis nulla vel, consectetur lacus. Nullam
-                    sit amet mi sed nisi venenatis vulputate. Mauris tincidunt
-                    tincidunt interdum.
-                </span>
+                <div>
+                    <h3
+                        class="font-bold text-3xl m-4 text-center text-teal-100"
+                    >
+                        Something?
+                    </h3>
+                    <img
+                        src="something.png"
+                        alt="placeholder"
+                        class="rounded-xl mb-4 border-black border-4 brightness-75 hover:brightness-100 transition-all"
+                    />
+                    <span class="block bg-emerald-800 rounded-md p-2 my-2">
+                        <span
+                            class="bg-black p-2 rounded-full inline-block mx-1"
+                        /> Status: Unknown
+                    </span>
+                    <span class="text-teal-100">
+                        This project is currently not released, check back later! (if you want I guess?)
+                    </span>
+                    <br />
+                </div>
+                <div class="flex justify-between mt-2">
+                    <a
+                    href="https://breadtm.xyz/rick"
+                    class="inline-block mt-3 text-2xl py-2 px-4 bg-black rounded hover:bg-emerald-950 transition-all mr-4 opacity-50"
+                    >Source</a
+                    >
+                    <a
+                    href="https://breadtm.xyz/rick"
+                    class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-emerald-950 transition-all cursor-not-allowed opacity-60"
+                    >Visit</a
+                    >
+                </div>
             </div>
         </div>
     </div>

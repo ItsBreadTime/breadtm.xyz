@@ -1,4 +1,3 @@
-<div class="block absolute font-black text-8xl z-50 p-16 bg-red-500 md:hidden">THIS WEBSITE IS CURRENTLY NOT USABLE ON MOBILE</div>
 <div class="py-4" id="header">
     <div class="m-8">
         <div
@@ -15,27 +14,17 @@
         <div class="grid grid-cols-3 border-4 border-black" id="primary">
             <div class="border-r-4 border-black" id="pimage">
                 <span class="flex items-center justify-center m-8">
-                    <img src="pfp.png" alt="Bread Profile" />
+                    <img src="pfp.png" alt="Bread Profile" width="256"/>
                 </span>
             </div>
             <div class="col-span-2" id="ptext">
                 <div
                     class="text-2xl p-8 bg-cyan-600 text-gray-100 h-full font-semibold"
                 >
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Etiam sit amet condimentum ligula, non pellentesque sem.
-                    Maecenas fringilla quam nisi, dignissim porta dolor
-                    tincidunt sit amet. Vivamus id sem pellentesque,
-                    pellentesque augue nec, tincidunt sem. Maecenas et odio
-                    pellentesque, convallis nulla vel, consectetur lacus. Nullam
-                    sit amet mi sed nisi venenatis vulputate. Mauris tincidunt
-                    tincidunt interdum. Mauris laoreet arcu vel ex fringilla, at
-                    accumsan nisi pretium. Quisque a dui ac leo condimentum
-                    ornare. Duis mattis nec lectus cursus lobortis. Nullam
-                    elementum justo et augue consequat luctus. Ut vitae leo
-                    varius turpis iaculis porttitor. Ut in elementum dolor. Nunc
-                    consequat, nunc efficitur semper rhoncus, arcu dui gravida
-                    tellus, eu congue metus nisi sit amet arcu.
+                    I'm a random Thai person interested in computer and stuff.<br>
+                    Love modded Minecraft and tower defense games (I suck at PVP).<br>
+                    Below average attention span (probably)<br>
+                    Don't have anything more to say just scroll down ig
                 </div>
             </div>
         </div>

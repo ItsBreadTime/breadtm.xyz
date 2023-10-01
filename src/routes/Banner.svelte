@@ -1,1 +1,2 @@
 <div class="p-2 bg-blue-300">This website is currently in construction and doesn't work on mobile. <a href="https://github.com/ItsBreadTime/breadtm.xyz" class="underline text-blue-700 decoration">View Source</a></div>
+<div class="block absolute font-black text-8xl z-50 p-16 bg-red-500 md:hidden h-full">THIS WEBSITE IS CURRENTLY NOT USABLE ON MOBILE</div>
