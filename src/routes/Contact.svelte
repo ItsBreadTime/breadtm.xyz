@@ -9,9 +9,9 @@
                 </h2>
             </div>
         </div>
-        <div class="grid grid-cols-3 border-y-4 my-12 border-black text-center">
+        <div class="grid grid-cols-1 md:grid-cols-3 border-y-4 my-12 border-black text-center">
             <div
-                class="text-xl p-8 bg-violet-600 text-gray-100 h-full font-semibold border-x-4 border-black"
+                class="text-xl p-8 bg-violet-600 text-gray-100 h-full font-semibold border-x-4 border-b-4 md:border-b-0 border-black"
             >
                 <h3 class="font-bold text-3xl m-4 text-center text-purple-100">
                     Discord
@@ -28,7 +28,7 @@
                 </div>
             </div>
             <div
-                class="text-xl p-8 bg-violet-600 text-gray-100 h-full font-semibold border-r-4 border-black"
+                class="text-xl p-8 bg-violet-600 text-gray-100 h-full font-semibold border-r-4 border-l-4 md:border-l-0 border-b-4 md:border-b-0 border-black"
             >
                 <h3 class="font-bold text-3xl m-4 text-center text-purple-100">
                     Email
@@ -45,7 +45,7 @@
                 </div>
             </div>
             <div
-            class="text-xl p-8 bg-violet-600 text-gray-100 h-full font-semibold border-r-4 border-black"
+            class="text-xl p-8 bg-violet-600 text-gray-100 h-full  border-l-4 md:border-l-0 font-semibold border-r-4 border-black"
         >
             <h3 class="font-bold text-3xl m-4 text-center text-purple-100">
                 Discord server

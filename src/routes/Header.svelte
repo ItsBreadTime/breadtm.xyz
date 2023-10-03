@@ -11,20 +11,20 @@
                 </h1>
             </div>
         </div>
-        <div class="grid grid-cols-3 border-4 border-black" id="primary">
-            <div class="border-r-4 border-black" id="pimage">
+        <div class="grid grid-cols-1 md:grid-cols-3 border-4 border-black" id="primary">
+            <div class=" border-b-4 md:border-r-4 md:border-b-0 border-black" id="pimage">
                 <span class="flex items-center justify-center m-8">
                     <img src="pfp.png" alt="Bread Profile" width="256"/>
                 </span>
             </div>
             <div class="col-span-2" id="ptext">
                 <div
-                    class="text-2xl p-8 bg-cyan-600 text-gray-100 h-full font-semibold"
+                    class="text-xl md:text-2xl p-8 bg-cyan-600 text-gray-100 h-full font-semibold"
                 >
-                    I'm a random Thai person interested in computer and stuff.<br>
-                    Love modded Minecraft and tower defense games (I suck at PVP).<br>
-                    Below average attention span (probably)<br>
-                    Don't have anything more to say just scroll down ig
+                    I'm a random Thai person interested in computer and stuff.
+                    Love modded Minecraft and tower defense games (I suck at PVP).
+                    Below average attention span (probably).
+                    Don't have anything more to say just scroll down ig.
                 </div>
             </div>
         </div>

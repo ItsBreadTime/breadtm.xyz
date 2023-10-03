@@ -9,9 +9,9 @@
                 </h2>
             </div>
         </div>
-        <div class="grid grid-cols-3 border-y-4 border-l-4 my-12 border-black">
+        <div class="grid grid-cols-1 md:grid-cols-3 border-y-4 border-l-4 my-12 border-black">
             <div
-                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-r-4 border-black flex flex-col justify-between"
+                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-r-4 border-b-4 md:border-b-0 border-black flex flex-col justify-between"
             >
                 <div>
                     <h3
@@ -47,7 +47,7 @@
                 </div>
             </div>
             <div
-                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-r-4 border-black flex flex-col justify-between"
+                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full border-b-4 md:border-b-0 font-semibold border-r-4 border-black flex flex-col justify-between"
             >
                 <div>
                     <h3
