@@ -1,11 +1,11 @@
 <div class="py-4" id="header">
-    <div class="m-8">
+    <div class="m-4 md:m-8">
         <div
-            class="text-center flex h-32 align-middle items-center justify-around my-6"
+            class="text-center flex h-32 align-middle items-center justify-around md:my-6"
         >
             <div class="rounded-md bg-black">
                 <h1
-                    class="bg-pink-200 inline-block p-4 -translate-x-2 -translate-y-2 border-black border-2 rounded-md text-5xl font-extrabold"
+                    class="bg-pink-200 inline-block p-4 -translate-x-2 -translate-y-2 border-black border-2 rounded-md text-3xl md:text-5xl font-extrabold"
                 >
                     👋 Hello, I'm <span class="text-cyan-800">Bread™️</span>
                 </h1>

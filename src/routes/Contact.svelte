@@ -1,15 +1,15 @@
 <div class="py-4" id="projects">
-    <div class="m-8">
-        <div class="text-center flex h-32 items-center justify-around my-6">
+    <div class="m-4 md:m-8">
+        <div class="text-center flex h-32 items-center justify-around md:my-6">
             <div class="rounded-md bg-black">
                 <h2
-                    class="bg-amber-200 inline-block p-4 -translate-x-2 -translate-y-2 border-black border-2 rounded-md text-3xl font-extrabold"
+                    class="bg-amber-200 inline-block p-4 -translate-x-2 -translate-y-2 border-black border-2 rounded-md text-2xl md:text-3xl font-extrabold"
                 >
                     💬 Contacts
                 </h2>
             </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 border-y-4 my-12 border-black text-center">
+        <div class="grid grid-cols-1 md:grid-cols-3 border-y-4 md:my-12 border-black text-center">
             <div
                 class="text-xl p-8 bg-violet-600 text-gray-100 h-full font-semibold border-x-4 border-b-4 md:border-b-0 border-black"
             >
