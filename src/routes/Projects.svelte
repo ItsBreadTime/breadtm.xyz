@@ -9,7 +9,7 @@
                 </h2>
             </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 border-y-4 border-l-4 md:my-12 border-black">
+        <div class="grid grid-cols-1 md:grid-cols-2 border-y-4 border-l-4 md:my-12 border-black">
             <div
                 class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-r-4 border-b-4 md:border-b-0 border-black flex flex-col justify-between"
             >
@@ -21,7 +21,7 @@
                     </h3>
                     <img
                         src="breadtm-xyz.png"
-                        alt="placeholder"
+                        alt="This website"
                         class="rounded-xl mb-4 border-black border-4 brightness-50 hover:brightness-100 transition-all"
                     />
                     <span class="block bg-emerald-800 rounded-md p-2 my-2">
@@ -57,7 +57,7 @@
                     </h3>
                     <img
                         src="breadimagine.png"
-                        alt="placeholder"
+                        alt="BreadImagine"
                         class="rounded-xl mb-4 border-black border-4 brightness-75 hover:brightness-100 transition-all"
                     />
                     <span class="block bg-emerald-800 rounded-md p-2 my-2">
@@ -82,42 +82,7 @@
                     >
                 </div>
             </div>
-            <div
-                class="text-xl p-8 bg-emerald-600 text-gray-100 h-full font-semibold border-r-4 border-black flex flex-col justify-between"
-            >
-                <div>
-                    <h3
-                        class="font-bold text-3xl m-4 text-center text-teal-100"
-                    >
-                        Something?
-                    </h3>
-                    <img
-                        src="something.png"
-                        alt="placeholder"
-                        class="rounded-xl mb-4 border-black border-4 brightness-75 hover:brightness-100 transition-all"
-                    />
-                    <span class="block bg-emerald-800 rounded-md p-2 my-2">
-                        <span
-                            class="bg-black p-2 rounded-full inline-block mx-1"
-                        /> Status: Unknown
-                    </span>
-                    <span class="text-teal-100">
-                        This project is currently not released, check back later! (if you want)
-                    </span>
-                </div>
-                <div class="flex justify-between mt-2">
-                    <a
-                    href="https://breadtm.xyz/rick"
-                    class="inline-block mt-3 text-2xl py-2 px-4 bg-black rounded hover:bg-emerald-950 transition-all mr-4 opacity-50"
-                    >Source</a
-                    >
-                    <a
-                    href="https://breadtm.xyz/rick"
-                    class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-emerald-950 transition-all cursor-not-allowed opacity-60"
-                    >Visit</a
-                    >
-                </div>
-            </div>
+
         </div>
     </div>
 </div>
