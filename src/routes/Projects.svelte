@@ -62,11 +62,11 @@
                     />
                     <span class="block bg-emerald-800 rounded-md p-2 my-2">
                         <span
-                            class="bg-orange-500 p-2 rounded-full inline-block mx-1"
-                        /> Status: Updates paused
+                            class="bg-green-500 p-2 rounded-full inline-block mx-1"
+                        /> Status: In development
                     </span>
                     <span class="text-teal-100">
-                       Simple Stable Diffusion AI image generator, powered by Stable Horde.
+                       Simple Stable Diffusion AI image generator, powered by AI Horde.
                     </span>
                 </div>
                 <div class="flex justify-between mt-2">
