@@ -24,11 +24,6 @@
                         alt="This website"
                         class="rounded-xl mb-4 border-black border-4 brightness-50 hover:brightness-100 transition-all"
                     />
-                    <span class="block bg-emerald-800 rounded-md p-2 my-2">
-                        <span
-                            class="bg-green-500 p-2 rounded-full inline-block mx-1"
-                        /> Status: In development
-                    </span>
                     <span class="text-teal-100">
                         My personal website, but now with cute color scheme i guess? Idk... :3
                     </span>
@@ -60,11 +55,6 @@
                         alt="BreadImagine"
                         class="rounded-xl mb-4 border-black border-4 brightness-75 hover:brightness-100 transition-all"
                     />
-                    <span class="block bg-emerald-800 rounded-md p-2 my-2">
-                        <span
-                            class="bg-green-500 p-2 rounded-full inline-block mx-1"
-                        /> Status: In development
-                    </span>
                     <span class="text-teal-100">
                        Simple Stable Diffusion AI image generator, powered by AI Horde.
                     </span>
