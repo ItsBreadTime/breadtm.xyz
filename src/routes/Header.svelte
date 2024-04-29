@@ -5,7 +5,7 @@
         >
             <div class="rounded-md bg-black">
                 <h1
-                    class="bg-pink-200 inline-block p-4 -translate-x-2 -translate-y-2 border-black border-2 rounded-md text-3xl md:text-5xl font-extrabold"
+                    class="bg-pink-200 inline-block p-4 -translate-x-2 -translate-y-2 rounded-md text-3xl md:text-5xl font-extrabold"
                 >
                     👋 Hello, I'm <span class="text-cyan-800">Bread™️</span>
                 </h1>

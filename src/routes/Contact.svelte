@@ -1,72 +1,42 @@
-<div class="py-4" id="projects">
+<script>
+    import Contact from "./components/Contact.svelte";
+</script>
+
+<div class="py-4" id="contacts">
     <div class="m-4 md:m-8">
         <div class="text-center flex h-32 items-center justify-around md:my-6">
             <div class="rounded-md bg-black">
                 <h2
-                    class="bg-amber-200 inline-block p-4 -translate-x-2 -translate-y-2 border-black border-2 rounded-md text-2xl md:text-3xl font-extrabold"
+                    class="bg-amber-200 inline-block p-4 -translate-x-2 -translate-y-2 rounded-md text-2xl md:text-3xl font-extrabold"
                 >
-                    💬 Contacts
+                    💬 Contacts & Accounts
                 </h2>
             </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 border-y-4 md:my-12 border-black text-center">
-            <div
-                class="text-xl p-8 bg-violet-600 text-gray-100 h-full font-semibold border-x-4 border-b-4 md:border-b-0 border-black"
-            >
-                <h3 class="font-bold text-3xl m-4 text-center text-purple-100">
-                    Discord
-                </h3>
-                <span class="text-violet-100">
-                    bread.trademark
-                </span>
-                <div class="flex justify-between mt-2">
-                    <a
-                    href="https://discord.com/users/810533927492124693"
-                    class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-violet-950 transition-all"
-                    >Visit</a
-                    >
-                </div>
-            </div>
-            <div
-                class="text-xl p-8 bg-violet-600 text-gray-100 h-full font-semibold border-r-4 border-l-4 md:border-l-0 border-b-4 md:border-b-0 border-black"
-            >
-                <h3 class="font-bold text-3xl m-4 text-center text-purple-100">
-                    Email
-                </h3>
-                <span class="text-violet-100">
-                    me@breadtm.xyz
-                </span>
-                <div class="flex justify-between mt-2">
-                    <a
-                    href="mailto:me@breadtm.xyz"
-                    class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-violet-950 transition-all"
-                    >Visit</a
-                    >
-                </div>
-            </div>
-            <div
-            class="text-xl p-8 bg-violet-600 text-gray-100 h-full  border-l-4 md:border-l-0 font-semibold border-r-4 border-black"
+        <div
+            class="grid grid-cols-1 md:grid-cols-3 border-l-4 border-y-4 md:my-12 border-black text-center"
         >
-            <h3 class="font-bold text-3xl m-4 text-center text-purple-100">
-                Discord server
-            </h3>
-            <span class="text-violet-100">
-                Breadmoji
-            </span>
-            <div class="flex justify-between mt-2">
-                <a
-                href="https://discord.gg/uGbQsmRSxE"
-                class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-violet-950 transition-all"
-                >Visit</a
-                >
-            </div>
-        </div>
+            <Contact
+                service="Discord"
+                name="bread.trademark"
+                url="https://discord.com/users/810533927492124693"
+            />
+            <Contact
+                service="Email"
+                name="me@breadtm.xyz"
+                url="mailto:me@breadtm.xyz"
+            />
+            <Contact
+                service="Discord Server"
+                name="Breadmoji"
+                url="https://discord.gg/uGbQsmRSxE"
+            />
         </div>
     </div>
 </div>
 
 <style lang="postcss">
-    #projects {
+    #contacts {
         background-color: theme(colors.purple.400);
         background-image: linear-gradient(
                 theme(colors.purple.500) 0.1em,
