@@ -9,7 +9,6 @@
         >
         <div
             class="grid grid-cols-1 md:grid-cols-3 border-4 border-black"
-            id="primary"
         >
             <div
                 class=" border-b-4 md:border-r-4 md:border-b-0 border-black"
