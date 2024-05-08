@@ -2,7 +2,6 @@
     export let name = '';
     export let sourceUrl = '';
     export let url = '';
-    export let description = '';
 </script>
 
 <div
@@ -18,7 +17,7 @@
             class="rounded-xl mb-4 border-black border-4 brightness-75 hover:brightness-100 transition-all"
         />
         <span class="text-teal-100">
-            {description}
+            <slot></slot>
         </span>
     </div>
     <div class="flex justify-between mt-2">

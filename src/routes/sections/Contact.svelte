@@ -1,18 +1,11 @@
 <script>
-    import Contact from "./components/Contact.svelte";
+    import Contact from "../components/Contact.svelte";
+    import Title from "../components/Title.svelte";
 </script>
 
 <div class="py-4" id="contacts">
     <div class="m-4 md:m-8">
-        <div class="text-center flex h-32 items-center justify-around md:my-6">
-            <div class="rounded-md bg-black">
-                <h2
-                    class="bg-amber-200 inline-block p-4 -translate-x-2 -translate-y-2 rounded-md text-2xl md:text-3xl font-extrabold"
-                >
-                    💬 Contacts & Accounts
-                </h2>
-            </div>
-        </div>
+        <Title style="bg-amber-200 text-2xl md:text-3xl">💬 Contacts & Accounts</Title>
         <div
             class="grid grid-cols-1 md:grid-cols-3 border-l-4 border-y-4 md:my-12 border-black text-center"
         >

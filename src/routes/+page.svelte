@@ -1,7 +1,7 @@
 <script>
-  import Header from "./Header.svelte";
-  import Contact from "./Contact.svelte";
-  import Projects from "./Projects.svelte";
+  import Header from "./sections/Header.svelte";
+  import Contact from "./sections/Contact.svelte";
+  import Projects from "./sections/Projects.svelte";
 </script>
 
 <Header />

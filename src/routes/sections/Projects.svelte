@@ -1,18 +1,11 @@
 <script>
-    import Project from "./components/Project.svelte";
+    import Project from "../components/Project.svelte";
+    import Title from "../components/Title.svelte";
 </script>
 
 <div class="py-4" id="projects">
     <div class="m-4 md:m-8">
-        <div class="text-center flex h-32 items-center justify-around md:my-6">
-            <div class="rounded-md bg-black">
-                <h2
-                    class="bg-indigo-200 inline-block p-4 -translate-x-2 -translate-y-2 rounded-md text-2xl md:text-3xl font-extrabold"
-                >
-                    🛠️ Projects
-                </h2>
-            </div>
-        </div>
+        <Title style="bg-indigo-200 text-2xl md:text-3xl">🛠️ Projects</Title>
         <div
             class="grid grid-cols-1 md:grid-cols-2 border-y-4 border-l-4 md:my-12 border-black"
         >
@@ -20,14 +13,12 @@
                 name="This website"
                 sourceUrl="https://github.com/ItsBreadTime/breadtm.xyz"
                 url="https://breadtm.xyz"
-                description="My personal website, now with cute colors"
-             />
+            >My personal website, now with cute colors(?)</Project>
             <Project
                 name="BreadImagine"
                 sourceUrl="https://github.com/ItsBreadTime/BreadImagine"
                 url="https://imagine.breadtm.xyz"
-                description="AI image generator powered by AI Horde"
-            />
+            >AI Image generator powered by <a class="underline decoration-green-300" href="https://github.com/Haidra-Org/AI-Horde">AI Horde</a></Project>
         </div>
     </div>
 </div>
