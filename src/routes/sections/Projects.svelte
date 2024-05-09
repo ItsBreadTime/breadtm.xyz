@@ -7,7 +7,7 @@
     <div class="m-4 md:m-8">
         <Title style="bg-indigo-200 text-2xl md:text-3xl">🛠️ Projects</Title>
         <div
-            class="grid grid-cols-1 md:grid-cols-2 border-y-4 border-l-4 md:my-12 border-black"
+            class="grid grid-cols-1 md:grid-cols-2 border-t-4 border-l-4 md:my-12 border-black"
         >
             <Project
                 name="This website"

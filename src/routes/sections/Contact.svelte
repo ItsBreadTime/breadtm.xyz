@@ -1,5 +1,6 @@
 <script>
     import Contact from "../components/Contact.svelte";
+    import ContactLarge from "../components/ContactLarge.svelte";
     import Title from "../components/Title.svelte";
 </script>
 
@@ -9,51 +10,23 @@
             >💬 Contacts & Accounts</Title
         >
         <div class="grid grid-cols-1 md:grid-cols-6 border-4 border-black">
-            <div
-                class="iconbg border-b-4 md:border-r-4 md:border-b-0 border-black"
-            >
-                <span class="flex items-center justify-center m-8">
-                    <img src="pfp.png" alt="Bread Profile" width="256" />
-                </span>
-            </div>
-            <div class="col-span-2" id="ptext">
-                <div
-                    class="text-xl md:text-2xl p-8 bg-indigo-600 text-gray-100 h-full font-semibold border-r-4 border-black"
-                >
-                    <h3 class="text-4xl font-bold text-indigo-200">hi</h3>
-                    This is a placeholder, trust me i will fill in this box in 3-5
-                    business years.
-                    <a
-                        href=""
-                        class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-emerald-950 transition-all"
-                        ><img alt="visit" src="go.svg" /></a
-                    >
-                </div>
-            </div>
-            <div
-                class="iconbg border-b-4 md:border-r-4 md:border-b-0 border-black"
-            >
-                <span class=" flex items-center justify-center m-8">
-                    <img src="pfp.png" alt="Bread Profile" width="256" />
-                </span>
-            </div>
-            <div class="col-span-2" id="ptext">
-                <div
-                    class="text-xl md:text-2xl p-8 bg-indigo-600 text-gray-100 h-full font-semibold"
-                >
-                    <h3 class="text-4xl font-bold text-indigo-200">hi</h3>
-                    This is a placeholder, trust me i will fill in this box in 3-5
-                    business years.
-                    <a
-                        href=""
-                        class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-emerald-950 transition-all"
-                        ><img alt="visit" src="go.svg" /></a
-                    >
-                </div>
-            </div>
+            <ContactLarge
+                image="contacts/element.svg"
+                title="Matrix"
+                username="@breadtm:mozilla.org"
+                description="I don't know what to put here"
+                url="https://matrix.to/#/@breadtm:mozilla.org"
+            />
+            <ContactLarge
+                image="contacts/discord.svg"
+                title="Discord"
+                username="bread.trademark"
+                description="I'm mostly active here, i guess"
+                url="https://discord.com/users/810533927492124693"
+            />
         </div>
         <div
-            class="grid grid-cols-1 md:grid-cols-4 border-l-4 border-b-4 md:mb-12 border-black text-center"
+            class="grid grid-cols-2 md:grid-cols-4 border-l-4 md:mb-12 border-black text-center"
         >
             <Contact
                 service="Discord"
