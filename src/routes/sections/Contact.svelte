@@ -35,8 +35,8 @@
         >
             <Contact service="Breadmoji" name="discord.gg/uGbQsmRSxE" url="https://discord.gg/uGbQsmRSxE"/>
             <Contact service="Email" name="me@breadtm.xyz" url="mailto:me@breadtm.xyz" />
-            <Contact service="Github" name="ItsBreadTime" url=''/>
-            <Contact service="Minecraft" name="FloofTM" />
+            <Contact service="Github" name="ItsBreadTime" url="https://github.com/ItsBreadTime"/>
+            <Contact service="Minecraft" name="FloofTM" url="https://namemc.com/profile/FloofTM.1"/>
         </div>
     </div>
 </div>
