@@ -12,7 +12,7 @@
             <slot name="name"></slot>{name}
         </h3>
         <img
-            src=projects/{name}.png
+            src=projects/{name}.webp
             alt={name}
             class="rounded-xl mb-4 border-black border-4 brightness-75 hover:brightness-100 transition-all"
         />

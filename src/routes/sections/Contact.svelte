@@ -23,21 +23,50 @@
                 url="https://matrix.to/#/@breadtm:mozilla.org"
             />
             <ContactLarge
-                image="contacts/discord.svg"
-                title="Discord"
-                username="bread.trademark"
-                description="I'm mostly active here, i guess"
-                url="https://discord.com/users/810533927492124693"
+                image="contacts/signal.svg"
+                title="Signal"
+                username="breadtm.69"
+                description="Still don't know what to put here"
+                url="https://signal.me/#eu/iUiPuUfEn4nK9WBEdrC8L8IAgK2Xi5io9uQUEJQu5EsxrLc_lvxP0Z_8hu1nXVqD"
             />
         </div>
         <div
             class="grid md:grid-cols-4 border-l-4 md:mb-12 border-black text-center md:border-b-4"
         >
-            <Contact service="Breadmoji" name="discord.gg/uGbQsmRSxE" url="https://discord.gg/uGbQsmRSxE"/>
-            <Contact service="Email" name="me@breadtm.xyz" url="mailto:me@breadtm.xyz" />
-            <Contact service="Github" name="ItsBreadTime" url="https://github.com/ItsBreadTime"/>
-            <Contact service="Minecraft" name="FloofTM" url="https://namemc.com/profile/FloofTM.1"/>
+            <Contact
+                service="Discord"
+                name="bread.trademark"
+                url="https://discord.com/users/810533927492124693"
+            />
+            <Contact
+                service="Email"
+                name="me@breadtm.xyz"
+                url="mailto:me@breadtm.xyz"
+            />
+            <Contact
+                service="Github"
+                name="ItsBreadTime"
+                url="https://github.com/ItsBreadTime"
+            />
+            <Contact
+                service="Minecraft"
+                name="FloofTM"
+                url="https://namemc.com/profile/FloofTM.1"
+            />
         </div>
+        <a
+            class="block mt-6 md:mt-0 text-center border-4 text-2xl p-4 md:p-8 bg-violet-600 text-gray-100 h-full font-semibold border-black"
+            href="https://discord.gg/uGbQsmRSxE"
+        >
+            <a
+                href="https://discord.gg/uGbQsmRSxE"
+                class="mt-3 text-2xl py-2 px-4 text-center bg-black rounded hover:bg-violet-950 transition-all"
+                >Join</a
+            >
+            our discord community
+            <span class="font-black text-yellow-200">Breadmoji</span>, filled
+            with cute bread gboard emoji kitchen emojis.
+    </a>
     </div>
 </div>
 

@@ -23,7 +23,7 @@
         <a
             href={url}
             class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-indigo-950 transition-all"
-            >Visit</a
+            >Start chat</a
         >
 </span>
 </div>
