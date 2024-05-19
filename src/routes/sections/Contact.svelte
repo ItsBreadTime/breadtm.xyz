@@ -58,15 +58,10 @@
             class="block mt-6 md:mt-0 text-center border-4 text-2xl p-4 md:p-8 bg-violet-600 text-gray-100 h-full font-semibold border-black"
             href="https://discord.gg/uGbQsmRSxE"
         >
-            <a
-                href="https://discord.gg/uGbQsmRSxE"
-                class="mt-3 text-2xl py-2 px-4 text-center bg-black rounded hover:bg-violet-950 transition-all"
-                >Join</a
-            >
-            our discord community
+            Click this box to join our discord community
             <span class="font-black text-yellow-200">Breadmoji</span>, filled
             with cute bread gboard emoji kitchen emojis.
-    </a>
+        </a>
     </div>
 </div>
 
