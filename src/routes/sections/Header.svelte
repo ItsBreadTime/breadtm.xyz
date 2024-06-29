@@ -1,7 +1,7 @@
 <script>
     import Title from "../components/Title.svelte";
+    import Time from "../components/Time.svelte";
 </script>
-
 <div class="py-4" id="header">
     <div class="m-4 md:m-8">
         <Title style="bg-pink-200 text-3xl md:text-4xl"
@@ -22,6 +22,7 @@
                 <div
                     class="text-xl md:text-2xl p-8 bg-cyan-600 text-gray-100 h-full font-semibold"
                 >
+                    <Time/>
                     This is a placeholder, trust me i will fill in this box in 3-5 business years.
                 </div>
             </div>
