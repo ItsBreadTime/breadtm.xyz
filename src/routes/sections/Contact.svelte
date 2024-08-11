@@ -8,12 +8,12 @@
     <div class="m-4 md:m-8">
         <Title style="bg-amber-200 text-2xl md:text-3xl"
             >💬 Contacts & Accounts
-            <div class="text-yellow-800 font-medium text-lg">
-                Hint: Click a block to copy the username
+            <div class="text-yellow-800 font-medium text-lg jsreq">
+                Hint: Click to copy username
             </div></Title
         >
         <div
-            class="grid grid-cols-1 md:grid-cols-6 md:border-y-4 md:border-l-4 border-4 md:border-0 border-black"
+            class="grid grid-cols-1 md:grid-cols-6 md:border-y-4 md:border-l-4 border-4 md:border-0 border-black border-t-1"
         >
             <ContactLarge
                 image="contacts/element.svg"
@@ -31,7 +31,7 @@
             />
         </div>
         <div
-            class="grid md:grid-cols-4 border-l-4 md:mb-12 border-black text-center md:border-b-4"
+            class="grid grid-cols-2 md:grid-cols-4 border-l-4 md:mb-12 border-black text-center md:border-b-4"
         >
             <Contact
                 service="Discord"

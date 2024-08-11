@@ -2,6 +2,9 @@
     import Title from "../components/Title.svelte";
     import Time from "../components/Time.svelte";
 </script>
+<noscript>
+    <div class="bg-red-300 text-center p-2 text-lg">JS disabled, some features will be hidden (e.g. clocks, copy).</div>
+</noscript>
 <div class="py-4" id="header">
     <div class="m-4 md:m-8">
         <Title style="bg-pink-200 text-3xl md:text-4xl"
@@ -11,7 +14,7 @@
             class="grid grid-cols-1 md:grid-cols-3 border-4 border-black"
         >
             <div
-                class=" border-b-4 md:border-r-4 md:border-b-0 border-black"
+                class="border-b-4 md:border-r-4 md:border-b-0 border-black"
                 id="pimage"
             >
                 <span class="flex items-center justify-center m-8">
