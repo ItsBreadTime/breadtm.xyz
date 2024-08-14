@@ -24,11 +24,14 @@
         <a
             href={sourceUrl}
             class="inline-block mt-3 text-2xl py-2 px-4 bg-black rounded hover:bg-emerald-950 transition-all mr-4"
+            data-umami-event="View {name} source"
+
             >Source</a
         >
         <a
             href={url}
             class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-emerald-950 transition-all"
+            data-umami-event="Visit {name}"
             >Visit</a
         >
     </div>

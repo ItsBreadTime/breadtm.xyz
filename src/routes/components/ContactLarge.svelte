@@ -20,6 +20,7 @@
     <span
         class="block text-xl md:text-2xl p-8 bg-indigo-600 text-gray-100 h-full font-semibold md:border-r-4 border-t-4 md:border-t-0 border-b-4 md:border-b-0 border-black"
         use:copy={username}
+        data-umami-event="Contact copy - {title}"
     >
         <h3 class="text-4xl font-bold text-indigo-200 hidden md:flex">{title}</h3>
         <span class="block p-2 bg-indigo-700 rounded-xl">{username}</span>
@@ -27,6 +28,7 @@
         <a
             href={url}
             class="inline-block mt-3 text-2xl py-2 w-full text-center bg-black rounded hover:bg-indigo-950 transition-all"
+            data-umami-event="Contact: {title}"
             >Start chat</a
         >
 </span>
