@@ -9,15 +9,17 @@
     interface Toy {
         slug: string;
         name: string;
-        image?: string; // Made image optional to match server data
-        imageFiles?: string[]; // New property with server-provided images
+        image?: string; // Legacy field
+        primaryImage?: string; // New field provided by server
         faction?: string;
         series?: string;
         description?: string;
         year?: string;
     }
 
+    // Extract data
     let toys: Toy[] = data.toys || [];
+    const toyImagesMap = data.toyImagesMap || {}; // Map of slug -> available images
 
     // --- Filtering State ---
     let selectedFaction = '';
@@ -36,12 +38,20 @@
         return factionMatch && seriesMatch && searchMatch;
     });
 
-    // Function to get the first image or undefined
-    function getFirstImage(toy: Toy): string | undefined {
-        if (toy.imageFiles && toy.imageFiles.length > 0) {
-            return toy.imageFiles[0];
+    // Function to get the best image for a toy - uses server-provided primaryImage
+    function getBestImage(toy: Toy): string | undefined {
+        // Use the server-determined primary image if available
+        if (toy.primaryImage) {
+            return toy.primaryImage;
         }
-        return toy.image;
+        
+        // Fall back to the image specified in frontmatter if available
+        if (toy.image) {
+            return toy.image;
+        }
+        
+        // Return undefined if no images are available
+        return undefined;
     }
 </script>
 
@@ -122,12 +132,13 @@
                     <div class="toy-card-container">
                         <ToyItem
                             name={toy.name}
-                            image={getFirstImage(toy)}
+                            image={getBestImage(toy)}
                             slug={toy.slug}
                             faction={toy.faction}
                             series={toy.series}
                             description={toy.description}
                             year={toy.year}
+                            hasImages={!!(toyImagesMap[toy.slug] && toyImagesMap[toy.slug].length > 0)}
                         />
                     </div>
                 {/each}

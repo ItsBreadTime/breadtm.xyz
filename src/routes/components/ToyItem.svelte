@@ -6,30 +6,44 @@
     export let series: string | undefined = undefined;
     export let description: string | undefined = undefined;
     export let year: string | undefined = undefined;
+    export let hasImages: boolean = false; // New prop to indicate if toy has real images
 
-    // Fix image path to match the correct structure in /toys/images/slug/
-    // Always look for main.jpg or main.png first, fallback to the provided image
-    const mainImagePath = `/toys/images/${slug}/main`;
-    // Determine which image to use - this is a simplified version, the server will provide the actual list
-    const imagePath = image ? `/toys/images/${slug}/${image}` : '/toys/images/placeholder.jpg';
+    // Determine which image to use, avoiding unnecessary requests
+    let imagePath: string;
+    
+    if (hasImages && image) {
+        // We know this toy has images and we have a specific one to use
+        imagePath = `/toys/images/${slug}/${image}`;
+    } else if (hasImages) {
+        // We know images exist but no specific one was provided,
+        // use main.jpg since the server would have found it if it exists
+        imagePath = `/toys/images/${slug}/main.jpg`;
+    } else {
+        // No real images exist for this toy, use a text placeholder instead
+        imagePath = '';
+    }
+    
     const toyPagePath = `/toys/${slug}`;
 </script>
 
 <a href={toyPagePath} class="block rounded-lg overflow-hidden bg-gray-800 hover:shadow-md transition-all duration-300 group shadow-sm transform hover:-translate-y-1 h-full">
     <div class="aspect-[3/4] overflow-hidden relative">
         <div class="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-gray-900/70 to-transparent z-10 group-hover:opacity-60 transition-opacity duration-300"></div>
-        <img 
-            src={imagePath} 
-            alt="Image of {name}" 
-            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" 
-            loading="lazy"
-            on:error={(e) => { 
-                const target = e.target;
-                if (target instanceof HTMLImageElement) {
-                    target.src = '/toys/images/placeholder.jpg'; 
-                }
-            }}
-        />
+        
+        {#if imagePath}
+            <!-- Only try to load an image if we know it exists -->
+            <img 
+                src={imagePath} 
+                alt="Image of {name}" 
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" 
+                loading="lazy"
+            />
+        {:else}
+            <!-- Text-based placeholder instead of trying to load non-existent images -->
+            <div class="w-full h-full flex items-center justify-center bg-gray-700 p-4">
+                <span class="text-lg font-medium text-gray-300 text-center">{name}</span>
+            </div>
+        {/if}
         
         <div class="absolute inset-x-0 bottom-0 p-2 sm:p-3 z-20">
             <h3 class="text-base sm:text-lg md:text-xl font-bold truncate text-white group-hover:text-rose-300 transition-colors duration-300 drop-shadow-sm">{name}</h3>

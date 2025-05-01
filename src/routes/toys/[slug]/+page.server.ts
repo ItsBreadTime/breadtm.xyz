@@ -1,86 +1,71 @@
 import { error } from '@sveltejs/kit';
-import { stat, readdir } from 'fs/promises'; // Use promises for async operations
-import path from 'path';
-import matter from 'gray-matter'; // Need gray-matter to get metadata
-import fs from 'fs'; // Need fs sync temporarily for gray-matter
-import type { PageServerLoad } from './$types'; // Import the type
+import type { PageServerLoad } from './$types';
 
-const toysPath = path.resolve('src/routes/toys');
-const imagesBasePath = path.resolve('static/toys/images');
+// Get metadata by importing markdown files
+// This works at build time with Vite
+const modules = import.meta.glob('../*.md', { eager: true });
 
-// Add type annotation for the load function
-export const load: PageServerLoad = async ({ params }) => {
-    const { slug } = params;
-    const filePath = path.join(toysPath, `${slug}.md`);
-    const toyImagesPath = path.join(imagesBasePath, slug);
+// Import all available images at build time
+const imageModules = import.meta.glob('/static/toys/images/**/*.jpg', { eager: true });
 
-    try {
-        // Check if file exists first using async stat
-        await stat(filePath);
+// Create a mapping of toy slugs to their available images
+const toyImagesMap: Record<string, string[]> = {};
 
-        // Read file content synchronously (gray-matter is sync)
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        const { data } = matter(fileContent); // Only extract metadata
-
-        // Scan for toy images
-        let imageFiles: string[] = [];
-        try {
-            // Check if the images directory exists
-            await stat(toyImagesPath);
-            
-            // Get all image files from the directory
-            const files = await readdir(toyImagesPath);
-            
-            // Filter to only include image files and sort them properly
-            imageFiles = files
-                .filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
-                .sort((a, b) => {
-                    // Put 'main' at the beginning
-                    if (a.startsWith('main.')) return -1;
-                    if (b.startsWith('main.')) return 1;
-                    
-                    // Parse numeric filenames for proper sorting (1.jpg before 10.jpg)
-                    const numA = parseInt(a.split('.')[0]);
-                    const numB = parseInt(b.split('.')[0]);
-                    if (!isNaN(numA) && !isNaN(numB)) {
-                        return numA - numB;
-                    }
-                    // Fallback to alphabetical sorting
-                    return a.localeCompare(b);
-                });
-        } catch (imgError) {
-            console.warn(`No images found for toy: ${slug}. Using default image if available.`);
-            // If we have an image from frontmatter, use that
-            if (data.image) {
-                imageFiles = [data.image];
-            }
+// Process the image modules to create a mapping
+Object.keys(imageModules).forEach(path => {
+    // Extract slug and filename from the path
+    // Path format: /static/toys/images/[slug]/[filename].jpg
+    const match = path.match(/\/static\/toys\/images\/([^\/]+)\/([^\/]+)$/);
+    if (match) {
+        const [, slug, filename] = match;
+        if (!toyImagesMap[slug]) {
+            toyImagesMap[slug] = [];
         }
-
-        // Basic validation for required frontmatter
-        if (!data.name) {
-             console.warn(`Toy page ${slug}.md is missing required frontmatter (name).`);
-             // Potentially throw error(500) if critical
-        }
-
-        return {
-            // Return serializable metadata with image files
-            metadata: {
-                ...data,
-                imageFiles
-            }
-        };
-    } catch (e: any) { // Add type annotation for 'e'
-        // Handle file not found from stat
-        if (e?.code === 'ENOENT') { // Use optional chaining
-            throw error(404, `Not found: /toys/${slug}`);
-        }
-
-        // Handle other errors
-        console.error(`Error loading metadata for toy ${slug}:`, e);
-        // Re-throw SvelteKit errors if they somehow occur
-        if (e?.status) throw e; // Use optional chaining
-
-        // Generic internal error for other issues
-        throw error(500, `Failed to load metadata for ${slug}.`);
+        toyImagesMap[slug].push(filename);
     }
+});
+
+export const load: PageServerLoad = async ({ params }) => {
+  const { slug } = params;
+  
+  try {
+    // Look up toy metadata from the map
+    const metadata = modules[`../${slug}.md`];
+    
+    if (!metadata) {
+      throw error(404, `Not found: /toys/${slug}`);
+    }
+    
+    // Get list of available images for this toy
+    const availableImages = toyImagesMap[slug] || [];
+    
+    // Sort images - main.jpg first, then numerical order
+    const sortedImages = [...availableImages].sort((a, b) => {
+      if (a === 'main.jpg') return -1;
+      if (b === 'main.jpg') return 1;
+      
+      // Extract numbers from filenames like "1.jpg", "2.jpg"
+      const numA = parseInt(a.match(/^(\d+)/)?.[1] || '999', 10);
+      const numB = parseInt(b.match(/^(\d+)/)?.[1] || '999', 10);
+      return numA - numB;
+    });
+    
+    // Type the module correctly
+    const mod = metadata as { metadata?: Record<string, any> };
+    
+    return {
+      metadata: {
+        ...mod.metadata || {}, // Support both SvelteKit's mdsvex format and plain imports
+        slug,
+        availableImages: sortedImages
+      }
+    };
+  } catch (e) {
+    // If this is already a SvelteKit error, rethrow it
+    if (e && typeof e === 'object' && 'status' in e) throw e;
+    
+    // Otherwise, throw a generic error
+    console.error(`Error loading metadata for toy ${slug}:`, e);
+    throw error(500, `Failed to load metadata for ${slug}.`);
+  }
 };

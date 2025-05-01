@@ -7,26 +7,27 @@
     
     export let data: { metadata: { 
         name?: string; 
-        imageFiles: string[]; // Server-provided list of available images
-        image?: string; // Legacy field kept for compatibility
+        imageTemplate?: string;
+        slug?: string;
+        image?: string;
         series?: string; 
         year?: string; 
         faction?: string; 
-        description?: string; 
+        description?: string;
+        availableImages?: string[]; // New property from server with preloaded images
     } }; 
 
     const toy = data.metadata;
+    const slug = toy.slug || $page.params.slug;
 
     // State for the dynamically loaded component
     let contentComponent: typeof SvelteComponent | null = null; 
     let loadError: string | null = null; 
     
-    // Get slug from page store
-    const slug: string = $page.params.slug;
-
-    // For image carousel
+    // Use the server-provided images instead of discovery
     let currentImageIndex: number = 0;
-    const images: string[] = toy.imageFiles || []; // Use server-provided images
+    const images = toy.availableImages || [];
+    let isLoadingImages = false; // No loading state needed, we have the images now
 
     // For image enlargement
     let isImageEnlarged: boolean = false;
@@ -165,6 +166,7 @@
     // Setup keyboard listeners
     onMount(() => {
         window.addEventListener('keydown', handleKeydown);
+        
         return () => {
             window.removeEventListener('keydown', handleKeydown);
             document.body.classList.remove('overflow-hidden');
@@ -215,22 +217,17 @@
                                 </button>
                             {/each}
                             
-                            <!-- Swipe indicator for mobile -->
-                            <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-xs z-20 md:hidden">
-                                Swipe to navigate
-                            </div>
-                            
                             <!-- Carousel controls - only if multiple images -->
                             {#if images.length > 1}
-                                <button class="absolute -left-4 sm:-left-6 top-1/2 -translate-y-1/2 bg-black/70 text-white p-2.5 sm:p-3 rounded-full shadow-lg hover:bg-black/90 z-20 transition-all duration-300 backdrop-blur-sm transform translate-x-1/2 sm:translate-x-1/2"
+                                <button class="absolute left-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-r-md shadow-sm hover:shadow-md z-20 transition-all duration-300"
                                         on:click|stopPropagation={prevImage}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                                     </svg>
                                 </button>
-                                <button class="absolute -right-4 sm:-right-6 top-1/2 -translate-y-1/2 bg-black/70 text-white p-2.5 sm:p-3 rounded-full shadow-lg hover:bg-black/90 z-20 transition-all duration-300 backdrop-blur-sm transform -translate-x-1/2 sm:-translate-x-1/2"
+                                <button class="absolute right-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-l-md shadow-sm hover:shadow-md z-20 transition-all duration-300"
                                         on:click|stopPropagation={nextImage}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                     </svg>
                                 </button>
@@ -246,8 +243,7 @@
                             {/if}
                         {:else}
                             <div class="flex items-center justify-center h-full bg-black/60">
-                                <div class="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-t-2 border-b-2 border-rose-300 mx-auto"></div>
-                                <p class="ml-3 text-rose-300 text-sm sm:text-base">No images available</p>
+                                <p class="text-rose-300 text-sm sm:text-base">No images available</p>
                             </div>
                         {/if}
                     </div>
@@ -295,7 +291,7 @@
                         {#if toy.description}
                             <div class="mt-3 sm:mt-6 space-y-1 sm:space-y-2">
                                 <strong class="font-semibold text-rose-200 block">Description:</strong>
-                                <p class="text-gray-200 italic text-sm sm:text-base">{toy.description}</p>
+                                <p class="text-gray-200 text-sm sm:text-base">{toy.description}</p>
                             </div>
                         {/if}
                     </div>
@@ -327,6 +323,8 @@
 
 <!-- Enlarged Image Modal with swipe support -->
 {#if isImageEnlarged && images.length > 0}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
     <div 
         class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-2 sm:p-4"
         on:click={closeEnlargedImage}
@@ -349,6 +347,8 @@
         <h2 id="enlarged-image-title" class="sr-only">Enlarged image {enlargedImageIndex + 1} of {images.length} - {toy.name}</h2>
         
         <!-- Image container with swipe support -->
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div 
             class="relative max-w-5xl w-full h-[80vh] flex items-center justify-center"
             on:touchstart={handleEnlargedTouchStart}
@@ -362,7 +362,7 @@
                 class="max-h-full max-w-full object-contain"
             />
             
-            <!-- Swipe indicator for mobile -->
+            <!-- Swipe indicator for mobile - KEPT for enlarged view only -->
             <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-xs md:hidden">
                 Swipe to navigate • Tap to close
             </div>
@@ -370,20 +370,20 @@
             <!-- Navigation controls -->
             {#if images.length > 1}
                 <button 
-                    class="absolute left-0 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/50 text-white p-2 sm:p-3 rounded-r-full shadow-lg transition-all duration-300"
+                    class="absolute left-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-r-md shadow-sm hover:shadow-md transition-all duration-300"
                     on:click|stopPropagation={prevEnlargedImage}
                     aria-label="Previous image"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
                 <button 
-                    class="absolute right-0 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/50 text-white p-2 sm:p-3 rounded-l-full shadow-lg transition-all duration-300"
+                    class="absolute right-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-l-md shadow-sm hover:shadow-md transition-all duration-300"
                     on:click|stopPropagation={nextEnlargedImage}
                     aria-label="Next image"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
                 </button>

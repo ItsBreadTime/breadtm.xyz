@@ -1,14 +1,7 @@
-import fs from 'fs';
-import path from 'path';
-import matter from 'gray-matter';
 import { error } from '@sveltejs/kit';
-import { readdir, stat } from 'fs/promises';
 
-const toysPath = path.resolve('src/routes/toys');
-const imagesBasePath = path.resolve('static/toys/images');
-
-// Define an interface for the expected frontmatter structure
-interface ToyFrontmatter {
+// Define the structure of the returned toy object
+interface ToyData {
     name: string;
     image?: string;
     additionalImages?: string[];
@@ -16,99 +9,80 @@ interface ToyFrontmatter {
     series?: string;
     description?: string;
     year?: string;
-    // Add other potential fields
+    slug: string;
 }
 
-// Define the structure of the returned toy object
-interface ToyData extends ToyFrontmatter {
-    slug: string;
-    imageFiles: string[]; // Changed from optional to required string[]
-}
+// Use Vite's glob import feature to import all markdown files at build time
+const modules = import.meta.glob('./*.md', { eager: true });
+
+// Import all available images at build time
+// This creates a map of which images exist without client-side network requests
+const imageModules = import.meta.glob('/static/toys/images/**/*.jpg', { eager: true });
+
+// Create a mapping of toy slugs to their available images
+const toyImagesMap: Record<string, string[]> = {};
+
+// Process the image modules to create a mapping
+Object.keys(imageModules).forEach(path => {
+    // Extract slug and filename from the path
+    // Path format: /static/toys/images/[slug]/[filename].jpg
+    const match = path.match(/\/static\/toys\/images\/([^\/]+)\/([^\/]+)$/);
+    if (match) {
+        const [, slug, filename] = match;
+        if (!toyImagesMap[slug]) {
+            toyImagesMap[slug] = [];
+        }
+        toyImagesMap[slug].push(filename);
+    }
+});
 
 export async function load() {
     try {
-        const files = fs.readdirSync(toysPath).filter((file: string) => file.endsWith('.md'));
-
-        const toyPromises = files.map(async (filename: string) => {
-            const filePath = path.join(toysPath, filename);
-            const fileContent = fs.readFileSync(filePath, 'utf-8');
-            const { data } = matter(fileContent) as unknown as { data: ToyFrontmatter }; // Type assertion for gray-matter data
-            const slug = filename.replace('.md', '');
-
-            // Basic validation
-            if (!data.name) {
-                console.warn(`Skipping ${filename}: missing 'name' frontmatter.`);
-                return null;
-            }
-
-            // Find available images for this toy
-            let imageFiles: string[] = [];
-            const toyImagesPath = path.join(imagesBasePath, slug);
+        // Transform the imported modules into an array of toy data
+        const toys = Object.entries(modules).map(([path, module]) => {
+            // Extract slug from path (e.g., "./beeghaj.md" -> "beeghaj")
+            const slug = path.replace('./', '').replace('.md', '');
             
-            try {
-                // Check if the images directory exists
-                await stat(toyImagesPath);
-                
-                // Get all image files from the directory
-                const files = await readdir(toyImagesPath);
-                
-                // Filter to only include image files and sort them properly
-                imageFiles = files
-                    .filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
-                    .sort((a, b) => {
-                        // Put 'main' at the beginning
-                        if (a.startsWith('main.')) return -1;
-                        if (b.startsWith('main.')) return 1;
-                        
-                        // Parse numeric filenames for proper sorting (1.jpg before 10.jpg)
-                        const numA = parseInt(a.split('.')[0]);
-                        const numB = parseInt(b.split('.')[0]);
-                        if (!isNaN(numA) && !isNaN(numB)) {
-                            return numA - numB;
-                        }
-                        // Fallback to alphabetical sorting
-                        return a.localeCompare(b);
-                    });
-                
-                // If we found images but no 'image' property is set in frontmatter, 
-                // use the first image as the default
-                if (imageFiles.length > 0 && !data.image) {
-                    data.image = imageFiles[0];
+            // Extract metadata from the module
+            const mod = module as { metadata?: Record<string, any> };
+            const metadata = mod.metadata || {};
+            
+            // Find the primary image for this toy
+            let primaryImage: string | undefined = undefined;
+            
+            // If this toy has images in our map
+            if (toyImagesMap[slug] && toyImagesMap[slug].length > 0) {
+                // Check for main.jpg first
+                if (toyImagesMap[slug].includes('main.jpg')) {
+                    primaryImage = 'main.jpg';
+                } 
+                // Then check for 1.jpg
+                else if (toyImagesMap[slug].includes('1.jpg')) {
+                    primaryImage = '1.jpg';
                 }
-            } catch (imgError) {
-                console.warn(`No images found for toy: ${slug}.`);
-                // If we have no image directory but frontmatter has an image, keep that
+                // Otherwise use the first available image
+                else {
+                    primaryImage = toyImagesMap[slug][0];
+                }
             }
             
-            // If no images were found and no image is specified in frontmatter, this is a problem
-            if (imageFiles.length === 0 && !data.image) {
-                console.warn(`Toy ${slug} has no images and no image specified in frontmatter.`);
-                data.image = 'placeholder.jpg'; // Set a placeholder
-            }
-
             return {
+                ...metadata,
                 slug,
-                ...data, // Spread frontmatter data
-                imageFiles // Include available images
-            };
+                // Include the primary image in the server response
+                primaryImage
+            } as ToyData & { primaryImage?: string };
         });
 
-        const toys: ToyData[] = (await Promise.all(toyPromises))
-            .filter((toy: ToyData | null): toy is ToyData => toy !== null); // Type guard to filter out nulls and refine type
-
         // Sort toys alphabetically by name
-        toys.sort((a: ToyData, b: ToyData) => a.name.localeCompare(b.name));
+        toys.sort((a, b) => a.name?.localeCompare(b.name || '') || 0);
 
-        return {
-            toys
+        return { 
+            toys,
+            // Send the full images map to the client to avoid discovery requests
+            toyImagesMap 
         };
-    } catch (e: unknown) { // Type the error as unknown
-        // Check if 'e' is an error object with a 'code' property
-        if (typeof e === 'object' && e !== null && 'code' in e && (e as { code: string }).code === 'ENOENT') {
-            console.warn("'/src/routes/toys' directory not found. Returning empty toys list.");
-            return { toys: [] };
-        }
-        // For other errors, re-throw a SvelteKit error
+    } catch (e) {
         console.error("Error loading toys:", e);
         throw error(500, 'Failed to load toys data.');
     }
