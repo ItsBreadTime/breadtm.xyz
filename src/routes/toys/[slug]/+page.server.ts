@@ -5,8 +5,8 @@ import type { PageServerLoad } from './$types';
 // This works at build time with Vite
 const modules = import.meta.glob('../*.md', { eager: true });
 
-// Import all available images at build time
-const imageModules = import.meta.glob('/static/toys/images/**/*.jpg', { eager: true });
+// Import all available images at build time - Updated to use WebP images for display
+const imageModules = import.meta.glob('/static/toys/**/*.webp', { eager: true });
 
 // Create a mapping of toy slugs to their available images
 const toyImagesMap: Record<string, string[]> = {};
@@ -14,8 +14,8 @@ const toyImagesMap: Record<string, string[]> = {};
 // Process the image modules to create a mapping
 Object.keys(imageModules).forEach(path => {
     // Extract slug and filename from the path
-    // Path format: /static/toys/images/[slug]/[filename].jpg
-    const match = path.match(/\/static\/toys\/images\/([^\/]+)\/([^\/]+)$/);
+    // Path format: /static/toys/[slug]/[filename].webp
+    const match = path.match(/\/static\/toys\/([^\/]+)\/([^\/]+)$/);
     if (match) {
         const [, slug, filename] = match;
         if (!toyImagesMap[slug]) {
@@ -39,12 +39,12 @@ export const load: PageServerLoad = async ({ params }) => {
     // Get list of available images for this toy
     const availableImages = toyImagesMap[slug] || [];
     
-    // Sort images - main.jpg first, then numerical order
+    // Sort images - main.webp first, then numerical order
     const sortedImages = [...availableImages].sort((a, b) => {
-      if (a === 'main.jpg') return -1;
-      if (b === 'main.jpg') return 1;
+      if (a === 'main.webp') return -1;
+      if (b === 'main.webp') return 1;
       
-      // Extract numbers from filenames like "1.jpg", "2.jpg"
+      // Extract numbers from filenames like "1.webp", "2.webp"
       const numA = parseInt(a.match(/^(\d+)/)?.[1] || '999', 10);
       const numB = parseInt(b.match(/^(\d+)/)?.[1] || '999', 10);
       return numA - numB;

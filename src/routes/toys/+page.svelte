@@ -42,12 +42,16 @@
     function getBestImage(toy: Toy): string | undefined {
         // Use the server-determined primary image if available
         if (toy.primaryImage) {
+            // The primaryImage is already the WebP filename
             return toy.primaryImage;
         }
         
         // Fall back to the image specified in frontmatter if available
         if (toy.image) {
-            return toy.image;
+            // Convert to WebP format if it's not already
+            return toy.image.endsWith('.webp') 
+                ? toy.image 
+                : toy.image.replace(/\.(jpg|jpeg)$/i, '.webp');
         }
         
         // Return undefined if no images are available
@@ -63,7 +67,7 @@
         <!-- Filtering Controls - Inline on all screen sizes -->
         <div class="mt-3 mb-3 p-2 sm:p-4 bg-gray-800/90 text-white rounded-lg shadow-xl border-2 border-rose-300/30 backdrop-blur-sm text-xs sm:text-base">
             <!-- Stats Bar - Moved inside the filter box and made smaller on mobile -->
-            <div class="p-1 sm:p-2 bg-gray-800/70 rounded-lg text-gray-300 flex justify-between items-center backdrop-blur-sm border-l-2 sm:border-l-4 border-rose-400 mb-2">
+            <div class="p-1 sm:p-2 bg-gray-800/70 rounded-lg text-gray-300 flex justify-between items-center backdrop-blur-sm  mb-2">
                 <div class="font-medium">
                     Showing <span class="text-white font-bold">{filteredToys.length}</span> of <span class="text-white font-bold">{toys.length}</span> toys
                 </div>

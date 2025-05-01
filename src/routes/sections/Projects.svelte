@@ -8,7 +8,7 @@
     <div class="m-4 md:m-8 relative z-10">
         <Title style="bg-indigo-200 text-2xl md:text-3xl">🛠️ Projects</Title>
         <div
-            class="grid grid-cols-1 md:grid-cols-2 border-t-4 md:border-4 rounded-lg overflow-hidden md:my-12 border-black shadow-xl"
+            class="grid grid-cols-1 md:grid-cols-2 border-t-4 md:border-4 overflow-hidden md:my-12 border-black shadow-xl"
         >
             <Project
                 name="This website"

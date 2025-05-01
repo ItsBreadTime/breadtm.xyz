@@ -5,8 +5,9 @@
 <noscript>
     <div class="bg-red-300 text-center p-2 text-lg">JS disabled, some features will be hidden (e.g. clocks, copy).</div>
 </noscript>
-<div class="py-8 md:py-12 border-b-8 md:border-8 border-black" id="header">
-    <div class="m-4 md:m-8">
+<div class="py-8 md:py-12 border-b-8 md:border-8 border-black relative overflow-hidden" id="header">
+    <div class="header-grid absolute inset-0 opacity-25"></div>
+    <div class="m-4 md:m-8 relative z-10">
         <div class="my-6 text-6xl sm:text-7xl md:text-9xl font-black text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.3)] tracking-tight">
             Hello, I'm Bread<sup class="font-bold text-blue-300 font-features sups">TM</sup>
         </div>
@@ -51,5 +52,18 @@
                 transparent 0.1em
             );
         background-size: 3em 3em;
+    }
+    
+    .header-grid {
+        background-image: linear-gradient(
+                theme(colors.indigo.600) 0.1em,
+                transparent 0.1em
+            ),
+            linear-gradient(
+                90deg,
+                theme(colors.indigo.600) 0.1em,
+                transparent 0.1em
+            );
+        background-size: 3.5em 3.5em;
     }
 </style>

@@ -136,8 +136,18 @@
         }
     }
 
-    // Helper function for image paths
-    const imagePath = (img: string): string => `/toys/images/${slug}/${img}`;
+    // Helper function for image paths - WebP images
+    const imagePath = (img: string): string => {
+        // Image is already a WebP filename
+        return `/toys/${slug}/${img}`;
+    };
+    
+    // Helper function for full resolution download paths - original JPGs
+    const fullResPath = (img: string): string => {
+        // Convert WebP filename to JPG for full resolution downloads
+        const jpgFilename = img.replace(/\.webp$/i, '.jpg');
+        return `/fullres/toys/${slug}/${jpgFilename}`;
+    };
 
     // Dynamic import for toy markdown content
     $: if (slug) {
@@ -208,14 +218,25 @@
                                     on:click={() => openEnlargedImage(i)}
                                     aria-label="Enlarge image {i+1}"
                                 >
-                                    <!-- Changed from top to bottom shadow to match card view -->
-                                    <div class="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/50 to-transparent z-10"></div>
-                                    
                                     <img src={imagePath(image)} 
                                          alt="{toy.name} - view {i+1}" 
                                          class="w-full h-full object-contain bg-black/60" />
                                 </button>
                             {/each}
+                            
+                            <!-- Smaller, subtle download button positioned in the corner -->
+                            {#if images.length > 0}
+                                <a 
+                                    href={fullResPath(images[currentImageIndex])} 
+                                    download
+                                    class="absolute top-3 right-3 z-20 flex items-center justify-center bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg"
+                                    title="Download full resolution"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />v
+                                    </svg>
+                                </a>
+                            {/if}
                             
                             <!-- Carousel controls - only if multiple images -->
                             {#if images.length > 1}
@@ -361,6 +382,19 @@
                 alt="{toy.name} - enlarged view {enlargedImageIndex+1}" 
                 class="max-h-full max-w-full object-contain"
             />
+            
+            <!-- Updated download button for enlarged view - smaller and more subtle -->
+            <a 
+                href={fullResPath(images[enlargedImageIndex])} 
+                download
+                class="absolute top-4 right-4 flex items-center justify-center bg-black/50 hover:bg-black/70 text-white p-2.5 rounded-full transition-all duration-300"
+                on:click|stopPropagation={() => {}}
+                title="Download full resolution"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+            </a>
             
             <!-- Swipe indicator for mobile - KEPT for enlarged view only -->
             <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-xs md:hidden">

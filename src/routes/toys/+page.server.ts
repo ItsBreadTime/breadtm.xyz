@@ -15,9 +15,8 @@ interface ToyData {
 // Use Vite's glob import feature to import all markdown files at build time
 const modules = import.meta.glob('./*.md', { eager: true });
 
-// Import all available images at build time
-// This creates a map of which images exist without client-side network requests
-const imageModules = import.meta.glob('/static/toys/images/**/*.jpg', { eager: true });
+// Import all available images at build time - Updated to use WebP format
+const imageModules = import.meta.glob('/static/toys/**/*.webp', { eager: true });
 
 // Create a mapping of toy slugs to their available images
 const toyImagesMap: Record<string, string[]> = {};
@@ -25,8 +24,8 @@ const toyImagesMap: Record<string, string[]> = {};
 // Process the image modules to create a mapping
 Object.keys(imageModules).forEach(path => {
     // Extract slug and filename from the path
-    // Path format: /static/toys/images/[slug]/[filename].jpg
-    const match = path.match(/\/static\/toys\/images\/([^\/]+)\/([^\/]+)$/);
+    // Path format: /static/toys/[slug]/[filename].webp
+    const match = path.match(/\/static\/toys\/([^\/]+)\/([^\/]+)$/);
     if (match) {
         const [, slug, filename] = match;
         if (!toyImagesMap[slug]) {
@@ -52,13 +51,13 @@ export async function load() {
             
             // If this toy has images in our map
             if (toyImagesMap[slug] && toyImagesMap[slug].length > 0) {
-                // Check for main.jpg first
-                if (toyImagesMap[slug].includes('main.jpg')) {
-                    primaryImage = 'main.jpg';
+                // Check for main.webp first
+                if (toyImagesMap[slug].includes('main.webp')) {
+                    primaryImage = 'main.webp';
                 } 
-                // Then check for 1.jpg
-                else if (toyImagesMap[slug].includes('1.jpg')) {
-                    primaryImage = '1.jpg';
+                // Then check for 1.webp
+                else if (toyImagesMap[slug].includes('1.webp')) {
+                    primaryImage = '1.webp';
                 }
                 // Otherwise use the first available image
                 else {

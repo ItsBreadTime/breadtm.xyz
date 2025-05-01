@@ -5,7 +5,7 @@
 </script>
 
 <div
-    class="text-xl p-8 bg-gradient-to-br from-emerald-600 to-emerald-700 text-gray-100 h-full border-b-4 md:border-b-0 font-semibold border-r-4 border-black flex flex-col justify-between group"
+    class="border-x-4 md:border-x-0 text-xl p-8 bg-gradient-to-br from-emerald-600 to-emerald-700 text-gray-100 h-full border-b-4 md:border-b-0 font-semibold border-black flex flex-col justify-between group"
 >
     <div class="absolute inset-0 opacity-0 group-hover:opacity-10 bg-white transition-opacity duration-700 pointer-events-none"></div>
     <div>
@@ -16,7 +16,7 @@
             <img
                 src=projects/{name}.webp
                 alt={name}
-                class="rounded-xl brightness-75 group-hover:brightness-100 transition-all duration-500 transform group-hover:scale-105"
+                class="brightness-75 group-hover:brightness-100 transition-all duration-500 transform group-hover:scale-105"
                 loading="lazy"
             />
         </div>
