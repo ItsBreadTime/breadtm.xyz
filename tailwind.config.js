@@ -2,7 +2,14 @@
 export default {
   content: ['./src/**/*.{html,js,svelte,ts}'],
   theme: {
-    extend: {},
+    fontFamily: {
+      sans: [
+        '"Inter", sans-serif',
+        {
+          fontFeatureSettings: '"calt", "liga", "case","cv11"',
+        },
+      ],
+    },
   },
   plugins: [],
 }
