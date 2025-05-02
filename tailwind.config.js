@@ -4,9 +4,9 @@ export default {
   theme: {
     fontFamily: {
       sans: [
-        '"Inter", sans-serif',
+        '"InterVariable", sans-serif',
         {
-          fontFeatureSettings: '"calt", "liga", "case","cv11"',
+          fontFeatureSettings: '"calt", "liga", "cv11"',
         },
       ],
     },
