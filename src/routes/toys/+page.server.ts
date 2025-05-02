@@ -12,11 +12,14 @@ interface ToyData {
     slug: string;
 }
 
+// Define image format priority - highest quality/efficiency first
+const FORMAT_PRIORITY = ['avif', 'webp', 'jpg', 'jpeg', 'png'];
+
 // Use Vite's glob import feature to import all markdown files at build time
 const modules = import.meta.glob('./*.md', { eager: true });
 
-// Import all available images at build time - Updated to use WebP format
-const imageModules = import.meta.glob('/static/toys/**/*.webp', { eager: true });
+// Import all available images at build time - Updated to support multiple formats
+const imageModules = import.meta.glob('/static/toys/**/*.{avif,webp,jpg,jpeg,png}', { eager: true });
 
 // Create a mapping of toy slugs to their available images
 const toyImagesMap: Record<string, string[]> = {};
@@ -24,7 +27,7 @@ const toyImagesMap: Record<string, string[]> = {};
 // Process the image modules to create a mapping
 Object.keys(imageModules).forEach(path => {
     // Extract slug and filename from the path
-    // Path format: /static/toys/[slug]/[filename].webp
+    // Path format: /static/toys/[slug]/[filename].[ext]
     const match = path.match(/\/static\/toys\/([^\/]+)\/([^\/]+)$/);
     if (match) {
         const [, slug, filename] = match;
@@ -34,6 +37,16 @@ Object.keys(imageModules).forEach(path => {
         toyImagesMap[slug].push(filename);
     }
 });
+
+// Helper function to get base filename without extension
+const getBaseFilename = (filename: string): string => {
+    return filename.split('.').slice(0, -1).join('.');
+};
+
+// Helper function to get file extension
+const getExtension = (filename: string): string => {
+    return filename.split('.').pop()?.toLowerCase() || '';
+};
 
 export async function load() {
     try {
@@ -51,17 +64,67 @@ export async function load() {
             
             // If this toy has images in our map
             if (toyImagesMap[slug] && toyImagesMap[slug].length > 0) {
-                // Check for main.webp first
-                if (toyImagesMap[slug].includes('main.webp')) {
-                    primaryImage = 'main.webp';
-                } 
-                // Then check for 1.webp
-                else if (toyImagesMap[slug].includes('1.webp')) {
-                    primaryImage = '1.webp';
+                // Group images by base filename (without extension)
+                const baseFilenameGroups: Record<string, string[]> = {};
+                
+                toyImagesMap[slug].forEach(filename => {
+                    const base = getBaseFilename(filename);
+                    if (!baseFilenameGroups[base]) {
+                        baseFilenameGroups[base] = [];
+                    }
+                    baseFilenameGroups[base].push(filename);
+                });
+                
+                // Find the "main" image in the best available format
+                let mainImages = baseFilenameGroups['main'] || [];
+                if (mainImages.length > 0) {
+                    // Sort by format priority
+                    mainImages.sort((a, b) => {
+                        const extA = getExtension(a);
+                        const extB = getExtension(b);
+                        return FORMAT_PRIORITY.indexOf(extA) - FORMAT_PRIORITY.indexOf(extB);
+                    });
+                    primaryImage = mainImages[0];
                 }
-                // Otherwise use the first available image
+                // If no "main" image, try for images named "1" in best format
                 else {
-                    primaryImage = toyImagesMap[slug][0];
+                    const oneImages = baseFilenameGroups['1'] || [];
+                    if (oneImages.length > 0) {
+                        oneImages.sort((a, b) => {
+                            const extA = getExtension(a);
+                            const extB = getExtension(b);
+                            return FORMAT_PRIORITY.indexOf(extA) - FORMAT_PRIORITY.indexOf(extB);
+                        });
+                        primaryImage = oneImages[0];
+                    }
+                    // Otherwise use the first available image
+                    else {
+                        // Get all base filenames
+                        const allBaseFilenames = Object.keys(baseFilenameGroups);
+                        // Sort numerically if possible
+                        allBaseFilenames.sort((a, b) => {
+                            const numA = parseInt(a, 10);
+                            const numB = parseInt(b, 10);
+                            if (!isNaN(numA) && !isNaN(numB)) {
+                                return numA - numB;
+                            }
+                            return a.localeCompare(b);
+                        });
+                        
+                        if (allBaseFilenames.length > 0) {
+                            const firstBaseFilename = allBaseFilenames[0];
+                            const firstFormatImages = baseFilenameGroups[firstBaseFilename];
+                            
+                            // Sort by format priority
+                            firstFormatImages.sort((a, b) => {
+                                const extA = getExtension(a);
+                                const extB = getExtension(b);
+                                return FORMAT_PRIORITY.indexOf(extA) - FORMAT_PRIORITY.indexOf(extB);
+                            });
+                            
+                            primaryImage = firstFormatImages[0];
+                        }
+                    }
                 }
             }
             

@@ -13,12 +13,12 @@
     
     if (hasImages && image) {
         // We know this toy has images and we have a specific one to use
-        // Use WebP images for display
+        // The image path includes the full filename with extension now
         imagePath = `/toys/${slug}/${image}`;
     } else if (hasImages) {
-        // We know images exist but no specific one was provided,
-        // use main.webp since the server would have found it if it exists
-        imagePath = `/toys/${slug}/main.webp`;
+        // No specific image was provided, but we'll leave it empty
+        // and let the server-side logic handle finding the best format
+        imagePath = '';
     } else {
         // No real images exist for this toy, use a text placeholder instead
         imagePath = '';

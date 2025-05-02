@@ -14,29 +14,26 @@
         year?: string; 
         faction?: string; 
         description?: string;
-        availableImages?: string[]; // New property from server with preloaded images
+        imageSets?: Record<string, string[]>; // Grouped images { 'main': ['main.avif', 'main.webp', 'main.jpg'], '1': [...] }
+        sortedImageKeys?: string[]; // Sorted keys ['main', '1', '2', ...]
     } }; 
 
     const toy = data.metadata;
     const slug = toy.slug || $page.params.slug;
 
-    // State for the dynamically loaded component
     let contentComponent: typeof SvelteComponent | null = null; 
     let loadError: string | null = null; 
     
-    // Use the server-provided images instead of discovery
-    let currentImageIndex: number = 0;
-    const images = toy.availableImages || [];
-    let isLoadingImages = false; // No loading state needed, we have the images now
+    const imageSets = toy.imageSets || {};
+    const sortedImageKeys = toy.sortedImageKeys || [];
+    let currentImageKeyIndex: number = 0;
 
-    // For image enlargement
     let isImageEnlarged: boolean = false;
     let enlargedImageIndex: number = 0;
 
-    // Touch gesture handling
     let touchStartX: number = 0;
     let touchEndX: number = 0;
-    const MIN_SWIPE_DISTANCE = 50; // Minimum distance to register a swipe
+    const MIN_SWIPE_DISTANCE = 50;
 
     function handleTouchStart(e: TouchEvent): void {
         touchStartX = e.touches[0].clientX;
@@ -52,20 +49,16 @@
         const swipeDistance = touchEndX - touchStartX;
         if (Math.abs(swipeDistance) >= MIN_SWIPE_DISTANCE) {
             if (swipeDistance > 0) {
-                // Swipe right (previous image)
                 prevImage();
             } else {
-                // Swipe left (next image)
                 nextImage();
             }
         }
         
-        // Reset touch coordinates
         touchStartX = 0;
         touchEndX = 0;
     }
 
-    // Enlarged image touch handling
     function handleEnlargedTouchStart(e: TouchEvent): void {
         touchStartX = e.touches[0].clientX;
     }
@@ -80,34 +73,28 @@
         const swipeDistance = touchEndX - touchStartX;
         if (Math.abs(swipeDistance) >= MIN_SWIPE_DISTANCE) {
             if (swipeDistance > 0) {
-                // Swipe right (previous image)
                 prevEnlargedImage();
             } else {
-                // Swipe left (next image)
                 nextEnlargedImage();
             }
         }
         
-        // Reset touch coordinates
         touchStartX = 0;
         touchEndX = 0;
     }
 
-    // Function to advance carousel
     function nextImage(): void {
-        currentImageIndex = (currentImageIndex + 1) % images.length;
+        currentImageKeyIndex = (currentImageKeyIndex + 1) % sortedImageKeys.length;
     }
     
-    // Function to go back in carousel
     function prevImage(): void {
-        currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+        currentImageKeyIndex = (currentImageKeyIndex - 1 + sortedImageKeys.length) % sortedImageKeys.length;
     }
 
-    // Functions for enlarged image carousel
     function openEnlargedImage(index: number): void {
         enlargedImageIndex = index;
         isImageEnlarged = true;
-        document.body.classList.add('overflow-hidden'); // Prevent scrolling when modal is open
+        document.body.classList.add('overflow-hidden');
     }
 
     function closeEnlargedImage(): void {
@@ -116,14 +103,13 @@
     }
 
     function nextEnlargedImage(): void {
-        enlargedImageIndex = (enlargedImageIndex + 1) % images.length;
+        enlargedImageIndex = (enlargedImageIndex + 1) % sortedImageKeys.length;
     }
 
     function prevEnlargedImage(): void {
-        enlargedImageIndex = (enlargedImageIndex - 1 + images.length) % images.length;
+        enlargedImageIndex = (enlargedImageIndex - 1 + sortedImageKeys.length) % sortedImageKeys.length;
     }
 
-    // Handle keyboard navigation for enlarged image
     function handleKeydown(e: KeyboardEvent): void {
         if (!isImageEnlarged) return;
         
@@ -136,20 +122,27 @@
         }
     }
 
-    // Helper function for image paths - WebP images
-    const imagePath = (img: string): string => {
-        // Image is already a WebP filename
-        return `/toys/${slug}/${img}`;
-    };
-    
-    // Helper function for full resolution download paths - original JPGs
-    const fullResPath = (img: string): string => {
-        // Convert WebP filename to JPG for full resolution downloads
-        const jpgFilename = img.replace(/\.webp$/i, '.jpg');
-        return `/fullres/toys/${slug}/${jpgFilename}`;
+    const getBaseFilename = (filename: string): string => {
+        return filename.split('.').slice(0, -1).join('.');
     };
 
-    // Dynamic import for toy markdown content
+    const getExtension = (filename: string): string => {
+        return filename.split('.').pop()?.toLowerCase() || '';
+    };
+
+    const imageBasePath = `/toys/${slug}/`;
+
+    const getImagePath = (filename: string): string => {
+        return imageBasePath + filename;
+    };
+    
+    const fullResPath = (imageKey: string): string => {
+        const set = imageSets[imageKey] || [];
+        const jpgVersion = set.find(img => getExtension(img) === 'jpg');
+        const fallbackFilename = jpgVersion ? getBaseFilename(jpgVersion) + '.jpg' : getBaseFilename(set[0]) + '.jpg';
+        return `/fullres/toys/${slug}/${fallbackFilename}`;
+    };
+
     $: if (slug) {
         import(`../${slug}.md`)
             .then(module => {
@@ -168,12 +161,10 @@
          loadError = 'Cannot load content: Slug is missing.';
     }
 
-    // Ensure required metadata is present
     if (!toy) {
         throw error(404, 'Toy metadata not found');
     }
         
-    // Setup keyboard listeners
     onMount(() => {
         window.addEventListener('keydown', handleKeydown);
         
@@ -186,7 +177,7 @@
 
 <svelte:head>
     {#if isImageEnlarged}
-        <title>Viewing {toy.name} - Image {enlargedImageIndex + 1} of {images.length}</title>
+        <title>Viewing {toy.name} - Image {enlargedImageIndex + 1} of {sortedImageKeys.length}</title>
     {:else}
         <title>{toy.name || 'Toy Detail'} | BreadTM Toy Collection</title>
     {/if}
@@ -197,49 +188,60 @@
     <div class="container mx-auto px-2 sm:px-4 max-w-7xl">
         <Title style="bg-rose-200 text-xl sm:text-2xl md:text-3xl text-center text-black">{toy.name || 'Unnamed Toy'}</Title>
 
-        <!-- Mobile-first approach - stacked layout on mobile -->
         <div class="flex flex-col lg:flex-row gap-3 sm:gap-8 my-2 sm:my-6 items-start justify-center">
-            <!-- Image Carousel Column - MUCH larger on mobile -->
             <div class="w-full lg:w-1/2">
                 <div class="relative rounded-lg border-2 sm:border-4 border-black overflow-hidden shadow-md group">
-                    <!-- Image carousel with standardized aspect ratio - 3:4 aspect ratio -->
                     <div 
                         class="relative aspect-[3/4]"
                         on:touchstart={handleTouchStart}
                         on:touchmove={handleTouchMove}
                         on:touchend={handleTouchEnd}
                     >
-                        {#if images.length > 0}
-                            {#each images as image, i}
-                                <!-- Make images clickable to enlarge with proper accessibility -->
+                        {#if sortedImageKeys.length > 0}
+                            {#each sortedImageKeys as imageKey, i}
+                                {@const currentSet = imageSets[imageKey] || []}
+                                {@const avifSrc = currentSet.find(img => getExtension(img) === 'avif')}
+                                {@const webpSrc = currentSet.find(img => getExtension(img) === 'webp')}
+                                {@const jpgSrc = currentSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
+                                {@const fallbackSrc = jpgSrc || currentSet[0]}
+                                
                                 <button 
                                     class="absolute inset-0 transition-opacity duration-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-400 bg-transparent" 
-                                    style="opacity: {i === currentImageIndex ? '1' : '0'}"
+                                    style="opacity: {i === currentImageKeyIndex ? '1' : '0'}"
                                     on:click={() => openEnlargedImage(i)}
                                     aria-label="Enlarge image {i+1}"
                                 >
-                                    <img src={imagePath(image)} 
-                                         alt="{toy.name} - view {i+1}" 
-                                         class="w-full h-full object-contain bg-black/60" />
+                                    <picture>
+                                        {#if avifSrc}
+                                            <source srcset={getImagePath(avifSrc)} type="image/avif" />
+                                        {/if}
+                                        {#if webpSrc}
+                                            <source srcset={getImagePath(webpSrc)} type="image/webp" />
+                                        {/if}
+                                        {#if fallbackSrc}
+                                            <img src={getImagePath(fallbackSrc)} 
+                                                 alt="{toy.name} - view {i+1}" 
+                                                 class="w-full h-full object-contain bg-black/60" />
+                                        {/if}
+                                    </picture>
                                 </button>
                             {/each}
                             
-                            <!-- Smaller, subtle download button positioned in the corner -->
-                            {#if images.length > 0}
+                            {#if sortedImageKeys.length > 0}
+                                {@const currentKey = sortedImageKeys[currentImageKeyIndex]}
                                 <a 
-                                    href={fullResPath(images[currentImageIndex])} 
+                                    href={fullResPath(currentKey)} 
                                     download
                                     class="absolute top-3 right-3 z-20 flex items-center justify-center bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg"
                                     title="Download full resolution"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />v
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                     </svg>
                                 </a>
                             {/if}
                             
-                            <!-- Carousel controls - only if multiple images -->
-                            {#if images.length > 1}
+                            {#if sortedImageKeys.length > 1}
                                 <button class="absolute left-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-r-md shadow-sm hover:shadow-md z-20 transition-all duration-300"
                                         on:click|stopPropagation={prevImage}>
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -253,11 +255,10 @@
                                     </svg>
                                 </button>
                                 
-                                <!-- Indicator dots -->
                                 <div class="absolute bottom-3 sm:bottom-4 inset-x-0 flex justify-center space-x-2 sm:space-x-2 z-20">
-                                    {#each images as _, i}
-                                        <button class="w-3 h-3 sm:w-3 sm:h-3 rounded-full transition-all duration-300 shadow-md {i === currentImageIndex ? 'bg-rose-400 scale-125' : 'bg-white/30'}" 
-                                                on:click|stopPropagation={() => currentImageIndex = i}
+                                    {#each sortedImageKeys as _, i}
+                                        <button class="w-3 h-3 sm:w-3 sm:h-3 rounded-full transition-all duration-300 shadow-md {i === currentImageKeyIndex ? 'bg-rose-400 scale-125' : 'bg-white/30'}" 
+                                                on:click|stopPropagation={() => currentImageKeyIndex = i}
                                                 aria-label="View image {i+1}"></button>
                                     {/each}
                                 </div>
@@ -270,24 +271,38 @@
                     </div>
                 </div>
                 
-                <!-- Thumbnails for carousel - Larger and more prominent on mobile -->
-                {#if images.length > 1}
-                    <div class="flex overflow-x-auto gap-3 mt-3 sm:mt-4 pb-2 justify-center">
-                        {#each images as image, i}
+                <!-- Show thumbnails carousel in mobile view only -->
+                {#if sortedImageKeys.length > 1}
+                    <div class="flex overflow-x-auto gap-3 mt-3 sm:mt-4 pb-2 justify-center lg:hidden">
+                        {#each sortedImageKeys as imageKey, i}
+                            {@const currentSet = imageSets[imageKey] || []}
+                            {@const avifSrc = currentSet.find(img => getExtension(img) === 'avif')}
+                            {@const webpSrc = currentSet.find(img => getExtension(img) === 'webp')}
+                            {@const jpgSrc = currentSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
+                            {@const fallbackSrc = jpgSrc || currentSet[0]}
+                            
                             <button 
                                 class="flex-shrink-0 w-20 h-20 sm:w-20 sm:h-20 overflow-hidden rounded-md border-2 transition-all duration-300
-                                       {i === currentImageIndex ? 'border-rose-400 ring-2 ring-rose-400 shadow-lg' : 'border-gray-700'}"
-                                on:click={() => currentImageIndex = i}>
-                                <img src={imagePath(image)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" />
+                                       {i === currentImageKeyIndex ? 'border-rose-400 ring-2 ring-rose-400 shadow-lg' : 'border-gray-700'}"
+                                on:click={() => currentImageKeyIndex = i}>
+                                {#if fallbackSrc}
+                                    <picture>
+                                        {#if avifSrc}
+                                            <source srcset={getImagePath(avifSrc)} type="image/avif" />
+                                        {/if}
+                                        {#if webpSrc}
+                                            <source srcset={getImagePath(webpSrc)} type="image/webp" />
+                                        {/if}
+                                        <img src={getImagePath(fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" />
+                                    </picture>
+                                {/if}
                             </button>
                         {/each}
                     </div>
                 {/if}
             </div>
 
-            <!-- Details Column - More compact on mobile -->
             <div class="w-full lg:w-1/2 flex flex-col mt-3 lg:mt-0">
-                <!-- Toy Details Card - More compact on mobile -->
                 <div class="bg-gray-800/80 backdrop-blur-sm p-4 sm:p-6 rounded-lg border-2 sm:border-4 border-black shadow-xl text-sm sm:text-base">
                     <h2 class="text-2xl sm:text-3xl font-extrabold mb-3 sm:mb-6 text-rose-300 border-b border-rose-400/50 pb-2 sm:pb-3">Details</h2>
                     <div class="space-y-2 sm:space-y-4">
@@ -321,10 +336,39 @@
                          &larr; Back to Gallery
                      </a>
                 </div>
+                
+                <!-- Show thumbnails carousel on desktop view only, underneath the details card -->
+                {#if sortedImageKeys.length > 1}
+                    <div class="hidden lg:flex flex-wrap gap-3 mt-4 justify-start overflow-hidden bg-gray-800/80 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-xl">
+                        {#each sortedImageKeys as imageKey, i}
+                            {@const currentSet = imageSets[imageKey] || []}
+                            {@const avifSrc = currentSet.find(img => getExtension(img) === 'avif')}
+                            {@const webpSrc = currentSet.find(img => getExtension(img) === 'webp')}
+                            {@const jpgSrc = currentSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
+                            {@const fallbackSrc = jpgSrc || currentSet[0]}
+                            
+                            <button 
+                                class="w-20 h-20 overflow-hidden rounded-md border-2 transition-all duration-300
+                                       {i === currentImageKeyIndex ? 'border-rose-400 ring-2 ring-rose-400 shadow-lg scale-105' : 'border-gray-700 hover:border-gray-400'}"
+                                on:click={() => currentImageKeyIndex = i}>
+                                {#if fallbackSrc}
+                                    <picture>
+                                        {#if avifSrc}
+                                            <source srcset={getImagePath(avifSrc)} type="image/avif" />
+                                        {/if}
+                                        {#if webpSrc}
+                                            <source srcset={getImagePath(webpSrc)} type="image/webp" />
+                                        {/if}
+                                        <img src={getImagePath(fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" />
+                                    </picture>
+                                {/if}
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
             </div>
         </div>
         
-        <!-- Markdown Content Section - Full width below the image and details -->
         <div class="prose prose-sm sm:prose-base md:prose-lg max-w-none bg-gray-800/80 backdrop-blur-sm p-4 sm:p-6 rounded-lg border-2 sm:border-4 border-black shadow-xl mt-3 sm:mt-6">
             <div class="prose-content-wrapper">
                 {#if contentComponent}
@@ -342,12 +386,16 @@
     </div>
 </div>
 
-<!-- Enlarged Image Modal with swipe support -->
-{#if isImageEnlarged && images.length > 0}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+{#if isImageEnlarged && sortedImageKeys.length > 0}
+    {@const enlargedKey = sortedImageKeys[enlargedImageIndex]}
+    {@const enlargedSet = imageSets[enlargedKey] || []}
+    {@const enlargedAvif = enlargedSet.find(img => getExtension(img) === 'avif')}
+    {@const enlargedWebp = enlargedSet.find(img => getExtension(img) === 'webp')}
+    {@const enlargedJpg = enlargedSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
+    {@const enlargedFallback = enlargedJpg || enlargedSet[0]}
+
     <div 
-        class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-2 sm:p-4"
+        class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-2 sm:p-4"
         on:click={closeEnlargedImage}
         role="dialog"
         aria-modal="true"
@@ -355,7 +403,7 @@
     >
         <div class="absolute top-4 right-4 z-50">
             <button 
-                class="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full transition-colors duration-300"
+                class="bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-colors duration-300"
                 on:click={closeEnlargedImage}
                 aria-label="Close enlarged image view"
             >
@@ -365,11 +413,8 @@
             </button>
         </div>
         
-        <h2 id="enlarged-image-title" class="sr-only">Enlarged image {enlargedImageIndex + 1} of {images.length} - {toy.name}</h2>
+        <h2 id="enlarged-image-title" class="sr-only">Enlarged image {enlargedImageIndex + 1} of {sortedImageKeys.length} - {toy.name}</h2>
         
-        <!-- Image container with swipe support -->
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div 
             class="relative max-w-5xl w-full h-[80vh] flex items-center justify-center"
             on:touchstart={handleEnlargedTouchStart}
@@ -377,17 +422,26 @@
             on:touchend={handleEnlargedTouchEnd}
             on:click|stopPropagation={() => {}}
         >
-            <img 
-                src={imagePath(images[enlargedImageIndex])} 
-                alt="{toy.name} - enlarged view {enlargedImageIndex+1}" 
-                class="max-h-full max-w-full object-contain"
-            />
+            {#if enlargedFallback}
+                <picture>
+                    {#if enlargedAvif}
+                        <source srcset={getImagePath(enlargedAvif)} type="image/avif" />
+                    {/if}
+                    {#if enlargedWebp}
+                        <source srcset={getImagePath(enlargedWebp)} type="image/webp" />
+                    {/if}
+                    <img 
+                        src={getImagePath(enlargedFallback)} 
+                        alt="{toy.name} - enlarged view {enlargedImageIndex+1}" 
+                        class="max-h-full max-w-full object-contain"
+                    />
+                </picture>
+            {/if}
             
-            <!-- Updated download button for enlarged view - smaller and more subtle -->
             <a 
-                href={fullResPath(images[enlargedImageIndex])} 
+                href={fullResPath(enlargedKey)} 
                 download
-                class="absolute top-4 right-4 flex items-center justify-center bg-black/50 hover:bg-black/70 text-white p-2.5 rounded-full transition-all duration-300"
+                class="absolute top-4 left-4 flex items-center justify-center bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all duration-300 opacity-60 hover:opacity-100"
                 on:click|stopPropagation={() => {}}
                 title="Download full resolution"
             >
@@ -396,15 +450,13 @@
                 </svg>
             </a>
             
-            <!-- Swipe indicator for mobile - KEPT for enlarged view only -->
-            <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-xs md:hidden">
+            <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-black/40 text-white px-3 py-1 rounded-full text-xs md:hidden opacity-70">
                 Swipe to navigate • Tap to close
             </div>
             
-            <!-- Navigation controls -->
-            {#if images.length > 1}
+            {#if sortedImageKeys.length > 1}
                 <button 
-                    class="absolute left-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-r-md shadow-sm hover:shadow-md transition-all duration-300"
+                    class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-1.5 sm:p-2 rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-all duration-300 opacity-40 hover:opacity-90"
                     on:click|stopPropagation={prevEnlargedImage}
                     aria-label="Previous image"
                 >
@@ -413,7 +465,7 @@
                     </svg>
                 </button>
                 <button 
-                    class="absolute right-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-l-md shadow-sm hover:shadow-md transition-all duration-300"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-1.5 sm:p-2 rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-all duration-300 opacity-40 hover:opacity-90"
                     on:click|stopPropagation={nextEnlargedImage}
                     aria-label="Next image"
                 >
@@ -422,42 +474,53 @@
                     </svg>
                 </button>
                 
-                <!-- Image counter -->
-                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-4 py-2 rounded-full text-sm">
-                    {enlargedImageIndex + 1} / {images.length}
+                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/40 text-white px-4 py-1.5 rounded-full text-sm opacity-70">
+                    {enlargedImageIndex + 1} / {sortedImageKeys.length}
                 </div>
                 
-                <!-- Thumbnail strip at bottom -->
-                <div class="absolute bottom-14 left-0 right-0 flex justify-center overflow-x-auto gap-2 p-2">
-                    {#each images as _, i}
+                <div class="absolute bottom-16 left-0 right-0 flex justify-center overflow-x-auto gap-2 p-2">
+                    {#each sortedImageKeys as thumbKey, i}
+                        {@const thumbSet = imageSets[thumbKey] || []}
+                        {@const thumbAvif = thumbSet.find(img => getExtension(img) === 'avif')}
+                        {@const thumbWebp = thumbSet.find(img => getExtension(img) === 'webp')}
+                        {@const thumbJpg = thumbSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
+                        {@const thumbFallback = thumbJpg || thumbSet[0]}
+                        
                         <button 
-                            class="w-14 h-14 rounded-md overflow-hidden transition-all duration-300 border-2 {i === enlargedImageIndex ? 'border-rose-400 scale-110' : 'border-gray-600 opacity-60 hover:opacity-100'}"
+                            class="w-12 h-12 sm:w-14 sm:h-14 rounded-md overflow-hidden transition-all duration-300 border-2 {i === enlargedImageIndex ? 'border-rose-400 scale-110' : 'border-gray-700 opacity-40 hover:opacity-80'}"
                             on:click|stopPropagation={() => enlargedImageIndex = i}
                             aria-label="View image {i+1}"
                             aria-current={i === enlargedImageIndex ? 'true' : 'false'}
                         >
-                            <img 
-                                src={imagePath(images[i])} 
-                                alt="Thumbnail {i+1}" 
-                                class="w-full h-full object-cover"
-                            />
+                            {#if thumbFallback}
+                                <picture>
+                                    {#if thumbAvif}
+                                        <source srcset={getImagePath(thumbAvif)} type="image/avif" />
+                                    {/if}
+                                    {#if thumbWebp}
+                                        <source srcset={getImagePath(thumbWebp)} type="image/webp" />
+                                    {/if}
+                                    <img 
+                                        src={getImagePath(thumbFallback)} 
+                                        alt="Thumbnail {i+1}" 
+                                        class="w-full h-full object-cover"
+                                    />
+                                </picture>
+                            {/if}
                         </button>
                     {/each}
                 </div>
             {/if}
         </div>
         
-        <!-- Keyboard navigation hint -->
-        <div class="absolute bottom-4 right-4 text-gray-400 text-xs hidden sm:block">
+        <div class="absolute bottom-4 right-4 text-gray-400 text-xs hidden sm:block opacity-70">
             Use arrow keys ← → to navigate • ESC to close
         </div>
     </div>
 {/if}
 
 <style lang="postcss">
-    /* Apply Tailwind Typography defaults and customizations */
     .prose {
-        /* Base prose styles */
         --tw-prose-body: theme(colors.gray.300);
         --tw-prose-headings: theme(colors.rose.300);
         --tw-prose-lead: theme(colors.gray.400);
@@ -471,10 +534,9 @@
         --tw-prose-captions: theme(colors.gray.400);
         --tw-prose-code: theme(colors.amber.300);
         --tw-prose-pre-code: theme(colors.gray.300);
-        --tw-prose-pre-bg: theme(colors.gray.900); /* Darker code blocks */
+        --tw-prose-pre-bg: theme(colors.gray.900);
         --tw-prose-th-borders: theme(colors.gray.600);
         --tw-prose-td-borders: theme(colors.gray.700);
-        /* Invert styles are applied via prose-invert class */
     }
 
     .prose-content-wrapper {
@@ -482,14 +544,12 @@
         z-index: 10;
     }
 
-    /* Target elements rendered *inside* the dynamically loaded component */
     .prose :global(h1),
     .prose :global(h2),
     .prose :global(h3),
     .prose :global(h4),
     .prose :global(h5),
     .prose :global(h6) {
-         /* Add a subtle bottom border to headings */
          border-bottom: 1px solid theme(colors.gray.700);
          padding-bottom: theme(padding.2);
          margin-bottom: theme(margin.3); 
@@ -508,7 +568,6 @@
     }
     
      .prose :global(a) {
-        /* Style links within markdown */
         text-decoration: none;
         transition: all 0.2s ease-in-out;
         border-bottom: 1px dotted theme(colors.sky.400 / 0.5);
@@ -521,7 +580,6 @@
         background-color: theme(colors.sky.900 / 0.2);
     }
     .prose :global(img) {
-        /* Style images within markdown */
         border-radius: theme(borderRadius.lg);
         box-shadow: theme(boxShadow.lg);
         margin-top: theme(margin.4);
@@ -529,23 +587,20 @@
         border: 2px solid theme(colors.gray.700);
     }
     .prose :global(code):not(pre code) {
-        /* Style inline code */
         background-color: theme(colors.gray.700);
-        color: theme(colors.amber.300); /* Match prose variable */
+        color: theme(colors.amber.300);
         padding: 0.2em 0.4em;
         border-radius: theme(borderRadius.md);
         font-size: 0.9em;
     }
      .prose :global(pre) {
-         /* Style code blocks */
          border: 1px solid theme(colors.gray.700);
          border-radius: theme(borderRadius.md);
          box-shadow: theme(boxShadow.md);
      }
      .prose :global(blockquote) {
-         /* Style blockquotes */
          font-style: italic;
-         border-left-width: 4px; /* Match prose variable */
+         border-left-width: 4px;
          background-color: theme(colors.gray.800 / 0.5);
          padding: 0.75em 1em;
          border-radius: 0 theme(borderRadius.md) theme(borderRadius.md) 0;
@@ -563,12 +618,10 @@
         color: theme(colors.rose.400);
      }
 
-    /* Helper for semi-transparent background with blur */
     .bg-gray-800\/80 {
-        background-color: rgba(31, 41, 55, 0.8); /* Corresponds to bg-gray-800 with 80% opacity */
+        background-color: rgba(31, 41, 55, 0.8);
     }
     
-    /* Add a subtle sparkle to the toy details page */
     #toy-details {
         position: relative;
         overflow: hidden;

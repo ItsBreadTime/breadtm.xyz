@@ -1,0 +1,46 @@
+name: Compress Images
+
+on:
+  workflow_dispatch:  # Allows manual triggering
+  push:
+    paths:
+      - 'static/fullres/toys/**/*.jpg'
+      - 'static/fullres/toys/**/*.jpeg'
+    branches:
+      - main  # Change to your default branch if different
+
+jobs:
+  compress-images:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+      
+      - name: Check system memory
+        run: free -h
+      
+      - name: Compress images
+        run: node --max-old-space-size=2048 scripts/compress-images.js
+        
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          git add static/toys/
+          git diff --staged --quiet || git commit -m "Compress images [automated]"
+          git push

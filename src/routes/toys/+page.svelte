@@ -38,20 +38,17 @@
         return factionMatch && seriesMatch && searchMatch;
     });
 
-    // Function to get the best image for a toy - uses server-provided primaryImage
+    // Function to get the best image for a toy
     function getBestImage(toy: Toy): string | undefined {
         // Use the server-determined primary image if available
+        // This will already be the best format (AVIF, WebP, JPG, PNG) based on priority
         if (toy.primaryImage) {
-            // The primaryImage is already the WebP filename
             return toy.primaryImage;
         }
         
         // Fall back to the image specified in frontmatter if available
         if (toy.image) {
-            // Convert to WebP format if it's not already
-            return toy.image.endsWith('.webp') 
-                ? toy.image 
-                : toy.image.replace(/\.(jpg|jpeg)$/i, '.webp');
+            return toy.image;
         }
         
         // Return undefined if no images are available
