@@ -4,6 +4,7 @@
     import { onMount, type SvelteComponent } from 'svelte'; 
     import { page } from '$app/stores'; 
     import Nav from '../../sections/Nav.svelte';
+    import Factions from '../../components/Factions.svelte';
     
     export let data: { metadata: { 
         name?: string; 
@@ -111,14 +112,20 @@
     }
 
     function handleKeydown(e: KeyboardEvent): void {
-        if (!isImageEnlarged) return;
-        
-        if (e.key === 'Escape') {
+        if (e.key === 'Escape' && isImageEnlarged) {
             closeEnlargedImage();
         } else if (e.key === 'ArrowRight') {
-            nextEnlargedImage();
+            if (isImageEnlarged) {
+                if (sortedImageKeys.length > 0) nextEnlargedImage();
+            } else {
+                if (sortedImageKeys.length > 0) nextImage();
+            }
         } else if (e.key === 'ArrowLeft') {
-            prevEnlargedImage();
+            if (isImageEnlarged) {
+                if (sortedImageKeys.length > 0) prevEnlargedImage();
+            } else {
+                if (sortedImageKeys.length > 0) prevImage();
+            }
         }
     }
 
@@ -179,7 +186,7 @@
     {#if isImageEnlarged}
         <title>Viewing {toy.name} - Image {enlargedImageIndex + 1} of {sortedImageKeys.length}</title>
     {:else}
-        <title>{toy.name || 'Toy Detail'} | BreadTM Toy Collection</title>
+        <title>{toy.name || 'Toy Detail'} | Bread's Toy Collection</title>
     {/if}
 </svelte:head>
 
@@ -315,12 +322,7 @@
                         {#if toy.faction}
                             <p class="grid grid-cols-[auto,1fr] gap-x-3 sm:gap-x-3 items-center">
                                 <strong class="font-semibold text-rose-200">Faction:</strong>
-                                 <span class="inline-block px-3 sm:px-3 py-1 sm:py-1 text-sm sm:text-sm font-bold rounded-full shadow-inner
-                                    {toy.faction === 'Autobot' || toy.faction === 'Maximal' ? 'bg-red-600 text-red-100' : 
-                                     toy.faction === 'Decepticon' || toy.faction === 'Predacon' ? 'bg-purple-600 text-purple-100' : 
-                                     'bg-gray-500 text-gray-100'}">
-                                    {toy.faction}
-                                </span>
+                                <Factions faction={toy.faction} />
                             </p>
                         {/if}
                          

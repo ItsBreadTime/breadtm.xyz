@@ -7,6 +7,7 @@
     export let description: string | undefined = undefined;
     export let year: string | undefined = undefined;
     export let hasImages: boolean = false; // New prop to indicate if toy has real images
+    import Factions from "./Factions.svelte";
 
     // Determine which image to use, avoiding unnecessary requests
     let imagePath: string;
@@ -51,16 +52,7 @@
             
             <div class="flex items-center flex-wrap gap-1 mt-1">
                 {#if faction}
-                    <span class="inline-block px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-full shadow-inner drop-shadow-sm"
-                          class:bg-red-600={faction === 'Autobot' || faction === 'Maximal'}
-                          class:text-red-100={faction === 'Autobot' || faction === 'Maximal'}
-                          class:bg-purple-600={faction === 'Decepticon' || faction === 'Predacon'}
-                          class:text-purple-100={faction === 'Decepticon' || faction === 'Predacon'}
-                          class:bg-gray-500={!['Autobot', 'Maximal', 'Decepticon', 'Predacon'].includes(faction)}
-                          class:text-gray-100={!['Autobot', 'Maximal', 'Decepticon', 'Predacon'].includes(faction)}
-                    >
-                        {faction}
-                    </span>
+                    <Factions faction={faction} />
                 {/if}
                 {#if year}
                     <span class="text-[10px] sm:text-xs text-amber-300 drop-shadow-sm bg-black/30 px-1.5 sm:px-2 py-0.5 rounded-md">{year}</span>
