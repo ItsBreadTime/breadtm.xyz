@@ -16,7 +16,9 @@ export default {
         autobot: '#e10000',
         decepticon: '#6f4da1',
       },
+    },
   },
-  plugins: [],
-}
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 }
