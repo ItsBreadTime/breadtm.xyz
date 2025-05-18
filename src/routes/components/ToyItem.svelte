@@ -66,7 +66,13 @@
     
     <div class="p-2 sm:p-3 text-white">
         {#if description}
-            <p class="text-[10px] sm:text-xs text-gray-300 line-clamp-2 mb-1 sm:mb-2">{description}</p>
+            <div class="text-[10px] sm:text-xs text-gray-300 line-clamp-2 mb-1 sm:mb-2 prose prose-sm prose-invert">
+                {#if typeof description === 'string'}
+                    {@html description}
+                {:else}
+                    <svelte:component this={description} />
+                {/if}
+            </div>
         {/if}
     </div>
 </a>

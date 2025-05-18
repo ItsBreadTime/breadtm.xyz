@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { compile } from 'mdsvex';
 
 // Define image format priority - highest quality/efficiency first
 const FORMAT_PRIORITY = ['avif', 'webp', 'jpg', 'jpeg', 'png'];
@@ -81,6 +82,18 @@ export const load: PageServerLoad = async ({ params }) => {
     
     // Type the module correctly
     const mod = metadata as { metadata?: Record<string, any> };
+    
+    // Process description with mdsvex if needed for the detail view
+    if (mod.metadata?.description && typeof mod.metadata.description === 'string') {
+      try {
+        const compiled = await compile(mod.metadata.description);
+        if (compiled) {
+          mod.metadata.description = compiled.code;
+        }
+      } catch (err) {
+        console.error(`Error processing markdown for ${slug}:`, err);
+      }
+    }
     
     return {
       metadata: {

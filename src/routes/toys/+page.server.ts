@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { compile } from 'mdsvex';
 
 // Define the structure of the returned toy object
 interface ToyData {
@@ -50,14 +51,51 @@ const getExtension = (filename: string): string => {
 
 export async function load() {
     try {
-        // Transform the imported modules into an array of toy data
-        const toys = Object.entries(modules).map(([path, module]) => {
+        // Process all markdown descriptions in parallel first
+        const moduleEntries = Object.entries(modules);
+        const compiledMarkdownPromises = moduleEntries.map(async ([path, mod]) => {
+            const slug = path.replace('./', '').replace('.md', '');
+            const moduleData = mod as { metadata?: Record<string, any> };
+            const metadata = moduleData.metadata || {};
+            
+            if (metadata.description && typeof metadata.description === 'string') {
+                try {
+                    const compiled = await compile(metadata.description);
+                    if (compiled) {
+                        return {
+                            slug,
+                            compiledDescription: compiled.code
+                        };
+                    }
+                } catch (err) {
+                    console.error(`Error processing markdown for ${slug}:`, err);
+                }
+            }
+            return { slug, compiledDescription: null };
+        });
+        
+        // Wait for all markdown compilations to complete
+        const compiledResults = await Promise.all(compiledMarkdownPromises);
+        
+        // Build a lookup map for the compiled descriptions
+        const compiledDescriptions: Record<string, string | null> = {};
+        compiledResults.forEach(result => {
+            compiledDescriptions[result.slug] = result.compiledDescription;
+        });
+        
+        // Create the toy data objects with processed descriptions
+        const toys = moduleEntries.map(([path, module]) => {
             // Extract slug from path (e.g., "./beeghaj.md" -> "beeghaj")
             const slug = path.replace('./', '').replace('.md', '');
             
             // Extract metadata from the module
             const mod = module as { metadata?: Record<string, any> };
-            const metadata = mod.metadata || {};
+            const metadata = { ...mod.metadata } || {}; 
+            
+            // Replace description with compiled version if available
+            if (compiledDescriptions[slug]) {
+                metadata.description = compiledDescriptions[slug];
+            }
             
             // Find the primary image for this toy
             let primaryImage: string | undefined = undefined;

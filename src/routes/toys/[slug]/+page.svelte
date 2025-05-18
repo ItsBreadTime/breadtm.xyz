@@ -329,7 +329,14 @@
                         {#if toy.description}
                             <div class="mt-3 sm:mt-6 space-y-1 sm:space-y-2">
                                 <strong class="font-semibold text-rose-200 block">Description:</strong>
-                                <p class="text-gray-200 text-sm sm:text-base">{toy.description}</p>
+                                <!-- Using prose class for styling the markdown content -->
+                                <div class="text-gray-200 text-sm sm:text-base prose prose-sm prose-invert">
+                                    {#if typeof toy.description === 'string'}
+                                        {@html toy.description}
+                                    {:else}
+                                        <svelte:component this={toy.description} />
+                                    {/if}
+                                </div>
                             </div>
                         {/if}
                     </div>
