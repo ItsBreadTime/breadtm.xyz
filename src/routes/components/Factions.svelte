@@ -8,8 +8,8 @@
     class:text-purple-100={faction === 'Decepticon' || faction === 'Predacon'}
     class:bg-ikea={faction === 'IKEAtron'}
     class:text-blue-900={faction === 'IKEAtron'}
-    class:bg-gray-500={!['Autobot', 'Maximal', 'Decepticon', 'Predacon'].includes(faction)}
-    class:text-gray-100={!['Autobot', 'Maximal', 'Decepticon', 'Predacon'].includes(faction)}
+    class:bg-gray-500={!['Autobot', 'Maximal', 'Decepticon', 'Predacon', 'IKEAtron'].includes(faction)}
+    class:text-gray-100={!['Autobot', 'Maximal', 'Decepticon', 'Predacon', 'IKEAtron'].includes(faction)}
 >
     {faction}
 </span>
