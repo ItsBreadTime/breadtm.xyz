@@ -10,6 +10,7 @@ interface ToyData {
     series?: string;
     description?: string;
     year?: string;
+    order?: number;
     slug: string;
 }
 
@@ -144,11 +145,33 @@ export async function load() {
             } as ToyData & { primaryImage?: string };
         });
 
-        // Sort toys alphabetically by name
-        toys.sort((a, b) => a.name?.localeCompare(b.name || '') || 0);
+        // Define the structure with order field
+        interface ToyWithOrder extends ToyData {
+            primaryImage?: string;
+            order?: number;
+        }
+
+        const toysWithOrder = toys as ToyWithOrder[];
+
+        // Sort toys: first by order (if specified), then alphabetically by name
+        toysWithOrder.sort((a, b) => {
+            // If both have order values, sort by order
+            if (a.order !== undefined && b.order !== undefined) {
+                return a.order - b.order;
+            }
+            // If only one has an order value, prioritize it
+            if (a.order !== undefined && b.order === undefined) {
+                return -1;
+            }
+            if (a.order === undefined && b.order !== undefined) {
+                return 1;
+            }
+            // If neither has an order value, sort alphabetically by name
+            return a.name?.localeCompare(b.name || '') || 0;
+        });
 
         return { 
-            toys,
+            toys: toysWithOrder,
             // Send the full images map to the client to avoid discovery requests
             toyImagesMap 
         };
