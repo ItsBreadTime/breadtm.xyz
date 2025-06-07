@@ -6,23 +6,27 @@
     import Nav from '../../sections/Nav.svelte';
     import Factions from '../../components/Factions.svelte';
     
-    export let data: { metadata: { 
-        name?: string; 
-        imageTemplate?: string;
-        slug?: string;
-        image?: string;
-        series?: string; 
-        year?: string; 
-        faction?: string; 
-        description?: string;
-        imageSets?: Record<string, string[]>; // Grouped images { 'main': ['main.avif', 'main.webp', 'main.jpg'], '1': [...] }
-        sortedImageKeys?: string[]; // Sorted keys ['main', '1', '2', ...]
-    } }; 
+    export let data: { 
+        metadata: { 
+            name?: string; 
+            imageTemplate?: string;
+            slug?: string;
+            image?: string;
+            series?: string; 
+            year?: string; 
+            faction?: string; 
+            description?: string;
+            imageSets?: Record<string, string[]>; // Grouped images { 'main': ['main.avif', 'main.webp', 'main.jpg'], '1': [...] }
+            sortedImageKeys?: string[]; // Sorted keys ['main', '1', '2', ...]
+        };
+        component?: any; // The compiled markdown content component
+    }; 
 
     const toy = data.metadata;
     const slug = toy.slug || $page.params.slug;
 
-    let contentComponent: typeof SvelteComponent | null = null; 
+    // Get the compiled content from client data
+    let contentComponent = data.component;
     let loadError: string | null = null; 
     
     const imageSets = toy.imageSets || {};
@@ -149,24 +153,6 @@
         const fallbackFilename = jpgVersion ? getBaseFilename(jpgVersion) + '.jpg' : getBaseFilename(set[0]) + '.jpg';
         return `/fullres/toys/${slug}/${fallbackFilename}`;
     };
-
-    $: if (slug) {
-        import(`../${slug}.md`)
-            .then(module => {
-                if (module && module.default) {
-                    contentComponent = module.default;
-                    loadError = null;
-                } else {
-                    throw new Error('Invalid module structure');
-                }
-            })
-            .catch(err => {
-                console.error(`Failed to load component for ${slug}:`, err);
-                loadError = `Could not load content for this toy.`;
-            });
-    } else {
-         loadError = 'Cannot load content: Slug is missing.';
-    }
 
     if (!toy) {
         throw error(404, 'Toy metadata not found');
@@ -385,10 +371,7 @@
                 {:else if loadError}
                     <p class="text-red-400 font-medium">{loadError}</p>
                 {:else}
-                    <div class="flex items-center justify-center py-4">
-                        <div class="animate-spin rounded-full h-6 w-6 sm:h-10 sm:w-10 border-t-2 border-b-2 border-rose-300"></div>
-                        <p class="ml-4 text-rose-300 text-sm sm:text-base">Loading content...</p>
-                    </div>
+                    <p class="text-gray-400 italic py-4">No additional content available for this toy.</p>
                 {/if}
             </div>
         </div>

@@ -3,13 +3,14 @@
 	"version": "0.0.1",
 	"private": true,
 	"scripts": {
-		"dev": "vite dev --host",
-		"build": "vite build",
+		"dev": "npm run precompile && vite dev --host",
+		"build": "npm run precompile && vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"compress-images": "node scripts/compress-images.js",
-		"compress-images:no-override": "node scripts/compress-images.js -n"
+		"compress-images:no-override": "node scripts/compress-images.js -n",
+		"precompile": "node scripts/precompile-toys.js"
 	},
 	"devDependencies": {
 		"@frostoven/squoosh-cli": "^0.9.1",

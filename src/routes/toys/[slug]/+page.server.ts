@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { compile } from 'mdsvex';
+import precompiledDescriptions from '$lib/precompiled-descriptions.json';
 
 // Define image format priority - highest quality/efficiency first
 const FORMAT_PRIORITY = ['avif', 'webp', 'jpg', 'jpeg', 'png'];
@@ -81,30 +81,24 @@ export const load: PageServerLoad = async ({ params }) => {
     });
     
     // Type the module correctly
-    const mod = metadata as { metadata?: Record<string, any> };
+    const mod = metadata as { metadata?: Record<string, any>; default?: any };
     
-    // Process description with mdsvex if needed for the detail view
-    if (mod.metadata?.description && typeof mod.metadata.description === 'string') {
-      try {
-        const compiled = await compile(mod.metadata.description);
-        if (compiled) {
-          mod.metadata.description = compiled.code;
-        }
-      } catch (err) {
-        console.error(`Error processing markdown for ${slug}:`, err);
-      }
+    // Extract only serializable metadata
+    const serializedMetadata = { ...mod.metadata || {} };
+    
+    // Use precompiled description if available
+    const precompiled = precompiledDescriptions as Record<string, string>;
+    if (precompiled[slug]) {
+        serializedMetadata.description = precompiled[slug];
     }
-    
+
     return {
       metadata: {
-        ...mod.metadata || {}, 
+        ...serializedMetadata, 
         slug,
         // Pass the grouped images and the sorted keys
         imageSets: baseFilenameGroups, 
-        sortedImageKeys: sortedBaseFilenames,
-        // Deprecate availableImages and imageFormats if no longer needed directly
-        // availableImages: sortedImages, // Keep if needed elsewhere, otherwise remove
-        // imageFormats: FORMAT_PRIORITY // Keep if needed elsewhere, otherwise remove
+        sortedImageKeys: sortedBaseFilenames
       }
     };
   } catch (e) {
