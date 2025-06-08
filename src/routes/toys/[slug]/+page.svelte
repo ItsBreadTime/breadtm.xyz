@@ -1,26 +1,27 @@
 <script lang="ts">
     import Title from '../../components/Title.svelte';
     import { error } from '@sveltejs/kit';
-    import { onMount, type SvelteComponent } from 'svelte'; 
     import { page } from '$app/stores'; 
     import Nav from '../../sections/Nav.svelte';
     import Factions from '../../components/Factions.svelte';
     
-    export let data: { 
-        metadata: { 
-            name?: string; 
-            imageTemplate?: string;
-            slug?: string;
-            image?: string;
-            series?: string; 
-            year?: string; 
-            faction?: string; 
-            description?: string;
-            imageSets?: Record<string, string[]>; // Grouped images { 'main': ['main.avif', 'main.webp', 'main.jpg'], '1': [...] }
-            sortedImageKeys?: string[]; // Sorted keys ['main', '1', '2', ...]
-        };
-        component?: any; // The compiled markdown content component
-    }; 
+    let { data }: { 
+        data: {
+            metadata: { 
+                name?: string; 
+                imageTemplate?: string;
+                slug?: string;
+                image?: string;
+                series?: string; 
+                year?: string; 
+                faction?: string; 
+                description?: string;
+                imageSets?: Record<string, string[]>; // Grouped images { 'main': ['main.avif', 'main.webp', 'main.jpg'], '1': [...] }
+                sortedImageKeys?: string[]; // Sorted keys ['main', '1', '2', ...]
+            };
+            component?: any; // The compiled markdown content component
+        }
+    } = $props(); 
 
     const toy = data.metadata;
     const slug = toy.slug || $page.params.slug;
@@ -31,10 +32,10 @@
     
     const imageSets = toy.imageSets || {};
     const sortedImageKeys = toy.sortedImageKeys || [];
-    let currentImageKeyIndex: number = 0;
+    let currentImageKeyIndex: number = $state(0);
 
-    let isImageEnlarged: boolean = false;
-    let enlargedImageIndex: number = 0;
+    let isImageEnlarged: boolean = $state(false);
+    let enlargedImageIndex: number = $state(0);
 
     let touchStartX: number = 0;
     let touchEndX: number = 0;
@@ -158,7 +159,7 @@
         throw error(404, 'Toy metadata not found');
     }
         
-    onMount(() => {
+    $effect(() => {
         window.addEventListener('keydown', handleKeydown);
         
         return () => {
@@ -186,9 +187,9 @@
                 <div class="relative rounded-lg border-2 sm:border-4 border-black overflow-hidden shadow-md group">
                     <div 
                         class="relative aspect-[3/4]"
-                        on:touchstart={handleTouchStart}
-                        on:touchmove={handleTouchMove}
-                        on:touchend={handleTouchEnd}
+                        ontouchstart={handleTouchStart}
+                        ontouchmove={handleTouchMove}
+                        ontouchend={handleTouchEnd}
                     >
                         {#if sortedImageKeys.length > 0}
                             {#each sortedImageKeys as imageKey, i}
@@ -201,7 +202,7 @@
                                 <button 
                                     class="absolute inset-0 transition-opacity duration-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-400 bg-transparent" 
                                     style="opacity: {i === currentImageKeyIndex ? '1' : '0'}"
-                                    on:click={() => openEnlargedImage(i)}
+                                    onclick={() => openEnlargedImage(i)}
                                     aria-label="Enlarge image {i+1}"
                                 >
                                     <picture>
@@ -227,6 +228,7 @@
                                     download
                                     class="absolute top-3 right-3 z-20 flex items-center justify-center bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg"
                                     title="Download full resolution"
+                                    aria-label="Download full resolution image"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -236,13 +238,15 @@
                             
                             {#if sortedImageKeys.length > 1}
                                 <button class="absolute left-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-r-md shadow-sm hover:shadow-md z-20 transition-all duration-300"
-                                        on:click|stopPropagation={prevImage}>
+                                        onclick={prevImage}
+                                        aria-label="Previous image">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                                     </svg>
                                 </button>
                                 <button class="absolute right-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-l-md shadow-sm hover:shadow-md z-20 transition-all duration-300"
-                                        on:click|stopPropagation={nextImage}>
+                                        onclick={nextImage}
+                                        aria-label="Next image">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                     </svg>
@@ -251,7 +255,10 @@
                                 <div class="absolute bottom-3 sm:bottom-4 inset-x-0 flex justify-center space-x-2 sm:space-x-2 z-20">
                                     {#each sortedImageKeys as _, i}
                                         <button class="w-3 h-3 sm:w-3 sm:h-3 rounded-full transition-all duration-300 shadow-md {i === currentImageKeyIndex ? 'bg-rose-400 scale-125' : 'bg-white/30'}" 
-                                                on:click|stopPropagation={() => currentImageKeyIndex = i}
+                                                onclick={(e) => {
+                                                    e.stopPropagation();
+                                                    currentImageKeyIndex = i;
+                                                }}
                                                 aria-label="View image {i+1}"></button>
                                     {/each}
                                 </div>
@@ -277,7 +284,7 @@
                             <button 
                                 class="flex-shrink-0 w-20 h-20 sm:w-20 sm:h-20 overflow-hidden rounded-md border-2 transition-all duration-300
                                        {i === currentImageKeyIndex ? 'border-rose-400 ring-2 ring-rose-400 shadow-lg' : 'border-gray-700'}"
-                                on:click={() => currentImageKeyIndex = i}>
+                                onclick={() => currentImageKeyIndex = i}>
                                 {#if fallbackSrc}
                                     <picture>
                                         {#if avifSrc}
@@ -317,11 +324,7 @@
                                 <strong class="font-semibold text-rose-200 block">Description:</strong>
                                 <!-- Using prose class for styling the markdown content -->
                                 <div class="text-gray-200 text-sm sm:text-base prose prose-sm prose-invert">
-                                    {#if typeof toy.description === 'string'}
-                                        {@html toy.description}
-                                    {:else}
-                                        <svelte:component this={toy.description} />
-                                    {/if}
+                                    {@html toy.description}
                                 </div>
                             </div>
                         {/if}
@@ -345,7 +348,7 @@
                             <button 
                                 class="w-20 h-20 overflow-hidden rounded-md border-2 transition-all duration-300
                                        {i === currentImageKeyIndex ? 'border-rose-400 ring-2 ring-rose-400 shadow-lg scale-105' : 'border-gray-700 hover:border-gray-400'}"
-                                on:click={() => currentImageKeyIndex = i}>
+                                onclick={() => currentImageKeyIndex = i}>
                                 {#if fallbackSrc}
                                     <picture>
                                         {#if avifSrc}
@@ -367,7 +370,7 @@
         <div class="prose prose-sm sm:prose-base md:prose-lg max-w-none bg-gray-800/80 backdrop-blur-sm p-4 sm:p-6 rounded-lg border-2 sm:border-4 border-black shadow-xl mt-3 sm:mt-6">
             <div class="prose-content-wrapper">
                 {#if contentComponent}
-                    <svelte:component this={contentComponent} />
+                    {@render contentComponent()}
                 {:else if loadError}
                     <p class="text-red-400 font-medium">{loadError}</p>
                 {:else}
@@ -388,15 +391,17 @@
 
     <div 
         class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-2 sm:p-4"
-        on:click={closeEnlargedImage}
+        onclick={closeEnlargedImage}
+        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeEnlargedImage(); } }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="enlarged-image-title"
+        tabindex="0"
     >
         <div class="absolute top-4 right-4 z-50">
             <button 
                 class="bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-colors duration-300"
-                on:click={closeEnlargedImage}
+                onclick={closeEnlargedImage}
                 aria-label="Close enlarged image view"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -409,10 +414,14 @@
         
         <div 
             class="relative max-w-5xl w-full h-[80vh] flex items-center justify-center"
-            on:touchstart={handleEnlargedTouchStart}
-            on:touchmove={handleEnlargedTouchMove}
-            on:touchend={handleEnlargedTouchEnd}
-            on:click|stopPropagation={() => {}}
+            ontouchstart={handleEnlargedTouchStart}
+            ontouchmove={handleEnlargedTouchMove}
+            ontouchend={handleEnlargedTouchEnd}
+            onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); } }}
+            role="button"
+            tabindex="0"
+            aria-label="Image container - click to interact"
         >
             {#if enlargedFallback}
                 <picture>
@@ -434,8 +443,9 @@
                 href={fullResPath(enlargedKey)} 
                 download
                 class="absolute top-4 left-4 flex items-center justify-center bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all duration-300 opacity-60 hover:opacity-100"
-                on:click|stopPropagation={() => {}}
+                onclick={(e) => e.stopPropagation()}
                 title="Download full resolution"
+                aria-label="Download full resolution image"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -449,7 +459,7 @@
             {#if sortedImageKeys.length > 1}
                 <button 
                     class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-1.5 sm:p-2 rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-all duration-300 opacity-40 hover:opacity-90"
-                    on:click|stopPropagation={prevEnlargedImage}
+                    onclick={(e) => { e.stopPropagation(); prevEnlargedImage(); }}
                     aria-label="Previous image"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -458,7 +468,7 @@
                 </button>
                 <button 
                     class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-1.5 sm:p-2 rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-all duration-300 opacity-40 hover:opacity-90"
-                    on:click|stopPropagation={nextEnlargedImage}
+                    onclick={(e) => { e.stopPropagation(); nextEnlargedImage(); }}
                     aria-label="Next image"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -480,7 +490,7 @@
                         
                         <button 
                             class="w-12 h-12 sm:w-14 sm:h-14 rounded-md overflow-hidden transition-all duration-300 border-2 {i === enlargedImageIndex ? 'border-rose-400 scale-110' : 'border-gray-700 opacity-40 hover:opacity-80'}"
-                            on:click|stopPropagation={() => enlargedImageIndex = i}
+                            onclick={(e) => { e.stopPropagation(); enlargedImageIndex = i; }}
                             aria-label="View image {i+1}"
                             aria-current={i === enlargedImageIndex ? 'true' : 'false'}
                         >

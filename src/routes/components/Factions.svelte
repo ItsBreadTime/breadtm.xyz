@@ -1,5 +1,5 @@
 <script>
-    export let faction = '';
+    let { faction = '' } = $props();
 </script>
 <span class="px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-full shadow-inner drop-shadow-sm"
     class:bg-autobot={faction === 'Autobot' || faction === 'Maximal'}

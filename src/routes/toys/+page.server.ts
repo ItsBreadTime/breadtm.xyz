@@ -60,7 +60,7 @@ export async function load() {
             
             // Extract metadata from the module
             const mod = module as { metadata?: Record<string, any> };
-            const metadata = { ...mod.metadata } || {}; 
+            const metadata = mod.metadata ? { ...mod.metadata } : {}; 
             
             // Use precompiled description if available
             const precompiled = precompiledDescriptions as Record<string, string>;
@@ -177,6 +177,6 @@ export async function load() {
         };
     } catch (e) {
         console.error("Error loading toys:", e);
-        throw error(500, 'Failed to load toys data.');
+        error(500, 'Failed to load toys data.');
     }
 }

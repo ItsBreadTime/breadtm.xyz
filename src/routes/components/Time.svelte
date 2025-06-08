@@ -1,9 +1,7 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-
-    let time: string;
-    let date: string;
-    let clockEmoji: string = "🕐"; // Default clock emoji
+    let time = $state('');
+    let date = $state('');
+    let clockEmoji = $state("🕐"); // Default clock emoji
 
     function updateTimeAndDate() {
         const now = new Date();
@@ -36,7 +34,7 @@
         clockEmoji = clockEmojis[index];
     }
 
-    onMount(() => {
+    $effect(() => {
         updateTimeAndDate();
         const interval = setInterval(updateTimeAndDate, 1000);
         return () => clearInterval(interval);

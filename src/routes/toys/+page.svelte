@@ -3,7 +3,7 @@
     import Title from '../components/Title.svelte';
     import Nav from '../sections/Nav.svelte';
 
-    export let data;
+    let { data } = $props();
 
     // Define an interface for the toy data structure
     interface Toy {
@@ -22,21 +22,21 @@
     const toyImagesMap = data.toyImagesMap || {}; // Map of slug -> available images
 
     // --- Filtering State ---
-    let selectedFaction = '';
-    let selectedSeries = '';
-    let searchTerm = '';
+    let selectedFaction = $state('');
+    let selectedSeries = $state('');
+    let searchTerm = $state('');
 
     // --- Get unique filter options ---
-    $: factions = [...new Set(toys.map((toy: Toy) => toy.faction).filter(Boolean))].sort();
-    $: series = [...new Set(toys.map((toy: Toy) => toy.series).filter(Boolean))].sort();
+    let factions = $derived([...new Set(toys.map((toy: Toy) => toy.faction).filter(Boolean))].sort());
+    let series = $derived([...new Set(toys.map((toy: Toy) => toy.series).filter(Boolean))].sort());
 
     // --- Filtered Toys ---
-    $: filteredToys = toys.filter((toy: Toy) => {
+    let filteredToys = $derived(toys.filter((toy: Toy) => {
         const factionMatch = !selectedFaction || toy.faction === selectedFaction;
         const seriesMatch = !selectedSeries || toy.series === selectedSeries;
         const searchMatch = !searchTerm || toy.name.toLowerCase().includes(searchTerm.toLowerCase());
         return factionMatch && seriesMatch && searchMatch;
-    });
+    }));
 
     // Function to get the best image for a toy
     function getBestImage(toy: Toy): string | undefined {
@@ -71,7 +71,7 @@
                 {#if selectedFaction || selectedSeries || searchTerm}
                     <button 
                         class="text-rose-300 hover:text-rose-200 flex items-center transition-colors duration-200"
-                        on:click={() => {
+                        onclick={() => {
                             selectedFaction = '';
                             selectedSeries = '';
                             searchTerm = '';

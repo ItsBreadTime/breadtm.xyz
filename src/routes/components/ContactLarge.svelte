@@ -1,10 +1,6 @@
 <script>
-    export let image = "";
-    export let url = "";
-    export let title = "";
-    export let description = "";
-    export let username = "";
-    import { copy } from 'svelte-copy';
+    let { image = "", url = "", title = "", description = "", username = "" } = $props();
+    import { copy } from '../../lib/utils/clipboard';
 </script>
 
 <div class="bg-purple-600 iconbg md:border-r-4 md:border-b-0 border-black">

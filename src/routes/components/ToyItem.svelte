@@ -1,16 +1,28 @@
 <script lang="ts">
-    export let name: string;
-    export let image: string | undefined = undefined;
-    export let slug: string;
-    export let faction: string | undefined = undefined;
-    export let series: string | undefined = undefined;
-    export let description: string | undefined = undefined;
-    export let year: string | undefined = undefined;
-    export let hasImages: boolean = false; // New prop to indicate if toy has real images
+    let { 
+        name, 
+        image = undefined, 
+        slug, 
+        faction = undefined, 
+        series = undefined, 
+        description = undefined, 
+        year = undefined, 
+        hasImages = false 
+    }: {
+        name: string;
+        image?: string;
+        slug: string;
+        faction?: string;
+        series?: string;
+        description?: string;
+        year?: string;
+        hasImages?: boolean;
+    } = $props();
+    
     import Factions from "./Factions.svelte";
 
     // Determine which image to use, avoiding unnecessary requests
-    let imagePath: string;
+    let imagePath = $state('');
     
     if (hasImages && image) {
         // We know this toy has images and we have a specific one to use
@@ -67,11 +79,7 @@
     <div class="p-2 sm:p-3 text-white">
         {#if description}
             <div class="text-[10px] sm:text-xs text-gray-300 line-clamp-2 mb-1 sm:mb-2 prose prose-sm prose-invert">
-                {#if typeof description === 'string'}
-                    {@html description}
-                {:else}
-                    <svelte:component this={description} />
-                {/if}
+                {@html description}
             </div>
         {/if}
     </div>

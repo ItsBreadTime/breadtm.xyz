@@ -1,7 +1,6 @@
+<!-- @migration-task Error while migrating Svelte code: This migration would change the name of a slot (name to name_1) making the component unusable -->
 <script>
-    export let name = '';
-    export let sourceUrl = '';
-    export let url = '';
+    let { name = '', sourceUrl = '', url = '', nameContent = null, children } = $props();
 </script>
 
 <div
@@ -10,18 +9,18 @@
     <div class="absolute inset-0 opacity-0 group-hover:opacity-10 bg-white transition-opacity duration-700 pointer-events-none"></div>
     <div>
         <h3 class="font-bold text-3xl m-4 text-center text-teal-100 group-hover:text-white transition-colors drop-shadow-md">
-            <slot name="name"></slot>{name}
+            {@render nameContent?.()}{name}
         </h3>
         <div class="relative overflow-hidden rounded-xl mb-4 border-black border-4">
             <img
-                src=projects/{name}.webp
+                src="projects/{name}.webp"
                 alt={name}
                 class="brightness-75 group-hover:brightness-100 transition-all duration-500 transform group-hover:scale-105"
                 loading="lazy"
             />
         </div>
         <span class="text-teal-100 block p-4 bg-emerald-700/50 rounded-lg shadow-inner">
-            <slot></slot>
+            {@render children?.()}
         </span>
     </div>
     <div class="flex justify-between mt-4">

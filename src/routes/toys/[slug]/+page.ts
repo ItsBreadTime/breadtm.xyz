@@ -14,7 +14,7 @@ export const load: PageLoad = async ({ params, data }) => {
     const module = modules[moduleKey];
     
     if (!module) {
-      throw error(404, `Markdown file not found: ${slug}`);
+      error(404, `Markdown file not found: ${slug}`);
     }
     
     // Type the module correctly
@@ -31,6 +31,6 @@ export const load: PageLoad = async ({ params, data }) => {
     
     // Otherwise, throw a generic error
     console.error(`Error loading component for toy ${slug}:`, e);
-    throw error(500, `Failed to load component for ${slug}.`);
+    error(500, `Failed to load component for ${slug}.`);
   }
 };

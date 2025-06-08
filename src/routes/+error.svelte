@@ -1,5 +1,5 @@
 <script>
-	import { page } from "$app/stores";
+	import { page } from "$app/state";
 </script>
 
 <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-gray-900 text-gray-200 p-4 relative overflow-hidden">
@@ -8,14 +8,14 @@
     
     <div class="relative z-10 max-w-lg w-full bg-black/40 backdrop-blur-md p-8 rounded-2xl border-4 border-red-500/50 shadow-2xl text-center">
         <div class="animate-pulse mb-2">
-            <span class="inline-block px-4 py-1 bg-red-500 text-white text-sm rounded-full font-mono">Error {$page.status}</span>
+            <span class="inline-block px-4 py-1 bg-red-500 text-white text-sm rounded-full font-mono">Error {page.status}</span>
         </div>
         
-        <h1 class="text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-purple-600 drop-shadow-lg">{$page.status}</h1>
+        <h1 class="text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-purple-600 drop-shadow-lg">{page.status}</h1>
         
         <div class="w-32 h-1 bg-gradient-to-r from-red-500 to-purple-500 rounded-full mx-auto my-6"></div>
         
-        <h2 class="font-mono text-xl md:text-3xl mb-8 text-red-200">{$page.error?.message || "Something went wrong"}</h2>
+        <h2 class="font-mono text-xl md:text-3xl mb-8 text-red-200">{page.error?.message || "Something went wrong"}</h2>
         
         <div class="flex flex-col md:flex-row gap-4 justify-center items-center">
             <a class="group py-3 px-6 rounded-xl text-lg bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-500 hover:to-indigo-700 text-white font-bold transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg border-2 border-indigo-900/50 w-full md:w-auto" href="/">

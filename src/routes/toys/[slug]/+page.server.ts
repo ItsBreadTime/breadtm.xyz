@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ params }) => {
     const metadata = modules[`../${slug}.md`];
     
     if (!metadata) {
-      throw error(404, `Not found: /toys/${slug}`);
+      error(404, `Not found: /toys/${slug}`);
     }
     
     // Get list of available images for this toy
@@ -107,6 +107,6 @@ export const load: PageServerLoad = async ({ params }) => {
     
     // Otherwise, throw a generic error
     console.error(`Error loading metadata for toy ${slug}:`, e);
-    throw error(500, `Failed to load metadata for ${slug}.`);
+    error(500, `Failed to load metadata for ${slug}.`);
   }
 };
