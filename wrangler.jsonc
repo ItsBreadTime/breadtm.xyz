@@ -2,6 +2,6 @@
   "name": "breadtm-xyz",
   "compatibility_date": "2025-06-08",
   "assets": {
-    "directory": ".svelte-kit/generated/client-optimized"
+    "directory": ".svelte-kit/output/"
   }
 }
