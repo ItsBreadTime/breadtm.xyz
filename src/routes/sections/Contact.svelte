@@ -64,7 +64,7 @@
                 <span class="font-black text-yellow-200">Breadmoji</span>, filled
                 with cute bread gboard emoji kitchen emojis.
             </a>
-            <a href="https://matrix.to/#/#breadmoji:mozilla.org" class="block text-purple-300 text-lg underline mt-2" data-umami-event="Join Breadmoji matrix">...or alternatively on matrix (bridged)</a>
+            <a href="https://matrix.to/#/#breadmoji:mozilla.org" class="block text-purple-200 text-lg underline mt-2" data-umami-event="Join Breadmoji matrix">...or alternatively on matrix (bridged)</a>
         </div>
     </div>
 </div>

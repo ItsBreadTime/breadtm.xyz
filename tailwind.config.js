@@ -12,7 +12,8 @@ export default {
     },
     extend: {
       colors: {
-        ikea: '#feda00',
+        ikeayellow: '#feda00',
+        ikeablue: '#0058AB',
         autobot: '#e10000',
         decepticon: '#6f4da1',
       },
