@@ -5,11 +5,11 @@
 <noscript>
     <div class="bg-red-300 text-center p-2 text-lg">JS disabled, some features will be hidden (e.g. clocks, copy).</div>
 </noscript>
-<div class="py-8 md:py-12 border-b-8 md:border-8 border-black relative overflow-hidden" id="header">
+<div class="py-8 md:py-12 border-b-8 md:border-8 border-black relative overflow-hidden bg-blue-500" id="header">
     <div class="header-grid absolute inset-0 opacity-25"></div>
     <div class="m-4 md:m-8 relative z-10">
         <div class="my-6 text-6xl sm:text-7xl md:text-9xl font-black text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.3)] tracking-tight">
-            Hello, I'm Bread<sup class="font-bold text-blue-300 font-features sups">TM</sup>
+            Hello, I'm Bread<sup class="font-bold text-violet-200 font-features sups">TM</sup>
         </div>
         <div
             class="grid grid-cols-1 md:grid-cols-3 border-4 border-black rounded-lg overflow-hidden shadow-2xl"
@@ -24,12 +24,15 @@
             </div>
             <div class="col-span-2" id="ptext">
                 <div
-                    class="text-xl md:text-2xl p-8 bg-gradient-to-br from-sky-600 to-sky-700 text-gray-100 h-full font-semibold relative shadow-inner"
+                    class="text-xl md:text-2xl p-8 bg-indigo-600 text-gray-100 h-full font-semibold relative shadow-inner"
                 >
-                    <div class="absolute top-0 right-0 w-20 h-20 -mt-10 -mr-10 bg-rose-400 rounded-full opacity-20 blur-xl"></div>
-                    <div class="absolute bottom-0 left-0 w-32 h-32 -mb-10 -ml-10 bg-blue-400 rounded-full opacity-20 blur-xl"></div>
                     <Time/>
-                    This is a placeholder, trust me i will fill in this box in 3-5 business years.
+                    This is a placeholder, trust me i will fill in this box in 3-5 business years. Also, hi!
+                    <div class="absolute bottom-10">
+                        <span class="mr-3">Jump to places:</span>
+                        <a class="bg-white text-violet-900 px-2 py-1 rounded-md" href="#stuffilike">Stuff I Like</a>
+                        <a class="bg-white text-violet-900 px-2 py-1 rounded-md" href="#contacts">Contacts</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -37,9 +40,6 @@
 </div>
 
 <style lang="postcss">
-    #header {
-        background: linear-gradient(to bottom right, theme(colors.indigo.900), theme(colors.indigo.800), theme(colors.sky.500));
-    }
     #pimage {
         background-color: theme(colors.violet.500);
         background-image: linear-gradient(

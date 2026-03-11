@@ -41,6 +41,6 @@
     });
 </script>
 
-<div class="p-4 mb-2 rounded-md text-xl bg-cyan-500 text-cyan-950 jsreq">
+<div class="p-4 mb-2 rounded-md text-xl bg-violet-600 text-violet-200 jsreq">
     {clockEmoji} It's currently {time} - {date} for me.
 </div>

@@ -23,21 +23,16 @@
                 url="https://matrix.to/#/@breadtm:mozilla.org"
             />
             <ContactLarge
-                image="contacts/signal.svg"
-                title="Signal"
-                username="breadtm.69"
+                image="contacts/discord.svg"
+                title="Discord"
+                username="bread.trademark"
                 description="Still don't know what to put here"
-                url="https://signal.me/#eu/iUiPuUfEn4nK9WBEdrC8L8IAgK2Xi5io9uQUEJQu5EsxrLc_lvxP0Z_8hu1nXVqD"
+                url="https://discord.com/users/810533927492124693"
             />
         </div>
         <div
-            class="grid grid-cols-2 md:grid-cols-4 border-l-4 md:mb-12 border-black text-center md:border-b-4"
+            class="grid grid-cols-2 md:grid-cols-3 border-l-4 md:mb-12 border-black text-center md:border-b-4"
         >
-            <Contact
-                service="Discord"
-                name="bread.trademark"
-                url="https://discord.com/users/810533927492124693"
-            />
             <Contact
                 service="Email"
                 name="me@breadtm.xyz"
@@ -49,9 +44,9 @@
                 url="https://github.com/ItsBreadTime"
             />
             <Contact
-                service="Minecraft"
-                name="FloofTM"
-                url="https://namemc.com/profile/FloofTM.1"
+                service="Letterboxd"
+                name="iBreadTM"
+                url="https://letterboxd.com/iBreadTM/"
             />
         </div>
         <div class="block mt-6 md:mt-0 text-center border-4 text-2xl p-4 md:p-8 bg-violet-600 text-gray-100 h-full font-semibold border-black">
