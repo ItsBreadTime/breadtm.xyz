@@ -1,7 +1,5 @@
 {
   "name": "breadtm-xyz",
   "compatibility_date": "2025-06-08",
-  "assets": {
-    "directory": ".svelte-kit/output/"
-  }
+  "pages_build_output_dir": ".svelte-kit/cloudflare"
 }

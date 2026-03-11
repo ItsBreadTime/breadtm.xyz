@@ -2,9 +2,10 @@
 	"name": "breadtm.xyz",
 	"version": "0.0.1",
 	"private": true,
+	"packageManager": "pnpm@10.12.1",
 	"scripts": {
-		"dev": "npm run precompile && vite dev --host",
-		"build": "npm run precompile && vite build",
+		"dev": "pnpm run precompile && vite dev --host",
+		"build": "pnpm run precompile && vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
