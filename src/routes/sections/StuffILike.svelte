@@ -2,12 +2,12 @@
     import Title from "../components/Title.svelte";
 </script>
 
-<div class="py-4" id="stuffilike">
+<div class="py-4 relative overflow-hidden" id="stuffilike">
     <div class="m-4 md:m-8">
         <Title style="bg-pink-200 text-2xl md:text-3xl"
             >👍 Stuff I Like
         </Title>
-    <div class="header-grid absolute inset-0 opacity-25"></div>
+    <div class="header-grid absolute inset-0 opacity-25 pointer-events-none"></div>
     <div class="m-4 md:m-8 relative z-10">
         <div
             class="grid grid-cols-1 md:grid-cols-3 border-4 border-black rounded-lg overflow-hidden shadow-2xl"
