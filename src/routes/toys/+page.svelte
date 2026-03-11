@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import ToyItem from '../components/ToyItem.svelte';
     import Title from '../components/Title.svelte';
     import Nav from '../sections/Nav.svelte';
@@ -54,7 +55,82 @@
         // Return undefined if no images are available
         return undefined;
     }
+
+    // --- Dithered background canvas ---
+    let bgCanvas: HTMLCanvasElement;
+
+    const CELL = 26; // cell size in px — bigger = bigger dots
+
+    // 8×8 Bayer ordered dither matrix, normalised to [0, 1)
+    const BAYER8 = [
+        [ 0, 32,  8, 40,  2, 34, 10, 42],
+        [48, 16, 56, 24, 50, 18, 58, 26],
+        [12, 44,  4, 36, 14, 46,  6, 38],
+        [60, 28, 52, 20, 62, 30, 54, 22],
+        [ 3, 35, 11, 43,  1, 33,  9, 41],
+        [51, 19, 59, 27, 49, 17, 57, 25],
+        [15, 47,  7, 39, 13, 45,  5, 37],
+        [63, 31, 55, 23, 61, 29, 53, 21],
+    ].map(row => row.map(v => (v + 0.5) / 64));
+
+    // 5-stop palette: blue → blue-violet → purple → red-violet → red (dimmed)
+    const PALETTE: [number, number, number][] = [
+        [  0,  40, 130],
+        [ 45,   0, 115],
+        [ 85,   0,  85],
+        [115,   0,  45],
+        [130,   0,  15],
+    ];
+
+    function drawDither() {
+        if (!bgCanvas) return;
+        const ctx = bgCanvas.getContext('2d');
+        if (!ctx) return;
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        bgCanvas.width = W;
+        bgCanvas.height = H;
+
+        ctx.fillStyle = '#030008';
+        ctx.fillRect(0, 0, W, H);
+
+        const cols = Math.ceil(W / CELL);
+        const rows = Math.ceil(H / CELL);
+        const maxT = cols + rows - 2;
+
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                // Diagonal t: 0 = top-left (blue), 1 = bottom-right (red)
+                const t = maxT > 0 ? (col + row) / maxT : 0;
+
+                const pf = t * (PALETTE.length - 1);
+                const lo = Math.floor(pf);
+                const hi = Math.min(lo + 1, PALETTE.length - 1);
+                const frac = pf - lo;
+
+                const threshold = BAYER8[row % 8][col % 8];
+                const [r, g, b] = frac > threshold ? PALETTE[hi] : PALETTE[lo];
+
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.beginPath();
+                ctx.arc(
+                    col * CELL + CELL / 2,
+                    row * CELL + CELL / 2,
+                    CELL * 0.46, 0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+    }
+
+    onMount(() => {
+        drawDither();
+        window.addEventListener('resize', drawDither);
+        return () => window.removeEventListener('resize', drawDither);
+    });
 </script>
+
+<canvas bind:this={bgCanvas} id="dither-bg-canvas" aria-hidden="true"></canvas>
 
 <Nav></Nav>
 <div class="py-4 min-h-screen" id="toys-gallery">
@@ -167,21 +243,15 @@
 <style lang="postcss">
     #toys-gallery {
         position: relative;
-        background-color: theme(colors.indigo.800); /* Deeper base color to match detail page */
-        background-image: 
-            radial-gradient(circle at 25% 25%, theme(colors.purple.700 / 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 75% 75%, theme(colors.rose.700 / 0.3) 0%, transparent 50%),
-            linear-gradient(
-                theme(colors.purple.900 / 0.4) 1px,
-                transparent 1px
-            ),
-            linear-gradient(
-                90deg,
-                theme(colors.purple.900 / 0.4) 1px,
-                transparent 1px
-            );
-        background-size: 100% 100%, 100% 100%, 2.5em 2.5em, 2.5em 2.5em;
-        background-attachment: fixed;
+    }
+
+    #dither-bg-canvas {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
     }
     
     /* Style selects for better appearance */

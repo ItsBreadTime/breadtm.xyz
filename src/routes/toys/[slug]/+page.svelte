@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import Title from '../../components/Title.svelte';
     import { error } from '@sveltejs/kit';
     import { page } from '$app/stores'; 
@@ -167,6 +168,65 @@
             document.body.classList.remove('overflow-hidden');
         };
     });
+
+    // --- Dithered background canvas ---
+    let bgCanvas: HTMLCanvasElement;
+
+    const CELL = 26;
+    const BAYER8 = [
+        [ 0, 32,  8, 40,  2, 34, 10, 42],
+        [48, 16, 56, 24, 50, 18, 58, 26],
+        [12, 44,  4, 36, 14, 46,  6, 38],
+        [60, 28, 52, 20, 62, 30, 54, 22],
+        [ 3, 35, 11, 43,  1, 33,  9, 41],
+        [51, 19, 59, 27, 49, 17, 57, 25],
+        [15, 47,  7, 39, 13, 45,  5, 37],
+        [63, 31, 55, 23, 61, 29, 53, 21],
+    ].map(row => row.map(v => (v + 0.5) / 64));
+
+    const PALETTE: [number, number, number][] = [
+        [  0,  40, 130],
+        [ 45,   0, 115],
+        [ 85,   0,  85],
+        [115,   0,  45],
+        [130,   0,  15],
+    ];
+
+    function drawDither() {
+        if (!bgCanvas) return;
+        const ctx = bgCanvas.getContext('2d');
+        if (!ctx) return;
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        bgCanvas.width = W;
+        bgCanvas.height = H;
+        ctx.fillStyle = '#030008';
+        ctx.fillRect(0, 0, W, H);
+        const cols = Math.ceil(W / CELL);
+        const rows = Math.ceil(H / CELL);
+        const maxT = cols + rows - 2;
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                const t = maxT > 0 ? (col + row) / maxT : 0;
+                const pf = t * (PALETTE.length - 1);
+                const lo = Math.floor(pf);
+                const hi = Math.min(lo + 1, PALETTE.length - 1);
+                const frac = pf - lo;
+                const threshold = BAYER8[row % 8][col % 8];
+                const [r, g, b] = frac > threshold ? PALETTE[hi] : PALETTE[lo];
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.beginPath();
+                ctx.arc(col * CELL + CELL / 2, row * CELL + CELL / 2, CELL * 0.46, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    onMount(() => {
+        drawDither();
+        window.addEventListener('resize', drawDither);
+        return () => window.removeEventListener('resize', drawDither);
+    });
 </script>
 
 <svelte:head>
@@ -177,8 +237,10 @@
     {/if}
 </svelte:head>
 
+<canvas bind:this={bgCanvas} id="dither-bg-canvas" aria-hidden="true"></canvas>
+
 <Nav />
-<div class="py-2 sm:py-8 bg-gradient-to-br from-indigo-800 via-purple-900 to-gray-900 text-white min-h-screen" id="toy-details">
+<div class="py-2 sm:py-8 text-white min-h-screen" id="toy-details">
     <div class="container mx-auto px-2 sm:px-4 max-w-7xl">
         <Title style="bg-rose-200 text-xl sm:text-2xl md:text-3xl text-center text-black">{toy.name || 'Unnamed Toy'}</Title>
 
@@ -626,20 +688,14 @@
     
     #toy-details {
         position: relative;
-        overflow: hidden;
     }
-    
-    #toy-details::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-image: radial-gradient(circle at center, rgba(199, 210, 254, 0.1) 0%, transparent 8%),
-                          radial-gradient(circle at 20% 80%, rgba(244, 114, 182, 0.1) 0%, transparent 15%);
-        background-size: 120px 120px, 160px 160px;
-        opacity: 0.4;
+
+    #dither-bg-canvas {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        width: 100vw;
+        height: 100vh;
         pointer-events: none;
     }
 </style>
