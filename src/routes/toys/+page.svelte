@@ -59,7 +59,7 @@
     // --- Dithered background canvas ---
     let bgCanvas: HTMLCanvasElement;
 
-    const CELL = 26; // cell size in px — bigger = bigger dots
+    const CELL = 26; // cell size in CSS px — bigger = bigger dots
 
     // 8×8 Bayer ordered dither matrix, normalised to [0, 1)
     const BAYER8 = [
@@ -82,17 +82,33 @@
         [130,   0,  15],
     ];
 
+    function getViewportSize() {
+        const rect = bgCanvas.getBoundingClientRect();
+        const width = rect.width || window.innerWidth;
+        const height = rect.height || window.innerHeight;
+        return { width, height };
+    }
+
     function drawDither() {
         if (!bgCanvas) return;
         const ctx = bgCanvas.getContext('2d');
         if (!ctx) return;
-        const W = window.innerWidth;
-        const H = window.innerHeight;
-        bgCanvas.width = W;
-        bgCanvas.height = H;
+        const { width: W, height: H } = getViewportSize();
+        const dpr = window.devicePixelRatio || 1;
+
+        // Keep CSS and backing store sizes aligned to avoid distortion on mobile.
+        bgCanvas.style.width = `${W}px`;
+        bgCanvas.style.height = `${H}px`;
+        bgCanvas.width = Math.max(1, Math.round(W * dpr));
+        bgCanvas.height = Math.max(1, Math.round(H * dpr));
+
+        // Draw in CSS pixels while rendering at device resolution for crisp zooming.
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         ctx.fillStyle = '#030008';
         ctx.fillRect(0, 0, W, H);
+
+        const dotAlpha = window.matchMedia('(max-width: 767px)').matches ? 0.42 : 0.5;
 
         const cols = Math.ceil(W / CELL);
         const rows = Math.ceil(H / CELL);
@@ -111,7 +127,7 @@
                 const threshold = BAYER8[row % 8][col % 8];
                 const [r, g, b] = frac > threshold ? PALETTE[hi] : PALETTE[lo];
 
-                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillStyle = `rgba(${r},${g},${b},${dotAlpha})`;
                 ctx.beginPath();
                 ctx.arc(
                     col * CELL + CELL / 2,
@@ -249,8 +265,8 @@
         position: fixed;
         inset: 0;
         z-index: -1;
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        height: 100%;
         pointer-events: none;
     }
     

@@ -31,7 +31,7 @@
             />
         </div>
         <div
-            class="grid grid-cols-2 md:grid-cols-3 border-l-4 md:mb-12 border-black text-center md:border-b-4"
+            class="grid grid-cols-1 md:grid-cols-2 md:grid-cols-3 border-l-4 md:mb-12 border-black text-center md:border-b-4"
         >
             <Contact
                 service="Email"
@@ -49,7 +49,7 @@
                 url="https://letterboxd.com/iBreadTM/"
             />
         </div>
-        <div class="block mt-6 md:mt-0 text-center border-4 text-2xl p-4 md:p-8 bg-violet-600 text-gray-100 h-full font-semibold border-black">
+        <div class="block mt-6 md:mt-0 text-center border-4 text-md md:text-2xl p-4 md:p-8 bg-violet-600 text-gray-100 h-full font-semibold border-black">
             <a
                 class="block text-gray-100 no-underline hover:text-yellow-200 transition-colors"
                 href="https://discord.gg/uGbQsmRSxE"
@@ -59,7 +59,7 @@
                 <span class="font-black text-yellow-200">Breadmoji</span>, filled
                 with cute bread gboard emoji kitchen emojis.
             </a>
-            <a href="https://matrix.to/#/#breadmoji:mozilla.org" class="block text-purple-200 text-lg underline mt-2" data-umami-event="Join Breadmoji matrix">...or alternatively on matrix (bridged)</a>
+            <a href="https://matrix.to/#/#breadmoji:mozilla.org" class="block text-purple-200 md:text-lg underline mt-2" data-umami-event="Join Breadmoji matrix">...or alternatively on matrix (bridged)</a>
         </div>
     </div>
 </div>
