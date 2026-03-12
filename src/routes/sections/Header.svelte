@@ -45,11 +45,11 @@
                     This is a placeholder, trust me i will fill in this box in 3-5
                     business years. Also, hi!
                     <hr class="my-3 md:hidden bg-blue-500 border-0 h-px">
-                    <div class=" md:absolute md:bottom-6">
+                    <div class="md:absolute md:bottom-6">
                         <span class="block mb-2 md:mb-0 md:mr-3 md:inline text-blue-200"
                             >Jump to places:</span
                         >
-                        <div class="flex flex-col sm:flex-row gap-2">
+                        <div class="md:mt-2 flex flex-col sm:flex-row gap-2">
                             <a
                                 class="bg-white text-violet-900 px-3 py-2 rounded-md text-center font-bold"
                                 href="#stuffilike"

@@ -58,6 +58,7 @@
 
     // --- Dithered background canvas ---
     let bgCanvas: HTMLCanvasElement;
+    let pageRoot: HTMLDivElement;
 
     const CELL = 26; // cell size in CSS px — bigger = bigger dots
 
@@ -140,17 +141,34 @@
     }
 
     onMount(() => {
+        const redraw = () => requestAnimationFrame(drawDither);
+        const viewport = window.visualViewport;
+        const resizeObserver = new ResizeObserver(redraw);
+
         drawDither();
-        window.addEventListener('resize', drawDither);
-        return () => window.removeEventListener('resize', drawDither);
+        window.addEventListener('resize', redraw);
+        window.addEventListener('orientationchange', redraw);
+        viewport?.addEventListener('resize', redraw);
+        viewport?.addEventListener('scroll', redraw);
+        resizeObserver.observe(pageRoot);
+
+        return () => {
+            window.removeEventListener('resize', redraw);
+            window.removeEventListener('orientationchange', redraw);
+            viewport?.removeEventListener('resize', redraw);
+            viewport?.removeEventListener('scroll', redraw);
+            resizeObserver.disconnect();
+        };
     });
 </script>
 
-<canvas bind:this={bgCanvas} id="dither-bg-canvas" aria-hidden="true"></canvas>
+<div id="toys-page" bind:this={pageRoot}>
+    <canvas bind:this={bgCanvas} id="dither-bg-canvas" aria-hidden="true"></canvas>
 
-<Nav></Nav>
-<div class="py-4 min-h-screen" id="toys-gallery">
-    <div class="w-full max-w-6xl mx-auto px-4">
+    <div id="toys-content">
+        <Nav></Nav>
+        <div class="py-4 min-h-[100dvh]" id="toys-gallery">
+            <div class="w-full max-w-6xl mx-auto px-4">
         <Title style="bg-rose-200 text-2xl md:text-3xl">🧸 Toy Gallery</Title>
 
         <!-- Filtering Controls - Inline on all screen sizes -->
@@ -253,18 +271,32 @@
                 {/if}
             </div>
         {/if}
+            </div>
+        </div>
     </div>
 </div>
 
 <style lang="postcss">
+    #toys-page {
+        position: relative;
+        min-height: 100dvh;
+        isolation: isolate;
+        background: #030008;
+    }
+
+    #toys-content {
+        position: relative;
+        z-index: 1;
+    }
+
     #toys-gallery {
         position: relative;
     }
 
     #dither-bg-canvas {
-        position: fixed;
+        position: absolute;
         inset: 0;
-        z-index: -1;
+        z-index: 0;
         width: 100%;
         height: 100%;
         pointer-events: none;

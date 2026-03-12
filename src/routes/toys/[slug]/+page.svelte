@@ -171,6 +171,7 @@
 
     // --- Dithered background canvas ---
     let bgCanvas: HTMLCanvasElement;
+    let pageRoot: HTMLDivElement;
 
     const CELL = 26;
     const BAYER8 = [
@@ -239,9 +240,24 @@
     }
 
     onMount(() => {
+        const redraw = () => requestAnimationFrame(drawDither);
+        const viewport = window.visualViewport;
+        const resizeObserver = new ResizeObserver(redraw);
+
         drawDither();
-        window.addEventListener('resize', drawDither);
-        return () => window.removeEventListener('resize', drawDither);
+        window.addEventListener('resize', redraw);
+        window.addEventListener('orientationchange', redraw);
+        viewport?.addEventListener('resize', redraw);
+        viewport?.addEventListener('scroll', redraw);
+        resizeObserver.observe(pageRoot);
+
+        return () => {
+            window.removeEventListener('resize', redraw);
+            window.removeEventListener('orientationchange', redraw);
+            viewport?.removeEventListener('resize', redraw);
+            viewport?.removeEventListener('scroll', redraw);
+            resizeObserver.disconnect();
+        };
     });
 </script>
 
@@ -253,11 +269,13 @@
     {/if}
 </svelte:head>
 
-<canvas bind:this={bgCanvas} id="dither-bg-canvas" aria-hidden="true"></canvas>
+<div id="toy-page" bind:this={pageRoot}>
+    <canvas bind:this={bgCanvas} id="dither-bg-canvas" aria-hidden="true"></canvas>
 
-<Nav />
-<div class="py-2 sm:py-8 text-white min-h-screen" id="toy-details">
-    <div class="container mx-auto px-2 sm:px-4 max-w-7xl">
+    <div id="toy-content">
+        <Nav />
+        <div class="py-2 sm:py-8 text-white min-h-[100dvh]" id="toy-details">
+            <div class="container mx-auto px-2 sm:px-4 max-w-7xl">
         <Title style="bg-rose-200 text-xl sm:text-2xl md:text-3xl text-center text-black">{toy.name || 'Unnamed Toy'}</Title>
 
         <div class="flex flex-col lg:flex-row gap-3 sm:gap-8 my-2 sm:my-6 items-start justify-center">
@@ -454,6 +472,8 @@
                 {:else}
                     <p class="text-gray-400 italic py-4">No additional content available for this toy.</p>
                 {/if}
+            </div>
+        </div>
             </div>
         </div>
     </div>
@@ -702,14 +722,26 @@
         background-color: rgba(31, 41, 55, 0.8);
     }
     
+    #toy-page {
+        position: relative;
+        min-height: 100dvh;
+        isolation: isolate;
+        background: #030008;
+    }
+
+    #toy-content {
+        position: relative;
+        z-index: 1;
+    }
+
     #toy-details {
         position: relative;
     }
 
     #dither-bg-canvas {
-        position: fixed;
+        position: absolute;
         inset: 0;
-        z-index: -1;
+        z-index: 0;
         width: 100%;
         height: 100%;
         pointer-events: none;
