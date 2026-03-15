@@ -283,7 +283,7 @@
         <Nav />
         <div class="py-2 sm:py-8 text-white min-h-[100dvh]" id="toy-details">
             <div class="container mx-auto px-2 sm:px-4 max-w-7xl">
-        <Title font="accent" style="bg-rose-200 text-xl sm:text-2xl md:text-3xl text-center text-black">{toy.name || 'Unnamed Toy'}</Title>
+        <Title font="accent" decoration="bg-pink-500" style="bg-rose-200 text-xl sm:text-2xl md:text-3xl text-center text-black">{toy.name || 'Unnamed Toy'}</Title>
 
         <div class="flex flex-col lg:flex-row gap-3 sm:gap-8 my-2 sm:my-6 items-start justify-center">
             <div class="w-full lg:w-1/2">
