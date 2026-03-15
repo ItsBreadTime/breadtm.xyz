@@ -162,6 +162,16 @@
     });
 </script>
 
+<svelte:head>
+    <link
+        rel="preload"
+        href="/fonts/Goldman-Bold.woff2"
+        as="font"
+        type="font/woff2"
+        crossorigin="anonymous"
+    />
+</svelte:head>
+
 <div id="toys-page" bind:this={pageRoot}>
     <canvas bind:this={bgCanvas} id="dither-bg-canvas" aria-hidden="true"></canvas>
 

@@ -262,6 +262,13 @@
 </script>
 
 <svelte:head>
+    <link
+        rel="preload"
+        href="/fonts/Goldman-Bold.woff2"
+        as="font"
+        type="font/woff2"
+        crossorigin="anonymous"
+    />
     {#if isImageEnlarged}
         <title>Viewing {toy.name} - Image {enlargedImageIndex + 1} of {sortedImageKeys.length}</title>
     {:else}
