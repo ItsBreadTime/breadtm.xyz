@@ -23,11 +23,17 @@
 
     // Determine which image to use, avoiding unnecessary requests
     let imagePath = $state('');
+    let baseImagePath = $state('');
     
     if (hasImages && image) {
         // We know this toy has images and we have a specific one to use
         // The image path includes the full filename with extension now
         imagePath = `/toys/${slug}/${image}`;
+        
+        const extMatch = image.match(/\.([^\.]+)$/);
+        if (extMatch && ['avif', 'webp', 'jpg', 'jpeg'].includes(extMatch[1].toLowerCase())) {
+            baseImagePath = `/toys/${slug}/${image.substring(0, image.lastIndexOf('.'))}`;
+        }
     } else if (hasImages) {
         // No specific image was provided, but we'll leave it empty
         // and let the server-side logic handle finding the best format
@@ -44,7 +50,18 @@
     <div class="aspect-[3/4] overflow-hidden relative">
         <div class="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-gray-900/70 to-transparent z-10 group-hover:opacity-60 transition-opacity duration-300"></div>
         
-        {#if imagePath}
+        {#if baseImagePath}
+            <picture>
+                <source srcset="{baseImagePath}.avif" type="image/avif" />
+                <source srcset="{baseImagePath}.webp" type="image/webp" />
+                <img 
+                    src="{baseImagePath}.jpg" 
+                    alt="Image of {name}" 
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" 
+                    loading="lazy"
+                />
+            </picture>
+        {:else if imagePath}
             <!-- Only try to load an image if we know it exists -->
             <img 
                 src={imagePath} 
