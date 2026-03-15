@@ -2,4 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+	font-family: 'Inter';
+	src: url('/fonts/Inter.woff2') format('woff2');
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Inter';
+	src: url('/fonts/InterItalic.woff2') format('woff2');
+	font-style: italic;
+	font-weight: 100 900;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'CommitMono';
+	src: url('/fonts/CommitMono-Bold.woff2') format('woff2');
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Goldman';
+	src: url('/fonts/Goldman-Bold.woff2') format('woff2');
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+}
+
+@layer base {
+	body {
+		@apply font-sans;
+		font-feature-settings: 'calt', 'liga', 'cv11';
+	}
+}
+
+@layer utilities {
+	.font-features {
+		font-feature-settings: 'calt', 'liga', 'cv11';
+	}
+
+	.font-features-sups {
+		font-feature-settings: 'sups';
+	}
+}
+
 

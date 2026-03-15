@@ -60,17 +60,17 @@
         {/if}
         
         <div class="absolute inset-x-0 bottom-0 p-2 sm:p-3 z-20">
-            <h3 class="text-base sm:text-lg md:text-xl font-bold truncate text-white group-hover:text-rose-300 transition-colors duration-300 drop-shadow-sm">{name}</h3>
+            <h3 class="font-accent text-base sm:text-lg md:text-xl font-bold truncate text-white group-hover:text-rose-300 transition-colors duration-300 drop-shadow-sm">{name}</h3>
             
             <div class="flex items-center flex-wrap gap-1 mt-1">
                 {#if faction}
                     <Factions faction={faction} />
                 {/if}
                 {#if year}
-                    <span class="text-[10px] sm:text-xs text-amber-300 drop-shadow-sm bg-black/30 px-1.5 sm:px-2 py-0.5 rounded-md">{year}</span>
+                    <span class="text-[10px] sm:text-xs text-amber-300 drop-shadow-sm bg-black/30 px-1.5 sm:px-2 py-0.5 rounded-md font-accent">{year}</span>
                 {/if}
                 {#if series}
-                    <span class="text-[10px] sm:text-xs text-gray-300 drop-shadow-sm bg-black/30 px-1.5 sm:px-2 py-0.5 rounded-md">{series}</span>
+                    <span class="text-[10px] sm:text-xs text-gray-300 drop-shadow-sm bg-black/30 px-1.5 sm:px-2 py-0.5 rounded-md font-accent">{series}</span>
                 {/if}
             </div>
         </div>

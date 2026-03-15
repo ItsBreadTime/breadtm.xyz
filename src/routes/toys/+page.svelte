@@ -169,7 +169,7 @@
         <Nav></Nav>
         <div class="py-4 min-h-[100dvh]" id="toys-gallery">
             <div class="w-full max-w-6xl mx-auto px-4">
-        <Title style="bg-rose-200 text-2xl md:text-3xl">🧸 Toy Gallery</Title>
+        <Title font="accent" style="bg-rose-200 text-2xl md:text-3xl">🧸 Toy Gallery</Title>
 
         <!-- Filtering Controls - Inline on all screen sizes -->
         <div class="mt-3 mb-3 p-2 sm:p-4 bg-gray-800/90 text-white rounded-lg shadow-xl border-2 border-rose-300/30 backdrop-blur-sm text-xs sm:text-base">

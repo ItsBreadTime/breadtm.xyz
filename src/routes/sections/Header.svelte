@@ -18,7 +18,7 @@
             class="my-6 text-6xl sm:text-7xl md:text-9xl font-black text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.3)] tracking-tight"
         >
             Hello, I'm Bread<sup
-                class="font-bold text-violet-200 font-features sups">TM</sup
+                class="font-bold text-violet-200 font-features-sups">TM</sup
             >
         </div>
         <div

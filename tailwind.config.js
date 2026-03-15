@@ -1,16 +1,15 @@
+import defaultTheme from 'tailwindcss/defaultTheme'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./src/**/*.{html,js,svelte,ts}'],
   theme: {
-    fontFamily: {
-      sans: [
-        '"InterVariable", sans-serif',
-        {
-          fontFeatureSettings: '"calt", "liga", "cv11"',
-        },
-      ],
-    },
     extend: {
+      fontFamily: {
+        sans: ['Inter', ...defaultTheme.fontFamily.sans],
+        mono: ['CommitMono', ...defaultTheme.fontFamily.mono],
+        accent: ['Goldman', ...defaultTheme.fontFamily.sans],
+      },
       colors: {
         ikeayellow: '#feda00',
         ikeablue: '#0058AB',
