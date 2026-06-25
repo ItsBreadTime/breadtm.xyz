@@ -6,6 +6,7 @@ interface ToyData {
     name: string;
     image?: string;
     additionalImages?: string[];
+    thumbnailImage?: string;
     faction?: string;
     series?: string;
     description?: string;
@@ -50,6 +51,38 @@ const getExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
 };
 
+const isThumbnail = (filename: string): boolean => /-thumb\.[^.]+$/i.test(filename);
+
+const sortByFormatPriority = (images: string[]) => {
+    images.sort((a, b) => {
+        const extA = getExtension(a);
+        const extB = getExtension(b);
+        return FORMAT_PRIORITY.indexOf(extA) - FORMAT_PRIORITY.indexOf(extB);
+    });
+};
+
+const findBestImage = (baseFilenameGroups: Record<string, string[]>, base: string): string | undefined => {
+    const images = baseFilenameGroups[base] || [];
+    if (images.length === 0) return undefined;
+    sortByFormatPriority(images);
+    return images[0];
+};
+
+const sortImageBases = (a: string, b: string): number => {
+    if (a === 'main') return -1;
+    if (b === 'main') return 1;
+
+    const numA = Number.parseInt(a, 10);
+    const numB = Number.parseInt(b, 10);
+    const hasNumA = !Number.isNaN(numA);
+    const hasNumB = !Number.isNaN(numB);
+
+    if (hasNumA && hasNumB && numA !== numB) return numA - numB;
+    if (hasNumA !== hasNumB) return hasNumA ? -1 : 1;
+
+    return a.localeCompare(b);
+};
+
 export async function load() {
     try {
         // Create the toy data objects with precompiled descriptions
@@ -70,13 +103,14 @@ export async function load() {
             
             // Find the primary image for this toy
             let primaryImage: string | undefined = undefined;
+            let thumbnailImage: string | undefined = undefined;
             
             // If this toy has images in our map
             if (toyImagesMap[slug] && toyImagesMap[slug].length > 0) {
                 // Group images by base filename (without extension)
                 const baseFilenameGroups: Record<string, string[]> = {};
                 
-                toyImagesMap[slug].forEach(filename => {
+                toyImagesMap[slug].filter(filename => !isThumbnail(filename)).forEach(filename => {
                     const base = getBaseFilename(filename);
                     if (!baseFilenameGroups[base]) {
                         baseFilenameGroups[base] = [];
@@ -87,53 +121,43 @@ export async function load() {
                 // Find the "main" image in the best available format
                 let mainImages = baseFilenameGroups['main'] || [];
                 if (mainImages.length > 0) {
-                    // Sort by format priority
-                    mainImages.sort((a, b) => {
-                        const extA = getExtension(a);
-                        const extB = getExtension(b);
-                        return FORMAT_PRIORITY.indexOf(extA) - FORMAT_PRIORITY.indexOf(extB);
-                    });
+                    sortByFormatPriority(mainImages);
                     primaryImage = mainImages[0];
                 }
                 // If no "main" image, try for images named "1" in best format
                 else {
                     const oneImages = baseFilenameGroups['1'] || [];
                     if (oneImages.length > 0) {
-                        oneImages.sort((a, b) => {
-                            const extA = getExtension(a);
-                            const extB = getExtension(b);
-                            return FORMAT_PRIORITY.indexOf(extA) - FORMAT_PRIORITY.indexOf(extB);
-                        });
+                        sortByFormatPriority(oneImages);
                         primaryImage = oneImages[0];
                     }
                     // Otherwise use the first available image
                     else {
                         // Get all base filenames
                         const allBaseFilenames = Object.keys(baseFilenameGroups);
-                        // Sort numerically if possible
-                        allBaseFilenames.sort((a, b) => {
-                            const numA = parseInt(a, 10);
-                            const numB = parseInt(b, 10);
-                            if (!isNaN(numA) && !isNaN(numB)) {
-                                return numA - numB;
-                            }
-                            return a.localeCompare(b);
-                        });
+                        allBaseFilenames.sort(sortImageBases);
                         
                         if (allBaseFilenames.length > 0) {
                             const firstBaseFilename = allBaseFilenames[0];
                             const firstFormatImages = baseFilenameGroups[firstBaseFilename];
                             
-                            // Sort by format priority
-                            firstFormatImages.sort((a, b) => {
-                                const extA = getExtension(a);
-                                const extB = getExtension(b);
-                                return FORMAT_PRIORITY.indexOf(extA) - FORMAT_PRIORITY.indexOf(extB);
-                            });
+                            sortByFormatPriority(firstFormatImages);
                             
                             primaryImage = firstFormatImages[0];
                         }
                     }
+                }
+
+                if (primaryImage) {
+                    const primaryBase = getBaseFilename(primaryImage);
+                    const thumbBase = `${primaryBase}-thumb`;
+                    const thumbGroups: Record<string, string[]> = {};
+                    toyImagesMap[slug].filter(isThumbnail).forEach(filename => {
+                        const base = getBaseFilename(filename);
+                        if (!thumbGroups[base]) thumbGroups[base] = [];
+                        thumbGroups[base].push(filename);
+                    });
+                    thumbnailImage = findBestImage(thumbGroups, thumbBase) || primaryImage;
                 }
             }
             
@@ -141,13 +165,15 @@ export async function load() {
                 ...metadata,
                 slug,
                 // Include the primary image in the server response
-                primaryImage
-            } as ToyData & { primaryImage?: string };
+                primaryImage,
+                thumbnailImage
+            } as ToyData & { primaryImage?: string; thumbnailImage?: string };
         });
 
         // Define the structure with order field
         interface ToyWithOrder extends ToyData {
             primaryImage?: string;
+            thumbnailImage?: string;
             order?: number;
         }
 

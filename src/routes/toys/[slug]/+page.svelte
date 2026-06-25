@@ -1,6 +1,4 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import Title from '../../components/Title.svelte';
     import { error } from '@sveltejs/kit';
     import { page } from '$app/stores'; 
     import Nav from '../../sections/Nav.svelte';
@@ -24,15 +22,20 @@
         }
     } = $props(); 
 
-    const toy = data.metadata;
-    const slug = toy.slug || $page.params.slug;
+    const toy = $derived.by(() => {
+        if (!data.metadata) {
+            throw error(404, 'Toy metadata not found');
+        }
+        return data.metadata;
+    });
+    const slug = $derived(toy.slug || $page.params.slug);
 
     // Get the compiled content from client data
-    let contentComponent = data.component;
+    let contentComponent = $derived(data.component);
     let loadError: string | null = null; 
     
-    const imageSets = toy.imageSets || {};
-    const sortedImageKeys = toy.sortedImageKeys || [];
+    const imageSets = $derived(toy.imageSets || {});
+    const sortedImageKeys = $derived(toy.sortedImageKeys || []);
     let currentImageKeyIndex: number = $state(0);
 
     let isImageEnlarged: boolean = $state(false);
@@ -91,10 +94,12 @@
     }
 
     function nextImage(): void {
+        if (sortedImageKeys.length === 0) return;
         currentImageKeyIndex = (currentImageKeyIndex + 1) % sortedImageKeys.length;
     }
     
     function prevImage(): void {
+        if (sortedImageKeys.length === 0) return;
         currentImageKeyIndex = (currentImageKeyIndex - 1 + sortedImageKeys.length) % sortedImageKeys.length;
     }
 
@@ -110,10 +115,12 @@
     }
 
     function nextEnlargedImage(): void {
+        if (sortedImageKeys.length === 0) return;
         enlargedImageIndex = (enlargedImageIndex + 1) % sortedImageKeys.length;
     }
 
     function prevEnlargedImage(): void {
+        if (sortedImageKeys.length === 0) return;
         enlargedImageIndex = (enlargedImageIndex - 1 + sortedImageKeys.length) % sortedImageKeys.length;
     }
 
@@ -143,7 +150,7 @@
         return filename.split('.').pop()?.toLowerCase() || '';
     };
 
-    const imageBasePath = `/toys/${slug}/`;
+    const imageBasePath = $derived(`/toys/${slug}/`);
 
     const getImagePath = (filename: string): string => {
         return imageBasePath + filename;
@@ -151,15 +158,20 @@
     
     const fullResPath = (imageKey: string): string => {
         const set = imageSets[imageKey] || [];
+        if (set.length === 0) return '#';
         const jpgVersion = set.find(img => getExtension(img) === 'jpg');
         const fallbackFilename = jpgVersion ? getBaseFilename(jpgVersion) + '.jpg' : getBaseFilename(set[0]) + '.jpg';
         return `/fullres/toys/${slug}/${fallbackFilename}`;
     };
 
-    if (!toy) {
-        throw error(404, 'Toy metadata not found');
-    }
-        
+    $effect(() => {
+        const imageKeySignature = sortedImageKeys.join('|');
+        if (imageKeySignature || slug) {
+            currentImageKeyIndex = 0;
+            enlargedImageIndex = 0;
+        }
+    });
+
     $effect(() => {
         window.addEventListener('keydown', handleKeydown);
         
@@ -169,96 +181,6 @@
         };
     });
 
-    // --- Dithered background canvas ---
-    let bgCanvas: HTMLCanvasElement;
-    let pageRoot: HTMLDivElement;
-
-    const CELL = 26;
-    const BAYER8 = [
-        [ 0, 32,  8, 40,  2, 34, 10, 42],
-        [48, 16, 56, 24, 50, 18, 58, 26],
-        [12, 44,  4, 36, 14, 46,  6, 38],
-        [60, 28, 52, 20, 62, 30, 54, 22],
-        [ 3, 35, 11, 43,  1, 33,  9, 41],
-        [51, 19, 59, 27, 49, 17, 57, 25],
-        [15, 47,  7, 39, 13, 45,  5, 37],
-        [63, 31, 55, 23, 61, 29, 53, 21],
-    ].map(row => row.map(v => (v + 0.5) / 64));
-
-    const PALETTE: [number, number, number][] = [
-        [  0,  40, 130],
-        [ 45,   0, 115],
-        [ 85,   0,  85],
-        [115,   0,  45],
-        [130,   0,  15],
-    ];
-
-    function getViewportSize() {
-        const rect = bgCanvas.getBoundingClientRect();
-        const width = rect.width || window.innerWidth;
-        const height = rect.height || window.innerHeight;
-        return { width, height };
-    }
-
-    function drawDither() {
-        if (!bgCanvas) return;
-        const ctx = bgCanvas.getContext('2d');
-        if (!ctx) return;
-        const { width: W, height: H } = getViewportSize();
-        const dpr = window.devicePixelRatio || 1;
-
-        // Keep CSS and backing store sizes aligned to avoid distortion on mobile.
-        bgCanvas.style.width = `${W}px`;
-        bgCanvas.style.height = `${H}px`;
-        bgCanvas.width = Math.max(1, Math.round(W * dpr));
-        bgCanvas.height = Math.max(1, Math.round(H * dpr));
-
-        // Draw in CSS pixels while rendering at device resolution for crisp zooming.
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-        ctx.fillStyle = '#030008';
-        ctx.fillRect(0, 0, W, H);
-        const dotAlpha = window.matchMedia('(max-width: 767px)').matches ? 0.42 : 0.5;
-        const cols = Math.ceil(W / CELL);
-        const rows = Math.ceil(H / CELL);
-        const maxT = cols + rows - 2;
-        for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < cols; col++) {
-                const t = maxT > 0 ? (col + row) / maxT : 0;
-                const pf = t * (PALETTE.length - 1);
-                const lo = Math.floor(pf);
-                const hi = Math.min(lo + 1, PALETTE.length - 1);
-                const frac = pf - lo;
-                const threshold = BAYER8[row % 8][col % 8];
-                const [r, g, b] = frac > threshold ? PALETTE[hi] : PALETTE[lo];
-                ctx.fillStyle = `rgba(${r},${g},${b},${dotAlpha})`;
-                ctx.beginPath();
-                ctx.arc(col * CELL + CELL / 2, row * CELL + CELL / 2, CELL * 0.46, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-    }
-
-    onMount(() => {
-        const redraw = () => requestAnimationFrame(drawDither);
-        const viewport = window.visualViewport;
-        const resizeObserver = new ResizeObserver(redraw);
-
-        drawDither();
-        window.addEventListener('resize', redraw);
-        window.addEventListener('orientationchange', redraw);
-        viewport?.addEventListener('resize', redraw);
-        viewport?.addEventListener('scroll', redraw);
-        resizeObserver.observe(pageRoot);
-
-        return () => {
-            window.removeEventListener('resize', redraw);
-            window.removeEventListener('orientationchange', redraw);
-            viewport?.removeEventListener('resize', redraw);
-            viewport?.removeEventListener('scroll', redraw);
-            resizeObserver.disconnect();
-        };
-    });
 </script>
 
 <svelte:head>
@@ -276,23 +198,31 @@
     {/if}
 </svelte:head>
 
-<div id="toy-page" bind:this={pageRoot}>
-    <canvas bind:this={bgCanvas} id="dither-bg-canvas" aria-hidden="true"></canvas>
-
+<div id="toy-page" data-faction={toy.faction || 'Mixed'}>
     <div id="toy-content">
         <Nav />
-        <div class="py-2 sm:py-8 text-white min-h-[100dvh]" id="toy-details">
-            <div class="container mx-auto px-2 sm:px-4 max-w-7xl">
-        <Title font="accent" decoration="bg-pink-500" style="bg-rose-200 text-xl sm:text-2xl md:text-3xl text-center text-black">{toy.name || 'Unnamed Toy'}</Title>
+        <div id="toy-details">
+            <div class="toy-detail-shell">
+        <header class="toy-detail-title">
+            <a href="/toys" class="title-back-link" aria-label="Back to toy gallery">&larr;</a>
+            <div class="title-plate">
+                <h1>{toy.name || 'Unnamed Toy'}</h1>
+                {#if toy.faction}
+                    <span>{toy.faction}</span>
+                {/if}
+            </div>
+        </header>
 
-        <div class="flex flex-col lg:flex-row gap-3 sm:gap-8 my-2 sm:my-6 items-start justify-center">
-            <div class="w-full lg:w-1/2">
-                <div class="relative rounded-lg border-2 sm:border-4 border-black overflow-hidden shadow-md group">
+        <div class="detail-layout">
+            <div class="image-column">
+                <div class="image-frame group">
                     <div 
-                        class="relative aspect-[3/4]"
+                        class="image-stage"
                         ontouchstart={handleTouchStart}
                         ontouchmove={handleTouchMove}
                         ontouchend={handleTouchEnd}
+                        role="group"
+                        aria-label="Toy image viewer"
                     >
                         {#if sortedImageKeys.length > 0}
                             {#each sortedImageKeys as imageKey, i}
@@ -303,10 +233,12 @@
                                 {@const fallbackSrc = jpgSrc || currentSet[0]}
                                 
                                 <button 
-                                    class="absolute inset-0 transition-opacity duration-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-400 bg-transparent" 
+                                    class="absolute inset-0 transition-opacity duration-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-400 bg-transparent {i === currentImageKeyIndex ? 'pointer-events-auto' : 'pointer-events-none'}" 
                                     style="opacity: {i === currentImageKeyIndex ? '1' : '0'}"
                                     onclick={() => openEnlargedImage(i)}
                                     aria-label="Enlarge image {i+1}"
+                                    aria-hidden={i === currentImageKeyIndex ? undefined : 'true'}
+                                    tabindex={i === currentImageKeyIndex ? 0 : -1}
                                 >
                                     <picture>
                                         {#if avifSrc}
@@ -405,42 +337,52 @@
                 {/if}
             </div>
 
-            <div class="w-full lg:w-1/2 flex flex-col mt-3 lg:mt-0">
-                <div class="bg-gray-800/80 backdrop-blur-sm p-4 sm:p-6 rounded-lg border-2 sm:border-4 border-black shadow-xl text-sm sm:text-base">
-                    <h2 class="text-2xl sm:text-3xl font-extrabold mb-3 sm:mb-6 text-rose-300 border-b border-rose-400/50 pb-2 sm:pb-3">Details</h2>
-                    <div class="space-y-2 sm:space-y-4">
+            <div class="detail-column">
+                <div class="detail-panel">
+                    <dl class="meta-list">
                         {#if toy.series}
-                            <p class="grid grid-cols-[auto,1fr] gap-x-3 sm:gap-x-3"><strong class="font-semibold text-rose-200">Series:</strong> <span class="text-gray-200">{toy.series}</span></p>
-                        {/if}
-                        {#if toy.year}
-                            <p class="grid grid-cols-[auto,1fr] gap-x-3 sm:gap-x-3"><strong class="font-semibold text-rose-200">Year of purchase:</strong> <span class="text-gray-200">{toy.year}</span></p>
-                        {/if}
-                        {#if toy.faction}
-                            <p class="grid grid-cols-[auto,1fr] gap-x-3 sm:gap-x-3 items-center">
-                                <strong class="font-semibold text-rose-200">Faction:</strong>
-                                <Factions faction={toy.faction} />
-                            </p>
-                        {/if}
-                         
-                        {#if toy.description}
-                            <div class="mt-3 sm:mt-6 space-y-1 sm:space-y-2">
-                                <strong class="font-semibold text-rose-200 block">Description:</strong>
-                                <!-- Using prose class for styling the markdown content -->
-                                <div class="text-gray-200 text-sm sm:text-base prose prose-sm prose-invert">
-                                    {@html toy.description}
-                                </div>
+                            <div class="meta-row">
+                                <dt>Series</dt>
+                                <dd>{toy.series}</dd>
                             </div>
                         {/if}
-                    </div>
+                        {#if toy.year}
+                            <div class="meta-row">
+                                <dt>Year</dt>
+                                <dd>{toy.year}</dd>
+                            </div>
+                        {/if}
+                        {#if toy.faction}
+                            <div class="meta-row">
+                                <dt>Faction</dt>
+                                <dd>{toy.faction}</dd>
+                            </div>
+                        {/if}
+                    </dl>
 
-                     <a href="/toys" class="inline-block mt-4 sm:mt-6 text-rose-300 border-2 border-rose-400 hover:bg-rose-400 hover:text-black px-4 sm:px-6 py-1 sm:py-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm sm:text-base">
-                         &larr; Back to Gallery
-                     </a>
+                    {#if toy.description}
+                        <div class="detail-description">
+                            <span>Description</span>
+                            <div>{@html toy.description}</div>
+                        </div>
+                    {/if}
+                </div>
+
+                <div class="notes-panel prose prose-sm sm:prose-base max-w-none">
+                    <div class="prose-content-wrapper">
+                        {#if contentComponent}
+                            {@render contentComponent()}
+                        {:else if loadError}
+                            <p class="text-red-400 font-medium">{loadError}</p>
+                        {:else}
+                            <p class="text-gray-400 italic py-4">No additional content available for this toy.</p>
+                        {/if}
+                    </div>
                 </div>
                 
                 <!-- Show thumbnails carousel on desktop view only, underneath the details card -->
                 {#if sortedImageKeys.length > 1}
-                    <div class="hidden lg:flex flex-wrap gap-3 mt-4 justify-start overflow-hidden bg-gray-800/80 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-xl">
+                    <div class="hidden lg:flex flex-wrap gap-3 justify-start overflow-hidden bg-gray-800/80 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-xl">
                         {#each sortedImageKeys as imageKey, i}
                             {@const currentSet = imageSets[imageKey] || []}
                             {@const avifSrc = currentSet.find(img => getExtension(img) === 'avif')}
@@ -466,18 +408,6 @@
                             </button>
                         {/each}
                     </div>
-                {/if}
-            </div>
-        </div>
-        
-        <div class="prose prose-sm sm:prose-base md:prose-lg max-w-none bg-gray-800/80 backdrop-blur-sm p-4 sm:p-6 rounded-lg border-2 sm:border-4 border-black shadow-xl mt-3 sm:mt-6">
-            <div class="prose-content-wrapper">
-                {#if contentComponent}
-                    {@render contentComponent()}
-                {:else if loadError}
-                    <p class="text-red-400 font-medium">{loadError}</p>
-                {:else}
-                    <p class="text-gray-400 italic py-4">No additional content available for this toy.</p>
                 {/if}
             </div>
         </div>
@@ -529,7 +459,7 @@
             aria-label="Image container - click to interact"
         >
             {#if enlargedFallback}
-                <picture>
+                <picture class="enlarged-picture">
                     {#if enlargedAvif}
                         <source srcset={getImagePath(enlargedAvif)} type="image/avif" />
                     {/if}
@@ -539,7 +469,7 @@
                     <img 
                         src={getImagePath(enlargedFallback)} 
                         alt="{toy.name} - enlarged view {enlargedImageIndex+1}" 
-                        class="max-h-full max-w-full object-contain"
+                        class="enlarged-image"
                     />
                 </picture>
             {/if}
@@ -733,7 +663,67 @@
         position: relative;
         min-height: 100dvh;
         isolation: isolate;
-        background: #030008;
+        --detail-accent: #f05278;
+        --detail-ink: #fff7f8;
+        --detail-muted: #d9cedc;
+        --detail-wash-a: rgba(225, 0, 0, 0.42);
+        --detail-wash-b: rgba(111, 77, 161, 0.34);
+        color: var(--detail-ink);
+        background:
+            radial-gradient(circle at 16% 14%, var(--detail-wash-a), transparent 31rem),
+            radial-gradient(circle at 86% 20%, var(--detail-wash-b), transparent 32rem),
+            linear-gradient(160deg, #050308 0%, #0c0715 50%, #17050e 100%);
+    }
+
+    #toy-page::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background-image:
+            radial-gradient(circle, color-mix(in srgb, var(--detail-accent), transparent 42%) 0 1.65px, transparent 1.85px);
+        background-position: 0 0;
+        background-size: 22px 22px;
+        mask-image:
+            radial-gradient(ellipse at 8% 12%, black 0 8rem, rgba(0, 0, 0, 0.52) 16rem, transparent 30rem),
+            radial-gradient(ellipse at 95% 10%, black 0 7rem, rgba(0, 0, 0, 0.38) 17rem, transparent 32rem);
+        opacity: 0.38;
+        pointer-events: none;
+    }
+
+    #toy-page::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background-image: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0 1px, transparent 1.2px);
+        background-position: 9px 7px;
+        background-size: 34px 34px;
+        mask-image:
+            radial-gradient(ellipse at 83% 18%, black 0 7rem, rgba(0, 0, 0, 0.42) 15rem, transparent 27rem),
+            radial-gradient(ellipse at 12% 86%, black 0 6rem, rgba(0, 0, 0, 0.32) 15rem, transparent 25rem);
+        opacity: 0.22;
+        pointer-events: none;
+    }
+
+    #toy-page[data-faction='Autobot'],
+    #toy-page[data-faction='Maximal'] {
+        --detail-accent: #ff4b4b;
+        --detail-wash-a: rgba(225, 0, 0, 0.58);
+        --detail-wash-b: rgba(255, 195, 92, 0.22);
+    }
+
+    #toy-page[data-faction='Decepticon'],
+    #toy-page[data-faction='Predacon'] {
+        --detail-accent: #b891ff;
+        --detail-wash-a: rgba(111, 77, 161, 0.62);
+        --detail-wash-b: rgba(59, 18, 90, 0.5);
+    }
+
+    #toy-page[data-faction='IKEAtron'] {
+        --detail-accent: #feda00;
+        --detail-wash-a: rgba(0, 88, 171, 0.56);
+        --detail-wash-b: rgba(254, 218, 0, 0.34);
     }
 
     #toy-content {
@@ -743,14 +733,417 @@
 
     #toy-details {
         position: relative;
+        min-height: calc(100dvh - 4.5rem);
     }
 
-    #dither-bg-canvas {
-        position: absolute;
-        inset: 0;
-        z-index: 0;
+    .toy-detail-shell {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: clamp(0.75rem, 2vw, 1rem);
+        width: min(100%, 88rem);
+        min-height: calc(100dvh - 4.5rem);
+        margin: 0 auto;
+        padding: clamp(0.75rem, 2.2vw, 1.15rem);
+    }
+
+    .toy-detail-title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.7rem;
+        min-width: 0;
+    }
+
+    .title-plate {
+        display: grid;
+        grid-template-columns: minmax(0, auto) auto;
+        align-items: stretch;
+        overflow: hidden;
+        max-width: min(100%, 48rem);
+        border: 2px solid #050308;
+        border-radius: 0.45rem;
+        box-shadow: 0 5px 0 color-mix(in srgb, var(--detail-accent), #050308 28%);
+    }
+
+    .toy-detail-title h1 {
+        overflow: hidden;
+        min-width: 0;
+        padding: 0.55rem 0.8rem;
+        color: #050308;
+        background: color-mix(in srgb, var(--detail-accent), white 50%);
+        font-family: Goldman, sans-serif;
+        font-size: clamp(1.15rem, 3vw, 2rem);
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: 0;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .title-plate span {
+        display: grid;
+        place-items: center;
+        padding: 0.45rem 0.7rem;
+        color: var(--detail-accent);
+        background: #050308;
+        border-left: 2px solid #050308;
+        font-family: Goldman, sans-serif;
+        font-size: clamp(0.72rem, 1.6vw, 0.9rem);
+        font-weight: 800;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .title-back-link {
+        display: inline-grid;
+        place-items: center;
+        flex: 0 0 auto;
+        width: 2.35rem;
+        height: 2.35rem;
+        color: #050308;
+        background: var(--detail-accent);
+        border: 2px solid #050308;
+        border-radius: 999px;
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.34);
+        font-family: Goldman, sans-serif;
+        font-weight: 800;
+        transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
+    }
+
+    .title-back-link:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 0 rgba(0, 0, 0, 0.34);
+    }
+
+    .detail-layout {
+        display: flex;
+        flex-direction: column;
+        gap: clamp(0.75rem, 2vw, 1rem);
+        min-height: 0;
+    }
+
+    .image-column,
+    .detail-column {
+        min-width: 0;
+    }
+
+    .image-frame {
+        position: relative;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0.6);
+        border: 2px solid rgba(0, 0, 0, 0.9);
+        border-radius: 0.6rem;
+        box-shadow: 0 8px 0 rgba(0, 0, 0, 0.34);
+    }
+
+    .image-stage {
+        position: relative;
+        aspect-ratio: 3 / 4;
+        width: 100%;
+        max-height: calc(100dvh - 11rem);
+        min-height: 20rem;
+    }
+
+    .image-stage picture {
+        display: block;
         width: 100%;
         height: 100%;
+    }
+
+    .image-stage img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .detail-column {
+        display: flex;
+        flex-direction: column;
+        gap: clamp(0.75rem, 2vw, 1rem);
+        min-height: 0;
+    }
+
+    #toy-details :global(.bg-gray-800\/80) {
+        background-color: rgba(5, 3, 8, 0.76);
+    }
+
+    #toy-details :global(.border-black) {
+        border-color: rgba(0, 0, 0, 0.9);
+    }
+
+    #toy-details :global(.text-rose-300),
+    #toy-details :global(.text-rose-200) {
+        color: var(--detail-accent);
+    }
+
+    #toy-details :global(.border-rose-400),
+    #toy-details :global(.border-rose-400\/50) {
+        border-color: color-mix(in srgb, var(--detail-accent), transparent 35%);
+    }
+
+    .detail-panel,
+    .notes-panel {
+        position: relative;
+        overflow: hidden;
+        color: var(--detail-ink);
+        background: #07050d;
+        border: 2px solid color-mix(in srgb, var(--detail-accent), transparent 42%);
+        border-radius: 0.45rem;
+        box-shadow: none;
+    }
+
+    .detail-panel::before,
+    .notes-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 0.18rem;
+        background: var(--detail-accent);
+        opacity: 0.62;
         pointer-events: none;
+    }
+
+    .detail-panel {
+        padding: clamp(0.75rem, 1.8vw, 1rem);
+    }
+
+    .meta-list {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        border-block: 2px solid color-mix(in srgb, var(--detail-accent), transparent 38%);
+    }
+
+    .meta-row {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.42rem;
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 0.42rem 0.72rem;
+    }
+
+    .meta-row + .meta-row {
+        border-left: 1px solid color-mix(in srgb, var(--detail-accent), transparent 54%);
+    }
+
+    .meta-row dt,
+    .detail-description span {
+        display: block;
+        color: color-mix(in srgb, var(--detail-muted), white 4%);
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .meta-row dd {
+        overflow-wrap: anywhere;
+        color: var(--detail-ink);
+        font-family: Goldman, sans-serif;
+        font-size: 0.92rem;
+        line-height: 1.05;
+    }
+
+    .detail-description {
+        position: relative;
+        z-index: 1;
+        margin-top: 0.62rem;
+        padding-top: 0.58rem;
+        color: var(--detail-muted);
+        border-top: 1px solid color-mix(in srgb, var(--detail-accent), transparent 66%);
+    }
+
+    .detail-description div {
+        max-width: 68ch;
+        color: var(--detail-ink);
+        font-size: 0.98rem;
+        line-height: 1.55;
+        text-wrap: pretty;
+    }
+
+    .notes-panel {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: clamp(0.75rem, 1.8vw, 1rem);
+        overflow: auto;
+    }
+
+    .notes-panel .prose-content-wrapper {
+        position: relative;
+        z-index: 1;
+    }
+
+    .notes-panel :global(*:first-child) {
+        margin-top: 0;
+    }
+
+    .notes-panel :global(*:last-child) {
+        margin-bottom: 0;
+    }
+
+    .notes-panel :global(h1),
+    .notes-panel :global(h2),
+    .notes-panel :global(h3) {
+        color: var(--detail-ink);
+        font-family: Goldman, sans-serif;
+        letter-spacing: 0;
+    }
+
+    .notes-panel :global(p) {
+        color: var(--detail-muted);
+        line-height: 1.65;
+        text-wrap: pretty;
+    }
+
+    @media (min-width: 1024px) {
+        #toy-details,
+        .toy-detail-shell {
+            height: calc(100dvh - 4.5rem);
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .detail-layout {
+            display: grid;
+            grid-template-columns: minmax(25rem, 0.95fr) minmax(22rem, 0.9fr);
+            align-items: stretch;
+            height: 100%;
+        }
+
+        .image-column,
+        .detail-column {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .image-frame {
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .image-stage {
+            height: 100%;
+            min-height: 0;
+            max-height: none;
+            aspect-ratio: auto;
+        }
+
+        .detail-column > :global(.hidden.lg\:flex) {
+            flex: 0 0 auto;
+            max-height: 7rem;
+            box-shadow: none;
+        }
+    }
+
+    @media (max-width: 640px) {
+        #toy-details,
+        .toy-detail-shell {
+            min-height: auto;
+        }
+
+        .toy-detail-title {
+            justify-content: flex-start;
+        }
+
+        .toy-detail-title h1 {
+            font-size: 1.05rem;
+            text-align: left;
+        }
+
+        .image-stage {
+            min-height: 18rem;
+            max-height: 68dvh;
+        }
+
+        .detail-panel {
+            padding: 0.72rem;
+        }
+
+        .meta-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(6.2rem, 1fr));
+            align-items: stretch;
+        }
+
+        .meta-row {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 0.18rem;
+            min-width: 0;
+            padding: 0.48rem 0.5rem;
+        }
+
+        .meta-row + .meta-row {
+            border-left: 1px solid color-mix(in srgb, var(--detail-accent), transparent 54%);
+        }
+
+        .meta-row dt {
+            font-size: 0.66rem;
+            line-height: 1;
+        }
+
+        .meta-row dd {
+            max-width: 100%;
+            font-size: clamp(0.76rem, 3.5vw, 0.9rem);
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .detail-description {
+            margin-top: 0.55rem;
+            padding-top: 0.55rem;
+        }
+
+        .detail-description div {
+            font-size: 0.95rem;
+            line-height: 1.48;
+        }
+    }
+
+    @media (max-width: 340px) {
+        .meta-list {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .meta-row:nth-child(odd) {
+            border-left: 0;
+        }
+
+        .meta-row:nth-child(3) {
+            grid-column: 1 / -1;
+            border-top: 1px solid color-mix(in srgb, var(--detail-accent), transparent 54%);
+        }
+    }
+
+    .enlarged-picture {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+    }
+
+    .enlarged-image {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        #toy-page *,
+        #toy-page *::before,
+        #toy-page *::after {
+            transition-duration: 0.01ms !important;
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+        }
     }
 </style>

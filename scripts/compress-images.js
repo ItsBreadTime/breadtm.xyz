@@ -23,6 +23,51 @@ const totalMemoryGB = getTotalMemoryGB();
 
 // Output formats configurations
 const FORMATS = ['webp', 'avif', 'jpg'];
+const COMPRESSION_SETTINGS_VERSION = 3;
+const THUMBNAIL_MAX_DIMENSION = 640;
+const OUTPUT_SIZES = [
+  {
+    suffix: '',
+    resize: ({ originalWidth }) => ({
+      width: Math.max(1, Math.round(originalWidth / 2))
+    })
+  },
+  {
+    suffix: '-thumb',
+    resize: ({ originalWidth, originalHeight }) => {
+      const largestDimension = Math.max(originalWidth, originalHeight);
+      const scale = Math.min(1, THUMBNAIL_MAX_DIMENSION / largestDimension);
+
+      return {
+        width: Math.max(1, Math.round(originalWidth * scale)),
+        height: Math.max(1, Math.round(originalHeight * scale)),
+        fit: sharp.fit.inside
+      };
+    }
+  }
+];
+
+const getEncodingOptions = (suffix) => {
+  const isThumbnail = suffix === '-thumb';
+
+  return {
+    webp: {
+      quality: isThumbnail ? 42 : 40,
+      effort: 4,
+      smartSubsample: true
+    },
+    avif: {
+      quality: isThumbnail ? 34 : 35,
+      effort: isThumbnail ? 3 : 4,
+      chromaSubsampling: isThumbnail ? '4:2:0' : '4:4:4'
+    },
+    jpeg: {
+      quality: isThumbnail ? 42 : 40,
+      mozjpeg: true,
+      chromaSubsampling: isThumbnail ? '4:2:0' : '4:4:4'
+    }
+  };
+};
 
 async function readState() {
   try {
@@ -94,68 +139,81 @@ async function processImage(task, state) {
 
   // Check hash
   const currentHash = await getFileHash(sourcePath);
-  if (!FORCE && state[relPath] && state[relPath].hash === currentHash) {
+  if (
+    !FORCE &&
+    state[relPath] &&
+    state[relPath].hash === currentHash &&
+    state[relPath].settingsVersion === COMPRESSION_SETTINGS_VERSION
+  ) {
     let allExist = true;
-    for (const ext of FORMATS) {
-      try {
-        await fs.access(path.join(targetDir, `${outputFilename}.${ext}`));
-      } catch {
-        allExist = false;
-        break;
+    for (const size of OUTPUT_SIZES) {
+      for (const ext of FORMATS) {
+        try {
+          await fs.access(path.join(targetDir, `${outputFilename}${size.suffix}.${ext}`));
+        } catch {
+          allExist = false;
+          break;
+        }
       }
+      if (!allExist) break;
     }
     if (allExist) return 'skipped';
   }
 
   if (VERBOSE) console.log(`Processing ${relPath}...`);
 
-  const image = sharp(sourcePath).withMetadata().rotate();
-  const metadata = await image.metadata();
+  const metadata = await sharp(sourcePath).metadata();
   
   // EXIF orientations >= 5 swap width and height
   const orientation = metadata.orientation || 1;
   const originalWidth = orientation >= 5 ? metadata.height : metadata.width;
+  const originalHeight = orientation >= 5 ? metadata.width : metadata.height;
+  const image = sharp(sourcePath).rotate();
   
-  const halfWidth = Math.max(1, Math.round(originalWidth / 2));
-  
-  const resized = image.resize({
-    width: halfWidth,
-    kernel: sharp.kernel.lanczos3,
-    fastShrinkOnLoad: true
-  });
-
   const compressions = [];
 
-  // WebP Options (adjusted to reduce size, effort max is 6)
-  compressions.push(
-    resized.clone().webp({
-      quality: 40,
-      effort: 6,
-      smartSubsample: true
-    }).toFile(path.join(targetDir, `${outputFilename}.webp`))
-  );
+  for (const size of OUTPUT_SIZES) {
+    const resizeOptions = size.resize({ originalWidth, originalHeight });
+    const resized = image.clone().resize({
+      ...resizeOptions,
+      withoutEnlargement: true,
+      kernel: sharp.kernel.lanczos3,
+      fastShrinkOnLoad: true
+    });
+    const encodingOptions = getEncodingOptions(size.suffix);
 
-  // AVIF Options (reduced quality scale, max effort 9, 4:4:4 subsampling)
-  compressions.push(
-    resized.clone().avif({
-      quality: 35,
-      effort: 9,
-      chromaSubsampling: '4:4:4'
-    }).toFile(path.join(targetDir, `${outputFilename}.avif`))
-  );
+    // WebP balances compression and iteration speed.
+    compressions.push(
+      resized
+        .clone()
+        .webp(encodingOptions.webp)
+        .toFile(path.join(targetDir, `${outputFilename}${size.suffix}.webp`))
+    );
 
-  // MozJPEG Options
-  compressions.push(
-    resized.clone().jpeg({
-      quality: 40,
-      mozjpeg: true,
-      chromaSubsampling: '4:4:4'
-    }).toFile(path.join(targetDir, `${outputFilename}.jpg`))
-  );
+    // AVIF is kept at moderate effort so local regeneration stays practical.
+    compressions.push(
+      resized
+        .clone()
+        .avif(encodingOptions.avif)
+        .toFile(path.join(targetDir, `${outputFilename}${size.suffix}.avif`))
+    );
+
+    // MozJPEG Options
+    compressions.push(
+      resized
+        .clone()
+        .jpeg(encodingOptions.jpeg)
+        .toFile(path.join(targetDir, `${outputFilename}${size.suffix}.jpg`))
+    );
+  }
 
   await Promise.all(compressions);
 
-  state[relPath] = { hash: currentHash, timestamp: Date.now() };
+  state[relPath] = {
+    hash: currentHash,
+    settingsVersion: COMPRESSION_SETTINGS_VERSION,
+    timestamp: Date.now()
+  };
   return 'processed';
 }
 

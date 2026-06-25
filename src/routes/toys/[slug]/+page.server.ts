@@ -25,6 +25,23 @@ const getExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
 };
 
+const isThumbnail = (filename: string): boolean => /-thumb\.[^.]+$/i.test(filename);
+
+const compareImageKeys = (a: string, b: string): number => {
+    if (a === 'main') return -1;
+    if (b === 'main') return 1;
+
+    const numA = Number.parseInt(a.match(/^(\d+)/)?.[1] || '', 10);
+    const numB = Number.parseInt(b.match(/^(\d+)/)?.[1] || '', 10);
+    const hasNumA = !Number.isNaN(numA);
+    const hasNumB = !Number.isNaN(numB);
+
+    if (hasNumA && hasNumB && numA !== numB) return numA - numB;
+    if (hasNumA !== hasNumB) return hasNumA ? -1 : 1;
+
+    return a.localeCompare(b);
+};
+
 // Process the image modules to create a mapping
 Object.keys(imageModules).forEach(path => {
     // Extract slug and filename from the path
@@ -51,7 +68,7 @@ export const load: PageServerLoad = async ({ params }) => {
     }
     
     // Get list of available images for this toy
-    const availableImages = toyImagesMap[slug] || [];
+    const availableImages = (toyImagesMap[slug] || []).filter(filename => !isThumbnail(filename));
     
     // Group images by base filename (without extension)
     const baseFilenameGroups: Record<string, string[]> = {};
@@ -70,15 +87,8 @@ export const load: PageServerLoad = async ({ params }) => {
         });
     });
     
-    // Get the sorted base filenames (main first, then numeric)
-    const sortedBaseFilenames = Object.keys(baseFilenameGroups).sort((a, b) => {
-      if (a === 'main') return -1;
-      if (b === 'main') return 1;
-      
-      const numA = parseInt(a.match(/^(\d+)/)?.[1] || '999', 10);
-      const numB = parseInt(b.match(/^(\d+)/)?.[1] || '999', 10);
-      return numA - numB;
-    });
+    // Get the sorted base filenames: main first, then numeric names, then alpha.
+    const sortedBaseFilenames = Object.keys(baseFilenameGroups).sort(compareImageKeys);
     
     // Type the module correctly
     const mod = metadata as { metadata?: Record<string, any>; default?: any };

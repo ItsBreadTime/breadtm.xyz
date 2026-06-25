@@ -47,17 +47,4 @@
             );
         background-size: 4.5em 4.5em;
     }
-    #pimage {
-        background-color: theme(colors.lime.500);
-        background-image: linear-gradient(
-                theme(colors.lime.600) 0.2em,
-                transparent 0.1em
-            ),
-            linear-gradient(
-                90deg,
-                theme(colors.lime.600) 0.2em,
-                transparent 0.1em
-            );
-        background-size: 3em 3em;
-    }
 </style>
