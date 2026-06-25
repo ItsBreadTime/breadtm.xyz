@@ -62,8 +62,9 @@
             <picture>
                 <source srcset="{baseImagePath}.avif" type="image/avif" />
                 <source srcset="{baseImagePath}.webp" type="image/webp" />
+                <source srcset="{baseImagePath}.jpg" type="image/jpeg" />
                 <img 
-                    src="{baseImagePath}.jpg" 
+                    src={imagePath} 
                     alt="Image of {name}" 
                     class="toy-image group-hover:scale-[1.06]" 
                     sizes={cardImageSizes}

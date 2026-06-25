@@ -168,6 +168,7 @@
     const currentWebp = $derived(currentImageSet.find(img => getExtension(img) === 'webp'));
     const currentJpg = $derived(currentImageSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg'));
     const currentFallback = $derived(currentJpg || currentImageSet[0]);
+    const currentPreferred = $derived(currentAvif || currentWebp || currentFallback);
     
     const fullResPath = (imageKey: string): string => {
         const set = imageSets[imageKey] || [];
@@ -258,7 +259,10 @@
                                         {#if currentWebp}
                                             <source srcset={getImagePath(currentWebp)} type="image/webp" />
                                         {/if}
-                                        <img src={getImagePath(currentFallback)} 
+                                        {#if currentJpg}
+                                            <source srcset={getImagePath(currentJpg)} type="image/jpeg" />
+                                        {/if}
+                                        <img src={getImagePath(currentPreferred)} 
                                              alt="{toy.name} - view {currentImageKeyIndex + 1}" 
                                              class="w-full h-full object-contain bg-black/60"
                                              sizes="(max-width: 1023px) calc(100vw - 2rem), min(48vw, 42rem)"
@@ -341,7 +345,10 @@
                                         {#if webpSrc}
                                             <source srcset={getImagePath(webpSrc)} type="image/webp" />
                                         {/if}
-                                        <img src={getImagePath(fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" decoding="async" />
+                                        {#if jpgSrc}
+                                            <source srcset={getImagePath(jpgSrc)} type="image/jpeg" />
+                                        {/if}
+                                        <img src={getImagePath(avifSrc || webpSrc || fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" decoding="async" />
                                     </picture>
                                 {/if}
                             </button>
@@ -415,7 +422,10 @@
                                         {#if webpSrc}
                                             <source srcset={getImagePath(webpSrc)} type="image/webp" />
                                         {/if}
-                                        <img src={getImagePath(fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" decoding="async" />
+                                        {#if jpgSrc}
+                                            <source srcset={getImagePath(jpgSrc)} type="image/jpeg" />
+                                        {/if}
+                                        <img src={getImagePath(avifSrc || webpSrc || fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" decoding="async" />
                                     </picture>
                                 {/if}
                             </button>
@@ -479,8 +489,11 @@
                     {#if enlargedWebp}
                         <source srcset={getImagePath(enlargedWebp)} type="image/webp" />
                     {/if}
+                    {#if enlargedJpg}
+                        <source srcset={getImagePath(enlargedJpg)} type="image/jpeg" />
+                    {/if}
                     <img 
-                        src={getImagePath(enlargedFallback)} 
+                        src={getImagePath(enlargedAvif || enlargedWebp || enlargedFallback)} 
                         alt="{toy.name} - enlarged view {enlargedImageIndex+1}" 
                         class="enlarged-image"
                         sizes="100vw"
@@ -554,8 +567,11 @@
                                     {#if thumbWebp}
                                         <source srcset={getImagePath(thumbWebp)} type="image/webp" />
                                     {/if}
+                                    {#if thumbJpg}
+                                        <source srcset={getImagePath(thumbJpg)} type="image/jpeg" />
+                                    {/if}
                                     <img 
-                                        src={getImagePath(thumbFallback)} 
+                                        src={getImagePath(thumbAvif || thumbWebp || thumbFallback)} 
                                         alt="Thumbnail {i+1}" 
                                         class="w-full h-full object-cover"
                                         loading="lazy"
