@@ -27,6 +27,10 @@ const getExtension = (filename: string): string => {
 
 const isThumbnail = (filename: string): boolean => /-thumb\.[^.]+$/i.test(filename);
 
+const getThumbnailImageKey = (filename: string): string => {
+    return getBaseFilename(filename).replace(/-thumb$/i, '');
+};
+
 const compareImageKeys = (a: string, b: string): number => {
     if (a === 'main') return -1;
     if (b === 'main') return 1;
@@ -68,10 +72,13 @@ export const load: PageServerLoad = async ({ params }) => {
     }
     
     // Get list of available images for this toy
-    const availableImages = (toyImagesMap[slug] || []).filter(filename => !isThumbnail(filename));
+    const allImages = toyImagesMap[slug] || [];
+    const availableImages = allImages.filter(filename => !isThumbnail(filename));
+    const availableThumbnails = allImages.filter(isThumbnail);
     
     // Group images by base filename (without extension)
     const baseFilenameGroups: Record<string, string[]> = {};
+    const thumbnailFilenameGroups: Record<string, string[]> = {};
     
     availableImages.forEach(filename => {
         const base = getBaseFilename(filename);
@@ -81,6 +88,19 @@ export const load: PageServerLoad = async ({ params }) => {
         // Sort formats within the group according to priority
         baseFilenameGroups[base].push(filename);
         baseFilenameGroups[base].sort((a, b) => {
+            const extA = getExtension(a);
+            const extB = getExtension(b);
+            return FORMAT_PRIORITY.indexOf(extA) - FORMAT_PRIORITY.indexOf(extB);
+        });
+    });
+
+    availableThumbnails.forEach(filename => {
+        const base = getThumbnailImageKey(filename);
+        if (!thumbnailFilenameGroups[base]) {
+            thumbnailFilenameGroups[base] = [];
+        }
+        thumbnailFilenameGroups[base].push(filename);
+        thumbnailFilenameGroups[base].sort((a, b) => {
             const extA = getExtension(a);
             const extB = getExtension(b);
             return FORMAT_PRIORITY.indexOf(extA) - FORMAT_PRIORITY.indexOf(extB);
@@ -108,6 +128,7 @@ export const load: PageServerLoad = async ({ params }) => {
         slug,
         // Pass the grouped images and the sorted keys
         imageSets: baseFilenameGroups, 
+        thumbnailImageSets: thumbnailFilenameGroups,
         sortedImageKeys: sortedBaseFilenames
       }
     };

@@ -37,8 +37,9 @@
     });
     
     const toyPagePath = $derived(`/toys/${slug}`);
-    const loadingMode = $derived(index < 4 ? 'eager' : 'lazy');
-    const fetchPriority = $derived(index < 4 ? 'high' : 'auto');
+    const loadingMode = $derived(index < 2 ? 'eager' : 'lazy');
+    const fetchPriority = $derived(index === 0 ? 'high' : 'auto');
+    const cardImageSizes = '(max-width: 340px) calc(100vw - 1.5rem), (max-width: 720px) calc((100vw - 2.5rem) / 2), 16rem';
 </script>
 
 <a 
@@ -65,10 +66,12 @@
                     src="{baseImagePath}.jpg" 
                     alt="Image of {name}" 
                     class="toy-image group-hover:scale-[1.06]" 
-                    sizes="(max-width: 720px) 50vw, 16rem"
+                    sizes={cardImageSizes}
                     loading={loadingMode}
                     fetchpriority={fetchPriority}
                     decoding="async"
+                    width="480"
+                    height="640"
                     onload={() => imageLoaded = true}
                     onerror={() => { imageError = true; imageLoaded = true; }}
                 />
@@ -78,10 +81,12 @@
                 src={imagePath} 
                 alt="Image of {name}" 
                 class="toy-image group-hover:scale-[1.06]" 
-                sizes="(max-width: 720px) 50vw, 16rem"
+                sizes={cardImageSizes}
                 loading={loadingMode}
                 fetchpriority={fetchPriority}
                 decoding="async"
+                width="480"
+                height="640"
                 onload={() => imageLoaded = true}
                 onerror={() => { imageError = true; imageLoaded = true; }}
             />

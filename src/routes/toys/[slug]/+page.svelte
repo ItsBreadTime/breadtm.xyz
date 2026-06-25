@@ -16,6 +16,7 @@
                 faction?: string; 
                 description?: string;
                 imageSets?: Record<string, string[]>; // Grouped images { 'main': ['main.avif', 'main.webp', 'main.jpg'], '1': [...] }
+                thumbnailImageSets?: Record<string, string[]>; // Thumbnail variants grouped by image key
                 sortedImageKeys?: string[]; // Sorted keys ['main', '1', '2', ...]
             };
             component?: any; // The compiled markdown content component
@@ -35,8 +36,11 @@
     let loadError: string | null = null; 
     
     const imageSets = $derived(toy.imageSets || {});
+    const thumbnailImageSets = $derived(toy.thumbnailImageSets || {});
     const sortedImageKeys = $derived(toy.sortedImageKeys || []);
     let currentImageKeyIndex: number = $state(0);
+    const currentImageKey = $derived(sortedImageKeys[currentImageKeyIndex] || '');
+    const currentImageSet = $derived(currentImageKey ? imageSets[currentImageKey] || [] : []);
 
     let isImageEnlarged: boolean = $state(false);
     let enlargedImageIndex: number = $state(0);
@@ -155,6 +159,15 @@
     const getImagePath = (filename: string): string => {
         return imageBasePath + filename;
     };
+
+    const getThumbnailSet = (imageKey: string): string[] => {
+        return thumbnailImageSets[imageKey] || imageSets[imageKey] || [];
+    };
+
+    const currentAvif = $derived(currentImageSet.find(img => getExtension(img) === 'avif'));
+    const currentWebp = $derived(currentImageSet.find(img => getExtension(img) === 'webp'));
+    const currentJpg = $derived(currentImageSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg'));
+    const currentFallback = $derived(currentJpg || currentImageSet[0]);
     
     const fullResPath = (imageKey: string): string => {
         const set = imageSets[imageKey] || [];
@@ -196,6 +209,13 @@
     {:else}
         <title>{toy.name || 'Toy Detail'} | Bread's Toy Collection</title>
     {/if}
+    {#if !isImageEnlarged && currentAvif}
+        <link rel="preload" as="image" href={getImagePath(currentAvif)} type="image/avif" fetchpriority="high" />
+    {:else if !isImageEnlarged && currentWebp}
+        <link rel="preload" as="image" href={getImagePath(currentWebp)} type="image/webp" fetchpriority="high" />
+    {:else if !isImageEnlarged && currentFallback}
+        <link rel="preload" as="image" href={getImagePath(currentFallback)} fetchpriority="high" />
+    {/if}
 </svelte:head>
 
 <div id="toy-page" data-faction={toy.faction || 'Mixed'}>
@@ -225,36 +245,29 @@
                         aria-label="Toy image viewer"
                     >
                         {#if sortedImageKeys.length > 0}
-                            {#each sortedImageKeys as imageKey, i}
-                                {@const currentSet = imageSets[imageKey] || []}
-                                {@const avifSrc = currentSet.find(img => getExtension(img) === 'avif')}
-                                {@const webpSrc = currentSet.find(img => getExtension(img) === 'webp')}
-                                {@const jpgSrc = currentSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
-                                {@const fallbackSrc = jpgSrc || currentSet[0]}
-                                
+                            {#if currentFallback}
                                 <button 
-                                    class="absolute inset-0 transition-opacity duration-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-400 bg-transparent {i === currentImageKeyIndex ? 'pointer-events-auto' : 'pointer-events-none'}" 
-                                    style="opacity: {i === currentImageKeyIndex ? '1' : '0'}"
-                                    onclick={() => openEnlargedImage(i)}
-                                    aria-label="Enlarge image {i+1}"
-                                    aria-hidden={i === currentImageKeyIndex ? undefined : 'true'}
-                                    tabindex={i === currentImageKeyIndex ? 0 : -1}
+                                    class="absolute inset-0 cursor-pointer bg-transparent transition-opacity duration-500 focus:outline-none focus:ring-2 focus:ring-rose-400" 
+                                    onclick={() => openEnlargedImage(currentImageKeyIndex)}
+                                    aria-label="Enlarge image {currentImageKeyIndex + 1}"
                                 >
                                     <picture>
-                                        {#if avifSrc}
-                                            <source srcset={getImagePath(avifSrc)} type="image/avif" />
+                                        {#if currentAvif}
+                                            <source srcset={getImagePath(currentAvif)} type="image/avif" />
                                         {/if}
-                                        {#if webpSrc}
-                                            <source srcset={getImagePath(webpSrc)} type="image/webp" />
+                                        {#if currentWebp}
+                                            <source srcset={getImagePath(currentWebp)} type="image/webp" />
                                         {/if}
-                                        {#if fallbackSrc}
-                                            <img src={getImagePath(fallbackSrc)} 
-                                                 alt="{toy.name} - view {i+1}" 
-                                                 class="w-full h-full object-contain bg-black/60" />
-                                        {/if}
+                                        <img src={getImagePath(currentFallback)} 
+                                             alt="{toy.name} - view {currentImageKeyIndex + 1}" 
+                                             class="w-full h-full object-contain bg-black/60"
+                                             sizes="(max-width: 1023px) calc(100vw - 2rem), min(48vw, 42rem)"
+                                             loading="eager"
+                                             fetchpriority="high"
+                                             decoding="async" />
                                     </picture>
                                 </button>
-                            {/each}
+                            {/if}
                             
                             {#if sortedImageKeys.length > 0}
                                 {@const currentKey = sortedImageKeys[currentImageKeyIndex]}
@@ -310,7 +323,7 @@
                 {#if sortedImageKeys.length > 1}
                     <div class="flex overflow-x-auto gap-3 mt-3 sm:mt-4 pb-2 justify-center lg:hidden">
                         {#each sortedImageKeys as imageKey, i}
-                            {@const currentSet = imageSets[imageKey] || []}
+                            {@const currentSet = getThumbnailSet(imageKey)}
                             {@const avifSrc = currentSet.find(img => getExtension(img) === 'avif')}
                             {@const webpSrc = currentSet.find(img => getExtension(img) === 'webp')}
                             {@const jpgSrc = currentSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
@@ -328,7 +341,7 @@
                                         {#if webpSrc}
                                             <source srcset={getImagePath(webpSrc)} type="image/webp" />
                                         {/if}
-                                        <img src={getImagePath(fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" />
+                                        <img src={getImagePath(fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" decoding="async" />
                                     </picture>
                                 {/if}
                             </button>
@@ -384,7 +397,7 @@
                 {#if sortedImageKeys.length > 1}
                     <div class="hidden lg:flex flex-wrap gap-3 justify-start overflow-hidden bg-gray-800/80 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-xl">
                         {#each sortedImageKeys as imageKey, i}
-                            {@const currentSet = imageSets[imageKey] || []}
+                            {@const currentSet = getThumbnailSet(imageKey)}
                             {@const avifSrc = currentSet.find(img => getExtension(img) === 'avif')}
                             {@const webpSrc = currentSet.find(img => getExtension(img) === 'webp')}
                             {@const jpgSrc = currentSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
@@ -402,7 +415,7 @@
                                         {#if webpSrc}
                                             <source srcset={getImagePath(webpSrc)} type="image/webp" />
                                         {/if}
-                                        <img src={getImagePath(fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" />
+                                        <img src={getImagePath(fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" decoding="async" />
                                     </picture>
                                 {/if}
                             </button>
@@ -470,6 +483,10 @@
                         src={getImagePath(enlargedFallback)} 
                         alt="{toy.name} - enlarged view {enlargedImageIndex+1}" 
                         class="enlarged-image"
+                        sizes="100vw"
+                        loading="eager"
+                        fetchpriority="high"
+                        decoding="async"
                     />
                 </picture>
             {/if}
@@ -517,7 +534,7 @@
                 
                 <div class="absolute bottom-16 left-0 right-0 flex justify-center overflow-x-auto gap-2 p-2">
                     {#each sortedImageKeys as thumbKey, i}
-                        {@const thumbSet = imageSets[thumbKey] || []}
+                        {@const thumbSet = getThumbnailSet(thumbKey)}
                         {@const thumbAvif = thumbSet.find(img => getExtension(img) === 'avif')}
                         {@const thumbWebp = thumbSet.find(img => getExtension(img) === 'webp')}
                         {@const thumbJpg = thumbSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
@@ -541,6 +558,8 @@
                                         src={getImagePath(thumbFallback)} 
                                         alt="Thumbnail {i+1}" 
                                         class="w-full h-full object-cover"
+                                        loading="lazy"
+                                        decoding="async"
                                     />
                                 </picture>
                             {/if}
@@ -1007,15 +1026,13 @@
     @media (min-width: 1024px) {
         #toy-details,
         .toy-detail-shell {
-            height: calc(100dvh - 4.5rem);
-            min-height: 0;
-            overflow: hidden;
+            min-height: calc(100dvh - 4.5rem);
         }
 
         .detail-layout {
             display: grid;
             grid-template-columns: minmax(25rem, 0.95fr) minmax(22rem, 0.9fr);
-            align-items: stretch;
+            align-items: start;
             height: 100%;
         }
 
@@ -1027,12 +1044,12 @@
         }
 
         .image-frame {
-            flex: 1 1 auto;
+            flex: 0 1 auto;
             min-height: 0;
         }
 
         .image-stage {
-            height: 100%;
+            height: min(calc(100dvh - 11rem), 48rem);
             min-height: 0;
             max-height: none;
             aspect-ratio: auto;
@@ -1042,6 +1059,7 @@
             flex: 0 0 auto;
             max-height: 7rem;
             box-shadow: none;
+            overflow: visible;
         }
     }
 
