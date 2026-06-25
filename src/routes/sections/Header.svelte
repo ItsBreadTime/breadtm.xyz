@@ -13,7 +13,7 @@
     id="header"
 >
     <div class="header-grid absolute inset-0 opacity-25"></div>
-    <div class="m-4 md:m-8 relative z-10">
+    <div class="homepage-content my-4 md:my-8 relative z-10">
         <div
             class="my-6 text-6xl sm:text-7xl md:text-9xl font-black text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.3)] tracking-tight"
         >

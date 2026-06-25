@@ -5,7 +5,7 @@
 </script>
 
 <div class="py-4" id="contacts">
-    <div class="m-4 md:m-8">
+    <div class="homepage-content my-4 md:my-8">
         <Title style="bg-amber-200 text-2xl md:text-3xl"
             >💬 Contacts & Accounts
             <div class="text-yellow-800 font-medium text-lg jsreq">

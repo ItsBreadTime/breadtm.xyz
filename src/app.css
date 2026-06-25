@@ -41,6 +41,19 @@
 	}
 }
 
+@layer components {
+	.homepage-content {
+		width: min(calc(100% - 2rem), 1750px);
+		margin-inline: auto;
+	}
+
+	@screen md {
+		.homepage-content {
+			width: min(calc(100% - 4rem), 1750px);
+		}
+	}
+}
+
 @layer utilities {
 	.font-features {
 		font-feature-settings: 'calt', 'liga', 'cv11';
@@ -50,5 +63,4 @@
 		font-feature-settings: 'sups';
 	}
 }
-
 

@@ -3,7 +3,7 @@
 </script>
 
 <div class="md:py-4 relative overflow-hidden" id="stuffilike">
-    <div class="md:m-8">
+    <div class="homepage-content">
         <Title style="bg-pink-200 text-2xl md:text-3xl"
             >👍 Stuff I Like
         </Title>
