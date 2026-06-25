@@ -3,12 +3,12 @@
 </script>
 
 <div class="md:py-4 relative overflow-hidden" id="stuffilike">
-    <div class="homepage-content">
+    <div class="stuff-content">
         <Title style="bg-pink-200 text-2xl md:text-3xl"
             >👍 Stuff I Like
         </Title>
     <div class="header-grid absolute inset-0 opacity-25 pointer-events-none"></div>
-    <div class="md:m-8 relative z-10">
+    <div class="md:my-8 relative z-10">
         <div
             class="grid grid-cols-1 md:grid-cols-3 border-4 border-black md:rounded-lg overflow-hidden shadow-2xl"
         >
@@ -46,5 +46,16 @@
                 transparent 0.1em
             );
         background-size: 4.5em 4.5em;
+    }
+
+    .stuff-content {
+        width: 100%;
+        margin-inline: auto;
+    }
+
+    @media (min-width: 768px) {
+        .stuff-content {
+            width: min(100%, 1750px);
+        }
     }
 </style>

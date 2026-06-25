@@ -738,12 +738,13 @@
 
     .toy-detail-shell {
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
         grid-template-rows: auto minmax(0, 1fr);
         gap: clamp(0.75rem, 2vw, 1rem);
         width: min(100%, 88rem);
         min-height: calc(100dvh - 4.5rem);
         margin: 0 auto;
-        padding: clamp(0.75rem, 2.2vw, 1.15rem);
+        padding: clamp(0.5rem, 2.2vw, 1.15rem);
     }
 
     .toy-detail-title {
@@ -751,15 +752,18 @@
         align-items: center;
         justify-content: center;
         gap: 0.7rem;
+        width: 100%;
         min-width: 0;
     }
 
     .title-plate {
         display: grid;
-        grid-template-columns: minmax(0, auto) auto;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: stretch;
+        flex: 1 1 0;
         overflow: hidden;
         max-width: min(100%, 48rem);
+        min-width: 0;
         border: 2px solid #050308;
         border-radius: 0.45rem;
         box-shadow: 0 5px 0 color-mix(in srgb, var(--detail-accent), #050308 28%);
@@ -820,11 +824,14 @@
         display: flex;
         flex-direction: column;
         gap: clamp(0.75rem, 2vw, 1rem);
+        width: 100%;
+        min-width: 0;
         min-height: 0;
     }
 
     .image-column,
     .detail-column {
+        width: 100%;
         min-width: 0;
     }
 
@@ -1046,6 +1053,7 @@
 
         .toy-detail-title {
             justify-content: flex-start;
+            gap: 0.5rem;
         }
 
         .toy-detail-title h1 {
@@ -1054,7 +1062,7 @@
         }
 
         .image-stage {
-            min-height: 18rem;
+            min-height: min(18rem, calc(100vw - 1.75rem));
             max-height: 68dvh;
         }
 
@@ -1106,6 +1114,36 @@
     }
 
     @media (max-width: 340px) {
+        .toy-detail-shell {
+            padding-inline: 0.45rem;
+        }
+
+        .toy-detail-title {
+            gap: 0.42rem;
+        }
+
+        .title-back-link {
+            width: 2rem;
+            height: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .title-plate span {
+            padding-inline: 0.45rem;
+            font-size: 0.68rem;
+        }
+
+        .toy-detail-title h1 {
+            padding-inline: 0.55rem;
+            font-size: 0.92rem;
+        }
+
+        .image-frame,
+        .detail-panel,
+        .notes-panel {
+            border-radius: 0.45rem;
+        }
+
         .meta-list {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }

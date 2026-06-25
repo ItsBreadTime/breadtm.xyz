@@ -57,11 +57,11 @@
     <section class="relative overflow-hidden flex-1" id="errorpage">
         <div class="error-grid absolute inset-0 opacity-25 pointer-events-none"></div>
 
-        <div class="relative z-10 mx-auto max-w-3xl px-4 py-4 md:px-8 md:py-10">
+        <div class="error-shell relative z-10 mx-auto max-w-3xl px-3 py-4 md:px-8 md:py-10">
             <div class="flex h-20 items-center justify-center mb-4 md:h-28 md:mb-8">
                 <div class="rounded-md bg-black">
                     <h1
-                        class="bg-amber-200 text-amber-900 font-accent inline-block p-3.5 md:p-4 -translate-x-2 -translate-y-2 rounded-md text-2xl md:text-3xl font-extrabold tracking-tight"
+                        class="error-title bg-amber-200 text-amber-900 font-accent inline-block p-3 md:p-4 -translate-x-2 -translate-y-2 rounded-md text-2xl md:text-3xl font-extrabold tracking-tight"
                     >
                         <span
                             class="glitch {glitching ? 'is-glitching' : ''}"
@@ -94,7 +94,7 @@
                     </p>
 
                     <div
-                        class="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:grid-cols-[1.05fr_1fr_auto] sm:items-center"
+                        class="error-actions mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:grid-cols-[1.05fr_1fr_auto] sm:items-center"
                         aria-label="Recovery options"
                     >
                         <a
@@ -123,10 +123,6 @@
 </div>
 
 <style lang="postcss">
-    :global(body) {
-        background-color: theme(colors.autobot);
-    }
-
     #errorpage {
         background-color: theme(colors.autobot);
         background-image: linear-gradient(
@@ -168,6 +164,30 @@
 
     .status-glow {
         text-shadow: 0 0 0.5em rgba(239, 68, 68, 0.55), 0 0 1.4em rgba(239, 68, 68, 0.35);
+    }
+
+    @media (max-width: 340px) {
+        .error-shell {
+            padding-inline: 0.45rem;
+        }
+
+        .error-title {
+            padding: 0.65rem 0.85rem;
+            font-size: 1.35rem;
+        }
+
+        .glitch {
+            min-width: 0;
+        }
+
+        .error-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .error-actions > :global(a) {
+            grid-column: 1 / -1;
+            min-width: 0;
+        }
     }
 
     @keyframes jitter {

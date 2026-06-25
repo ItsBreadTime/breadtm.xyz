@@ -35,9 +35,21 @@
 }
 
 @layer base {
+	html {
+		background-color: theme(colors.black);
+	}
+
 	body {
 		@apply font-sans;
+		background-color: theme(colors.black);
 		font-feature-settings: 'calt', 'liga', 'cv11';
+		overflow-x: clip;
+	}
+
+	@supports not (overflow: clip) {
+		body {
+			overflow-x: hidden;
+		}
 	}
 }
 
@@ -63,4 +75,3 @@
 		font-feature-settings: 'sups';
 	}
 }
-

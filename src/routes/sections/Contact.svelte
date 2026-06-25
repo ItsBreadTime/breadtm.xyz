@@ -13,7 +13,7 @@
             </div></Title
         >
         <div
-            class="grid grid-cols-1 md:grid-cols-6 md:border-y-4 md:border-l-4 border-4 md:border-0 border-black border-t-1"
+            class="grid grid-cols-1 lg:grid-cols-6 lg:border-y-4 lg:border-l-4 border-4 lg:border-0 border-black border-t-1"
         >
             <ContactLarge
                 image="contacts/element.svg"
@@ -31,7 +31,7 @@
             />
         </div>
         <div
-            class="grid grid-cols-1 md:grid-cols-2 md:grid-cols-3 border-l-4 md:mb-12 border-black text-center md:border-b-4"
+            class="contact-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 border-l-4 md:mb-12 border-black text-center md:border-b-4"
         >
             <Contact
                 service="Email"
@@ -77,5 +77,11 @@
                 transparent 0.1em
             );
         background-size: 4.5em 4.5em;
+    }
+
+    @media (min-width: 640px) and (max-width: 767.98px) {
+        :global(.contact-grid > :last-child) {
+            grid-column: 1 / -1;
+        }
     }
 </style>
