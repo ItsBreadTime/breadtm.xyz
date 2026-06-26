@@ -6,6 +6,8 @@
 </script>
 
 <Nav />
-<Header />
-<StuffILike />
-<Contact />
+<main id="main-content">
+  <Header />
+  <StuffILike />
+  <Contact />
+</main>

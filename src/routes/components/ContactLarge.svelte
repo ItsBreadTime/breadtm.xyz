@@ -5,11 +5,11 @@
 
 <div class="bg-purple-600 iconbg lg:border-r-4 lg:border-b-0 border-black">
     <span class="items-center justify-center m-3 flex lg:hidden" use:copy={username}>
-        <img src={image} alt="{image} logo" width="70" />
+        <img src={image} alt="{title} logo" width="70" height="70" decoding="async" />
         <h3 class="text-4xl sm:text-5xl ml-4 font-bold text-purple-200">{title}</h3>
     </span>
     <span class="items-center justify-center m-8 hidden lg:flex" use:copy={username}>
-        <img src={image} alt="{image} logo" class="w-36 xl:w-40" width="160" />
+        <img src={image} alt="{title} logo" class="w-36 xl:w-40" width="160" height="160" decoding="async" loading="lazy" />
     </span>
 </div>
 <div class="lg:col-span-2 min-w-0" id="ptext">
@@ -23,7 +23,7 @@
         <div class="text-base sm:text-lg lg:text-lg xl:text-xl">{description}</div>
         <a
             href={url}
-            class="inline-block mt-3 text-base lg:text-xl py-2 w-full text-center bg-black rounded hover:bg-indigo-950 transition-all"
+            class="inline-flex min-h-11 items-center justify-center mt-3 text-base lg:text-xl px-3 py-2 w-full text-center bg-black rounded hover:bg-indigo-950 transition-all"
             data-umami-event="Contact: {title}"
             >Start chat</a
         >

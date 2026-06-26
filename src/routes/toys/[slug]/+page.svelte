@@ -44,6 +44,7 @@
 
     let isImageEnlarged: boolean = $state(false);
     let enlargedImageIndex: number = $state(0);
+    let previousImageSignature = '';
 
     let touchStartX: number = 0;
     let touchEndX: number = 0;
@@ -179,8 +180,9 @@
     };
 
     $effect(() => {
-        const imageKeySignature = sortedImageKeys.join('|');
-        if (imageKeySignature || slug) {
+        const imageKeySignature = `${slug}:${sortedImageKeys.join('|')}`;
+        if (imageKeySignature !== previousImageSignature) {
+            previousImageSignature = imageKeySignature;
             currentImageKeyIndex = 0;
             enlargedImageIndex = 0;
         }
@@ -222,7 +224,7 @@
 <div id="toy-page" data-faction={toy.faction || 'Mixed'}>
     <div id="toy-content">
         <Nav />
-        <div id="toy-details">
+        <main id="toy-details">
             <div class="toy-detail-shell">
         <header class="toy-detail-title">
             <a href="/toys" class="title-back-link" aria-label="Back to toy gallery">&larr;</a>
@@ -268,7 +270,9 @@
                                              sizes="(max-width: 1023px) calc(100vw - 2rem), min(48vw, 42rem)"
                                              loading="eager"
                                              fetchpriority="high"
-                                             decoding="async" />
+                                             decoding="async"
+                                             width="1728"
+                                             height="2304" />
                                     </picture>
                                 </button>
                             {/if}
@@ -278,7 +282,7 @@
                                 <a 
                                     href={fullResPath(currentKey)} 
                                     download
-                                    class="absolute top-3 right-3 z-20 flex items-center justify-center bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg"
+                                    class="absolute top-3 right-3 z-20 flex min-h-11 min-w-11 items-center justify-center bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg"
                                     title="Download full resolution"
                                     aria-label="Download full resolution image"
                                 >
@@ -289,14 +293,14 @@
                             {/if}
                             
                             {#if sortedImageKeys.length > 1}
-                                <button class="absolute left-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-r-md shadow-sm hover:shadow-md z-20 transition-all duration-300"
+                                <button class="absolute left-0 top-1/2 z-20 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-r-md bg-black/30 p-2 text-white shadow-sm transition-all duration-300 hover:bg-black/50 hover:shadow-md"
                                         onclick={prevImage}
                                         aria-label="Previous image">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                                     </svg>
                                 </button>
-                                <button class="absolute right-0 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 sm:p-2 rounded-l-md shadow-sm hover:shadow-md z-20 transition-all duration-300"
+                                <button class="absolute right-0 top-1/2 z-20 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-l-md bg-black/30 p-2 text-white shadow-sm transition-all duration-300 hover:bg-black/50 hover:shadow-md"
                                         onclick={nextImage}
                                         aria-label="Next image">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -306,12 +310,15 @@
                                 
                                 <div class="absolute bottom-3 sm:bottom-4 inset-x-0 flex justify-center space-x-2 sm:space-x-2 z-20">
                                     {#each sortedImageKeys as _, i}
-                                        <button class="w-3 h-3 sm:w-3 sm:h-3 rounded-full transition-all duration-300 shadow-md {i === currentImageKeyIndex ? 'bg-rose-400 scale-125' : 'bg-white/30'}" 
+                                        <button class="flex h-11 w-11 items-center justify-center rounded-full transition-all duration-300" 
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     currentImageKeyIndex = i;
                                                 }}
-                                                aria-label="View image {i+1}"></button>
+                                                aria-label="View image {i+1}"
+                                                aria-current={i === currentImageKeyIndex ? 'true' : 'false'}>
+                                            <span class="block h-3 w-3 rounded-full shadow-md transition-transform duration-300 {i === currentImageKeyIndex ? 'scale-125 bg-rose-400' : 'bg-white/45'}"></span>
+                                        </button>
                                     {/each}
                                 </div>
                             {/if}
@@ -336,7 +343,9 @@
                             <button 
                                 class="flex-shrink-0 w-20 h-20 sm:w-20 sm:h-20 overflow-hidden rounded-md border-2 transition-all duration-300
                                        {i === currentImageKeyIndex ? 'border-rose-400 ring-2 ring-rose-400 shadow-lg' : 'border-gray-700'}"
-                                onclick={() => currentImageKeyIndex = i}>
+                                onclick={() => currentImageKeyIndex = i}
+                                aria-label="View {toy.name} image {i + 1}"
+                                aria-current={i === currentImageKeyIndex ? 'true' : 'false'}>
                                 {#if fallbackSrc}
                                     <picture>
                                         {#if avifSrc}
@@ -348,7 +357,7 @@
                                         {#if jpgSrc}
                                             <source srcset={getImagePath(jpgSrc)} type="image/jpeg" />
                                         {/if}
-                                        <img src={getImagePath(avifSrc || webpSrc || fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" decoding="async" />
+                                        <img src={getImagePath(avifSrc || webpSrc || fallbackSrc)} alt="{toy.name} thumbnail {i + 1}" class="w-full h-full object-cover" loading="lazy" decoding="async" width="480" height="640" />
                                     </picture>
                                 {/if}
                             </button>
@@ -413,7 +422,9 @@
                             <button 
                                 class="w-20 h-20 overflow-hidden rounded-md border-2 transition-all duration-300
                                        {i === currentImageKeyIndex ? 'border-rose-400 ring-2 ring-rose-400 shadow-lg scale-105' : 'border-gray-700 hover:border-gray-400'}"
-                                onclick={() => currentImageKeyIndex = i}>
+                                onclick={() => currentImageKeyIndex = i}
+                                aria-label="View {toy.name} image {i + 1}"
+                                aria-current={i === currentImageKeyIndex ? 'true' : 'false'}>
                                 {#if fallbackSrc}
                                     <picture>
                                         {#if avifSrc}
@@ -425,7 +436,7 @@
                                         {#if jpgSrc}
                                             <source srcset={getImagePath(jpgSrc)} type="image/jpeg" />
                                         {/if}
-                                        <img src={getImagePath(avifSrc || webpSrc || fallbackSrc)} alt="Thumbnail {i+1}" class="w-full h-full object-cover" loading="lazy" decoding="async" />
+                                        <img src={getImagePath(avifSrc || webpSrc || fallbackSrc)} alt="{toy.name} thumbnail {i + 1}" class="w-full h-full object-cover" loading="lazy" decoding="async" width="480" height="640" />
                                     </picture>
                                 {/if}
                             </button>
@@ -435,7 +446,7 @@
             </div>
         </div>
             </div>
-        </div>
+        </main>
     </div>
 </div>
 
@@ -458,7 +469,7 @@
     >
         <div class="absolute top-4 right-4 z-50">
             <button 
-                class="bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-colors duration-300"
+                class="flex min-h-11 min-w-11 items-center justify-center rounded-full bg-black/30 p-2 text-white transition-colors duration-300 hover:bg-black/50"
                 onclick={closeEnlargedImage}
                 aria-label="Close enlarged image view"
             >
@@ -476,10 +487,7 @@
             ontouchmove={handleEnlargedTouchMove}
             ontouchend={handleEnlargedTouchEnd}
             onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); } }}
-            role="button"
-            tabindex="0"
-            aria-label="Image container - click to interact"
+            role="presentation"
         >
             {#if enlargedFallback}
                 <picture class="enlarged-picture">
@@ -500,6 +508,8 @@
                         loading="eager"
                         fetchpriority="high"
                         decoding="async"
+                        width="1728"
+                        height="2304"
                     />
                 </picture>
             {/if}
@@ -507,7 +517,7 @@
             <a 
                 href={fullResPath(enlargedKey)} 
                 download
-                class="absolute top-4 left-4 flex items-center justify-center bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all duration-300 opacity-60 hover:opacity-100"
+                class="absolute top-4 left-4 flex min-h-11 min-w-11 items-center justify-center bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all duration-300 opacity-80 hover:opacity-100"
                 onclick={(e) => e.stopPropagation()}
                 title="Download full resolution"
                 aria-label="Download full resolution image"
@@ -523,7 +533,7 @@
             
             {#if sortedImageKeys.length > 1}
                 <button 
-                    class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-1.5 sm:p-2 rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-all duration-300 opacity-40 hover:opacity-90"
+                    class="absolute left-2 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 p-2 text-white opacity-80 transition-all duration-300 hover:bg-black/45 hover:opacity-100"
                     onclick={(e) => { e.stopPropagation(); prevEnlargedImage(); }}
                     aria-label="Previous image"
                 >
@@ -532,7 +542,7 @@
                     </svg>
                 </button>
                 <button 
-                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-1.5 sm:p-2 rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center transition-all duration-300 opacity-40 hover:opacity-90"
+                    class="absolute right-2 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 p-2 text-white opacity-80 transition-all duration-300 hover:bg-black/45 hover:opacity-100"
                     onclick={(e) => { e.stopPropagation(); nextEnlargedImage(); }}
                     aria-label="Next image"
                 >
@@ -576,6 +586,8 @@
                                         class="w-full h-full object-cover"
                                         loading="lazy"
                                         decoding="async"
+                                        width="480"
+                                        height="640"
                                     />
                                 </picture>
                             {/if}
@@ -838,8 +850,8 @@
         display: inline-grid;
         place-items: center;
         flex: 0 0 auto;
-        width: 2.35rem;
-        height: 2.35rem;
+        width: 2.75rem;
+        height: 2.75rem;
         color: #050308;
         background: var(--detail-accent);
         border: 2px solid #050308;
@@ -1157,8 +1169,8 @@
         }
 
         .title-back-link {
-            width: 2rem;
-            height: 2rem;
+            width: 2.75rem;
+            height: 2.75rem;
             font-size: 0.95rem;
         }
 

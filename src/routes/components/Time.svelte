@@ -1,40 +1,64 @@
 <script lang="ts">
-    let time = $state('');
-    let date = $state('');
-    let clockEmoji = $state("🕐"); // Default clock emoji
+    import { onMount } from 'svelte';
 
-    function updateTimeAndDate() {
-        const now = new Date();
-        const timeOptions: Intl.DateTimeFormatOptions = {
-            timeZone: 'Asia/Bangkok', // UTC+7
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
+    const timeOptions: Intl.DateTimeFormatOptions = {
+        timeZone: 'Asia/Bangkok',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    };
+
+    const dateOptions: Intl.DateTimeFormatOptions = {
+        timeZone: 'Asia/Bangkok',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+    };
+
+    const clockPartOptions: Intl.DateTimeFormatOptions = {
+        timeZone: 'Asia/Bangkok',
+        hour: 'numeric',
+        minute: 'numeric',
+        hourCycle: 'h23'
+    };
+
+    const initialClock = getClockState();
+
+    let time = $state(initialClock.time);
+    let date = $state(initialClock.date);
+    let clockEmoji = $state(initialClock.clockEmoji);
+
+    function getClockState(now = new Date()) {
+        const parts = new Intl.DateTimeFormat('en-GB', clockPartOptions).formatToParts(now);
+        const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
+        const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
+
+        return {
+            time: now.toLocaleTimeString('en-GB', timeOptions),
+            date: now.toLocaleDateString('en-GB', dateOptions),
+            clockEmoji: getClockEmoji(hour, minute)
         };
-        const dateOptions: Intl.DateTimeFormatOptions = {
-            timeZone: 'Asia/Bangkok', // UTC+7
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            weekday: 'long'
-        };
-        time = now.toLocaleTimeString('en-GB', timeOptions);
-        date = now.toLocaleDateString('en-GB', dateOptions);
-        updateClockEmoji(now.getHours(), now.getMinutes());
     }
 
-    function updateClockEmoji(hour: number, minute: number) {
+    function updateTimeAndDate() {
+        const nextClock = getClockState();
+        time = nextClock.time;
+        date = nextClock.date;
+        clockEmoji = nextClock.clockEmoji;
+    }
+
+    function getClockEmoji(hour: number, minute: number) {
         const clockEmojis = [
             "🕛", "🕧", "🕐", "🕜", "🕑", "🕝", "🕒", "🕞", "🕓", "🕟", "🕔", "🕠", 
             "🕕", "🕡", "🕖", "🕢", "🕗", "🕣", "🕘", "🕤", "🕙", "🕥", "🕚", "🕦"
         ];
-        // Determine the index for the clock emoji (hour and half-hour marks)
         const index = hour % 12 * 2 + (minute >= 30 ? 1 : 0);
-        clockEmoji = clockEmojis[index];
+        return clockEmojis[index];
     }
 
-    $effect(() => {
+    onMount(() => {
         updateTimeAndDate();
         const interval = setInterval(updateTimeAndDate, 1000);
         return () => clearInterval(interval);

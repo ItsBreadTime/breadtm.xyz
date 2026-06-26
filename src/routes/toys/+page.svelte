@@ -69,7 +69,8 @@
     }
 
     function scrollToTop() {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
     }
 
     onMount(() => {
@@ -363,7 +364,7 @@
     input,
     select {
         width: 100%;
-        min-height: 2.55rem;
+        min-height: 2.75rem;
         color: var(--ink);
         background-color: var(--field);
         border: 2px solid var(--line);
@@ -408,7 +409,7 @@
 
     .faction-rail button,
     .empty-state button {
-        min-height: 2.25rem;
+        min-height: 2.75rem;
         border-radius: 999px;
         font-weight: 800;
         transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease, border-color 180ms ease;
@@ -557,7 +558,7 @@
 
         input,
         select {
-            min-height: 2.18rem;
+            min-height: 2.75rem;
             border-width: 1.5px;
             border-radius: 0.45rem;
             font-size: 0.86rem;
@@ -590,7 +591,7 @@
         }
 
         .faction-rail button {
-            min-height: 1.95rem;
+            min-height: 2.75rem;
             flex: 0 0 auto;
             justify-content: center;
             gap: 0.42rem;

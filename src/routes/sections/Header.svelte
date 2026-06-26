@@ -14,13 +14,13 @@
 >
     <div class="header-grid absolute inset-0 opacity-25"></div>
     <div class="homepage-content my-3 md:my-5 xl:my-8 relative z-10">
-        <div
-            class="my-4 md:my-5 xl:my-6 pb-3 md:pb-4 text-[clamp(3.75rem,10.5vw,8rem)] font-black leading-[0.96] text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.3)] tracking-[-0.035em] text-balance"
+        <h1
+            class="my-4 md:my-5 xl:my-6 pb-3 md:pb-4 text-[clamp(3.75rem,10.5vw,8rem)] font-black leading-[0.98] text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.3)] tracking-[-0.03em] text-balance"
         >
             Hello, I'm Bread<sup
                 class="font-bold text-violet-200 font-features-sups">TM</sup
             >
-        </div>
+        </h1>
         <div
             class="grid grid-cols-1 lg:grid-cols-3 border-4 border-black rounded-lg overflow-hidden shadow-2xl"
         >
@@ -34,6 +34,9 @@
                         alt="Bread Profile"
                         class="w-48 sm:w-64 lg:w-80 max-w-[70%]"
                         width="384"
+                        height="384"
+                        decoding="async"
+                        fetchpriority="high"
                     />
                 </span>
             </div>
@@ -53,13 +56,13 @@
                         >
                         <div class="lg:mt-2 flex flex-col sm:flex-row gap-2">
                             <a
-                                class="bg-white text-violet-900 px-3 py-2 rounded-md text-center font-bold"
+                                class="inline-flex min-h-11 items-center justify-center bg-white text-violet-900 px-3 py-2 rounded-md text-center font-bold"
                                 href="#stuffilike"
                             >
                                 Stuff I Like
                             </a>
                             <a
-                                class="bg-white text-violet-900 px-3 py-2 rounded-md text-center font-bold"
+                                class="inline-flex min-h-11 items-center justify-center bg-white text-violet-900 px-3 py-2 rounded-md text-center font-bold"
                                 href="#contacts"
                             >
                                 Contacts

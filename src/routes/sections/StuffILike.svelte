@@ -10,7 +10,7 @@
     <div class="header-grid absolute inset-0 opacity-25 pointer-events-none"></div>
     <div class="md:my-8 relative z-10">
         <div
-            class="grid grid-cols-1 md:grid-cols-3 border-4 border-black md:rounded-lg overflow-hidden shadow-2xl"
+            class="grid grid-cols-1 md:grid-cols-3 border-4 border-black overflow-hidden shadow-2xl"
         >
             <div class="col-span-3" id="ptext">
                 <div
@@ -25,7 +25,7 @@
                     <p class="my-2">I try to limit the frequencies of rewatches, but yeah... Also also, you may have noticed a theme here... Maybe I really love sci-fi and robots and <i>not</i> robot (sentient organism, mechs) I guess...</p>
                     <p class="my-2">I enjoy listening to film music too since it kinda brings me back to the movie without actually rewatching since I set a limit to myself on rewatches, yay loopholes! Also I just happen to love orchestral(?) music apparently.</p>
                     <p class="mt-2 mb-6">Plot holes are tolerated, mostly. As long as the rest of the movie is good. <i>Pacific Rim <span class="text-gray-400">(2013)</span></i> is <i>possibly</i> the most hell yeah movie ever created??? So despite some flaws, I enjoyed it thoroughly, thank you.</p>
-                    <div class="text-right"><a href="https://letterboxd.com/ibreadtm/" class="rounded-md py-2 px-4 bg-white text-black underline decoration-gray-400">Letterboxd</a></div>
+                    <div class="text-right"><a href="https://letterboxd.com/ibreadtm/" class="inline-flex min-h-11 items-center rounded-md py-2 px-4 bg-white text-black underline decoration-gray-400">Letterboxd</a></div>
                 </div>
             </div>
         </div>
