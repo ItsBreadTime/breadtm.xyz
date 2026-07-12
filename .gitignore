@@ -13,3 +13,6 @@ vite.config.ts.timestamp-*
 /.impeccable
 /.openchrome
 PRODUCT.md
+/.pnpm-store
+/.venv
+/.wrangler

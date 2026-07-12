@@ -35,8 +35,17 @@
 }
 
 @layer base {
+	:root {
+		--site-outline: #050308;
+		--site-outline-width: 4px;
+		--site-radius: 0.65rem;
+		--site-shadow-offset: 0.5rem;
+		--site-grid-size: 3.5rem;
+	}
+
 	html {
 		background-color: theme(colors.black);
+		scrollbar-gutter: stable;
 	}
 
 	body {

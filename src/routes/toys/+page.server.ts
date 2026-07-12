@@ -52,6 +52,7 @@ const getExtension = (filename: string): string => {
 };
 
 const isThumbnail = (filename: string): boolean => /-thumb\.[^.]+$/i.test(filename);
+const isFullResolution = (filename: string): boolean => /-full\.[^.]+$/i.test(filename);
 
 const sortByFormatPriority = (images: string[]) => {
     images.sort((a, b) => {
@@ -110,7 +111,7 @@ export async function load() {
                 // Group images by base filename (without extension)
                 const baseFilenameGroups: Record<string, string[]> = {};
                 
-                toyImagesMap[slug].filter(filename => !isThumbnail(filename)).forEach(filename => {
+                toyImagesMap[slug].filter(filename => !isThumbnail(filename) && !isFullResolution(filename)).forEach(filename => {
                     const base = getBaseFilename(filename);
                     if (!baseFilenameGroups[base]) {
                         baseFilenameGroups[base] = [];

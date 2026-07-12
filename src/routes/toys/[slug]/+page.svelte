@@ -1,6 +1,12 @@
 <script lang="ts">
     import { error } from '@sveltejs/kit';
     import { page } from '$app/stores'; 
+    import { getFactionTheme } from '$lib/toys/factions';
+    import {
+        imageResolutionCache,
+        getImageResolutionCacheKey,
+        markImageResolutionCached
+    } from '$lib/toys/fullResolutionCache';
     import Nav from '../../sections/Nav.svelte';
     import Factions from '../../components/Factions.svelte';
     
@@ -30,6 +36,7 @@
         return data.metadata;
     });
     const slug = $derived(toy.slug || $page.params.slug);
+    const fullscreenTheme = $derived(getFactionTheme(toy.faction));
 
     // Get the compiled content from client data
     let contentComponent = $derived(data.component);
@@ -44,11 +51,50 @@
 
     let isImageEnlarged: boolean = $state(false);
     let enlargedImageIndex: number = $state(0);
+    let zoomScale: number = $state(1);
+    let zoomOffsetX: number = $state(0);
+    let zoomOffsetY: number = $state(0);
+    let requestedFullResolutionKey: string | null = $state(null);
+    const enlargedImageKey = $derived(sortedImageKeys[enlargedImageIndex] || '');
+    const fullResolutionRequested = $derived(requestedFullResolutionKey === enlargedImageKey);
+    const useFullResolution = $derived(
+        enlargedImageKey !== ''
+        && $imageResolutionCache[getImageResolutionCacheKey(slug, enlargedImageKey)] === 'full'
+    );
     let previousImageSignature = '';
 
     let touchStartX: number = 0;
     let touchEndX: number = 0;
+    let touchStartY: number = 0;
+    let touchEndY: number = 0;
+    let panStartX: number = 0;
+    let panStartY: number = 0;
+    let panStartOffsetX: number = 0;
+    let panStartOffsetY: number = 0;
+    let pinchStartDistance: number = 0;
+    let pinchStartScale: number = 1;
+    let pinchStartCenterX: number = 0;
+    let pinchStartCenterY: number = 0;
+    let pinchStartOffsetX: number = 0;
+    let pinchStartOffsetY: number = 0;
+    let pointerPanActive = false;
     const MIN_SWIPE_DISTANCE = 50;
+    const MIN_ZOOM = 1;
+    const MAX_ZOOM = 6;
+    const ZOOM_BUTTON_STEP = 0.75;
+    const WHEEL_ZOOM_SENSITIVITY = 0.0035;
+    const FULL_RESOLUTION_IDLE_DELAY = 220;
+
+    let zoomFrame: number | null = null;
+    let panFrame: number | null = null;
+    let fullResolutionTimer: number | null = null;
+    let pendingZoomScale = MIN_ZOOM;
+    let pendingZoomClientX: number | null = null;
+    let pendingZoomClientY: number | null = null;
+    let pendingZoomOffsetX: number | null = null;
+    let pendingZoomOffsetY: number | null = null;
+    let pendingPanOffsetX = 0;
+    let pendingPanOffsetY = 0;
 
     function handleTouchStart(e: TouchEvent): void {
         touchStartX = e.touches[0].clientX;
@@ -75,14 +121,93 @@
     }
 
     function handleEnlargedTouchStart(e: TouchEvent): void {
-        touchStartX = e.touches[0].clientX;
+        if (e.touches.length >= 2) {
+            pinchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
+            pinchStartScale = zoomScale;
+            pinchStartCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            pinchStartCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            pinchStartOffsetX = zoomOffsetX;
+            pinchStartOffsetY = zoomOffsetY;
+            touchStartX = 0;
+            touchEndX = 0;
+            return;
+        }
+
+        const touch = e.touches[0];
+        if (!touch) return;
+        touchStartX = touch.clientX;
+        touchEndX = touch.clientX;
+        touchStartY = touch.clientY;
+        touchEndY = touch.clientY;
+        panStartX = touch.clientX;
+        panStartY = touch.clientY;
+        panStartOffsetX = zoomOffsetX;
+        panStartOffsetY = zoomOffsetY;
     }
 
     function handleEnlargedTouchMove(e: TouchEvent): void {
-        touchEndX = e.touches[0].clientX;
+        if (e.touches.length >= 2) {
+            const firstTouch = e.touches[0];
+            const secondTouch = e.touches[1];
+            const distance = getTouchDistance(firstTouch, secondTouch);
+            if (pinchStartDistance > 0) {
+                const targetScale = Math.max(
+                    MIN_ZOOM,
+                    Math.min(MAX_ZOOM, pinchStartScale * (distance / pinchStartDistance))
+                );
+                const stage = e.currentTarget as HTMLElement;
+                const rect = stage.getBoundingClientRect();
+                const currentCenterX = (firstTouch.clientX + secondTouch.clientX) / 2;
+                const currentCenterY = (firstTouch.clientY + secondTouch.clientY) / 2;
+                const focalX = pinchStartCenterX - (rect.left + rect.width / 2);
+                const focalY = pinchStartCenterY - (rect.top + rect.height / 2);
+                const scaleRatio = targetScale / pinchStartScale;
+                const nextOffsetX = currentCenterX - pinchStartCenterX
+                    + focalX
+                    + (pinchStartOffsetX - focalX) * scaleRatio;
+                const nextOffsetY = currentCenterY - pinchStartCenterY
+                    + focalY
+                    + (pinchStartOffsetY - focalY) * scaleRatio;
+                scheduleZoom(targetScale, null, null, nextOffsetX, nextOffsetY);
+            }
+            return;
+        }
+
+        const touch = e.touches[0];
+        if (!touch) return;
+
+        if (zoomScale > MIN_ZOOM) {
+            schedulePan(
+                panStartOffsetX + touch.clientX - panStartX,
+                panStartOffsetY + touch.clientY - panStartY
+            );
+        } else {
+            touchEndX = touch.clientX;
+            touchEndY = touch.clientY;
+        }
     }
 
     function handleEnlargedTouchEnd(e: TouchEvent): void {
+        if (pinchStartDistance > 0) {
+            if (e.touches.length < 2) {
+                pinchStartDistance = 0;
+                const remainingTouch = e.touches[0];
+                if (remainingTouch) {
+                    panStartX = remainingTouch.clientX;
+                    panStartY = remainingTouch.clientY;
+                    panStartOffsetX = pendingZoomOffsetX ?? zoomOffsetX;
+                    panStartOffsetY = pendingZoomOffsetY ?? zoomOffsetY;
+                }
+            }
+            return;
+        }
+
+        if (zoomScale > MIN_ZOOM) {
+            touchStartX = 0;
+            touchEndX = 0;
+            return;
+        }
+
         if (!touchStartX || !touchEndX) return;
         
         const swipeDistance = touchEndX - touchStartX;
@@ -96,6 +221,287 @@
         
         touchStartX = 0;
         touchEndX = 0;
+        touchStartY = 0;
+        touchEndY = 0;
+    }
+
+    function getTouchDistance(first: Touch, second: Touch): number {
+        return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+    }
+
+    function clampPan(value: number, axis: 'x' | 'y', scale = zoomScale): number {
+        const stage = document.querySelector<HTMLElement>('.lightbox-stage');
+        if (!stage) return value;
+        const image = stage.querySelector<HTMLImageElement>('.enlarged-picture .enlarged-image');
+        const naturalWidth = image?.naturalWidth || Number(image?.getAttribute('width')) || stage.clientWidth;
+        const naturalHeight = image?.naturalHeight || Number(image?.getAttribute('height')) || stage.clientHeight;
+        const imageRatio = naturalWidth / naturalHeight;
+        const stageWidth = stage.clientWidth;
+        const stageHeight = stage.clientHeight;
+        const containedWidth = Math.min(stageWidth, stageHeight * imageRatio);
+        const containedHeight = Math.min(stageHeight, stageWidth / imageRatio);
+        const stageSize = axis === 'x' ? stageWidth : stageHeight;
+        const containedSize = axis === 'x' ? containedWidth : containedHeight;
+        const limit = Math.max(0, (containedSize * scale - stageSize) / 2);
+        return Math.max(-limit, Math.min(limit, value));
+    }
+
+    function cancelInteractionFrames(): void {
+        if (zoomFrame !== null) {
+            window.cancelAnimationFrame(zoomFrame);
+            zoomFrame = null;
+        }
+        if (panFrame !== null) {
+            window.cancelAnimationFrame(panFrame);
+            panFrame = null;
+        }
+        pendingZoomScale = zoomScale;
+        pendingZoomClientX = null;
+        pendingZoomClientY = null;
+        pendingZoomOffsetX = null;
+        pendingZoomOffsetY = null;
+        pendingPanOffsetX = zoomOffsetX;
+        pendingPanOffsetY = zoomOffsetY;
+    }
+
+    function cancelFullResolutionTimer(): void {
+        if (fullResolutionTimer !== null) {
+            window.clearTimeout(fullResolutionTimer);
+            fullResolutionTimer = null;
+        }
+    }
+
+    function cancelFullResolutionLoad(): void {
+        cancelFullResolutionTimer();
+        requestedFullResolutionKey = null;
+    }
+
+    function resetFullResolution(): void {
+        cancelFullResolutionLoad();
+    }
+
+    function queueFullResolutionLoad(scale: number): void {
+        const requestedImageKey = enlargedImageKey;
+        if (!requestedImageKey || useFullResolution || scale <= MIN_ZOOM) return;
+        // Once this image's request has mounted, further zoom frames must not
+        // unmount and restart it. Only navigation/reset cancels an active load.
+        if (requestedFullResolutionKey === requestedImageKey) return;
+
+        cancelFullResolutionTimer();
+        fullResolutionTimer = window.setTimeout(() => {
+            fullResolutionTimer = null;
+            if (
+                isImageEnlarged
+                && enlargedImageKey === requestedImageKey
+                && zoomScale > MIN_ZOOM
+                && !useFullResolution
+            ) {
+                requestedFullResolutionKey = requestedImageKey;
+            }
+        }, FULL_RESOLUTION_IDLE_DELAY);
+    }
+
+    async function handleFullResolutionLoad(e: Event, imageKey: string): Promise<void> {
+        const image = e.currentTarget as HTMLImageElement;
+        try {
+            await image.decode();
+        } catch {
+            // A completed load can still be promoted when decode() is unavailable.
+        }
+
+        markImageResolutionCached(getImageResolutionCacheKey(slug, imageKey), 'full');
+        if (requestedFullResolutionKey === imageKey) requestedFullResolutionKey = null;
+    }
+
+    function handleFullResolutionError(imageKey: string): void {
+        if (requestedFullResolutionKey === imageKey) requestedFullResolutionKey = null;
+    }
+
+    async function handleStandardResolutionLoad(e: Event, imageKey: string): Promise<void> {
+        const image = e.currentTarget as HTMLImageElement;
+        try {
+            await image.decode();
+        } catch {
+            // A completed load still counts when decode() is unavailable.
+        }
+
+        markImageResolutionCached(getImageResolutionCacheKey(slug, imageKey), 'standard');
+    }
+
+    function scheduleZoom(
+        nextScale: number,
+        clientX: number | null = null,
+        clientY: number | null = null,
+        explicitOffsetX: number | null = null,
+        explicitOffsetY: number | null = null
+    ): void {
+        pendingZoomScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextScale));
+        pendingZoomClientX = clientX;
+        pendingZoomClientY = clientY;
+        pendingZoomOffsetX = explicitOffsetX;
+        pendingZoomOffsetY = explicitOffsetY;
+        if (zoomFrame !== null) return;
+
+        zoomFrame = window.requestAnimationFrame(() => {
+            zoomFrame = null;
+            const focalClientX = pendingZoomClientX;
+            const focalClientY = pendingZoomClientY;
+            const nextOffsetX = pendingZoomOffsetX;
+            const nextOffsetY = pendingZoomOffsetY;
+            pendingZoomClientX = null;
+            pendingZoomClientY = null;
+            pendingZoomOffsetX = null;
+            pendingZoomOffsetY = null;
+            setZoom(pendingZoomScale, focalClientX, focalClientY, nextOffsetX, nextOffsetY);
+        });
+    }
+
+    function schedulePan(nextOffsetX: number, nextOffsetY: number): void {
+        pendingPanOffsetX = nextOffsetX;
+        pendingPanOffsetY = nextOffsetY;
+        if (panFrame !== null) return;
+
+        panFrame = window.requestAnimationFrame(() => {
+            panFrame = null;
+            zoomOffsetX = clampPan(pendingPanOffsetX, 'x');
+            zoomOffsetY = clampPan(pendingPanOffsetY, 'y');
+        });
+    }
+
+    function resetZoom(): void {
+        cancelInteractionFrames();
+        if (!useFullResolution) cancelFullResolutionLoad();
+        zoomScale = MIN_ZOOM;
+        zoomOffsetX = 0;
+        zoomOffsetY = 0;
+        pinchStartDistance = 0;
+        pendingZoomScale = MIN_ZOOM;
+        pendingPanOffsetX = 0;
+        pendingPanOffsetY = 0;
+    }
+
+    function setZoom(
+        nextScale: number,
+        clientX: number | null = null,
+        clientY: number | null = null,
+        explicitOffsetX: number | null = null,
+        explicitOffsetY: number | null = null
+    ): void {
+        const clampedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextScale));
+        const previousScale = zoomScale;
+        let nextOffsetX = explicitOffsetX ?? zoomOffsetX;
+        let nextOffsetY = explicitOffsetY ?? zoomOffsetY;
+
+        if (
+            explicitOffsetX === null
+            && explicitOffsetY === null
+            && clientX !== null
+            && clientY !== null
+            && previousScale > 0
+        ) {
+            const stage = document.querySelector<HTMLElement>('.lightbox-stage');
+            if (stage) {
+                const rect = stage.getBoundingClientRect();
+                const focalX = clientX - (rect.left + rect.width / 2);
+                const focalY = clientY - (rect.top + rect.height / 2);
+                const scaleRatio = clampedScale / previousScale;
+                nextOffsetX = focalX + (zoomOffsetX - focalX) * scaleRatio;
+                nextOffsetY = focalY + (zoomOffsetY - focalY) * scaleRatio;
+            }
+        }
+
+        zoomScale = clampedScale;
+        pendingZoomScale = clampedScale;
+        if (clampedScale === MIN_ZOOM) {
+            zoomOffsetX = 0;
+            zoomOffsetY = 0;
+            pendingPanOffsetX = 0;
+            pendingPanOffsetY = 0;
+            if (!useFullResolution) cancelFullResolutionLoad();
+            return;
+        }
+        zoomOffsetX = clampPan(nextOffsetX, 'x', clampedScale);
+        zoomOffsetY = clampPan(nextOffsetY, 'y', clampedScale);
+        pendingPanOffsetX = zoomOffsetX;
+        pendingPanOffsetY = zoomOffsetY;
+        queueFullResolutionLoad(clampedScale);
+    }
+
+    function zoomIn(): void {
+        setZoom(zoomScale + ZOOM_BUTTON_STEP);
+    }
+
+    function zoomOut(): void {
+        setZoom(zoomScale - ZOOM_BUTTON_STEP);
+    }
+
+    function toggleZoom(e: MouseEvent): void {
+        e.stopPropagation();
+        setZoom(zoomScale === MIN_ZOOM ? 2 : MIN_ZOOM, e.clientX, e.clientY);
+    }
+
+    function handleZoomWheel(e: WheelEvent): void {
+        e.preventDefault();
+
+        const hasDominantHorizontalDelta = Math.abs(e.deltaX) > 1
+            && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.75;
+        const isTrackpadPan = zoomScale > MIN_ZOOM
+            && !e.ctrlKey
+            && hasDominantHorizontalDelta;
+
+        if (isTrackpadPan) {
+            const baseX = panFrame === null ? zoomOffsetX : pendingPanOffsetX;
+            const baseY = panFrame === null ? zoomOffsetY : pendingPanOffsetY;
+            schedulePan(baseX - e.deltaX, baseY - e.deltaY);
+            return;
+        }
+
+        let zoomDelta = e.deltaY;
+        if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+            zoomDelta *= 16;
+        } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+            zoomDelta *= (e.currentTarget as HTMLElement).clientHeight;
+        }
+
+        // Physical wheels can report tiny pixel deltas (for example 4 or 5),
+        // which previously produced a barely visible 2% change. Normalize
+        // non-pinch wheel notches while keeping Ctrl/trackpad pinch continuous.
+        if (!e.ctrlKey && zoomDelta !== 0) {
+            zoomDelta = Math.sign(zoomDelta)
+                * Math.min(64, Math.max(20, Math.abs(zoomDelta)));
+        }
+
+        const scaleFactor = Math.exp(-zoomDelta * WHEEL_ZOOM_SENSITIVITY);
+        const baseScale = zoomFrame === null ? zoomScale : pendingZoomScale;
+        scheduleZoom(baseScale * scaleFactor, e.clientX, e.clientY);
+    }
+
+    function handlePointerDown(e: PointerEvent): void {
+        if (zoomScale === MIN_ZOOM) return;
+        e.preventDefault();
+        e.stopPropagation();
+        pointerPanActive = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panStartOffsetX = zoomOffsetX;
+        panStartOffsetY = zoomOffsetY;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
+
+    function handlePointerMove(e: PointerEvent): void {
+        if (!pointerPanActive) return;
+        e.preventDefault();
+        schedulePan(
+            panStartOffsetX + e.clientX - panStartX,
+            panStartOffsetY + e.clientY - panStartY
+        );
+    }
+
+    function handlePointerEnd(e: PointerEvent): void {
+        e.preventDefault();
+        pointerPanActive = false;
+        const target = e.currentTarget as HTMLElement;
+        if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
     }
 
     function nextImage(): void {
@@ -109,24 +515,41 @@
     }
 
     function openEnlargedImage(index: number): void {
+        resetFullResolution();
         enlargedImageIndex = index;
+        resetZoom();
         isImageEnlarged = true;
         document.body.classList.add('overflow-hidden');
+        document.documentElement.classList.add('overflow-hidden');
     }
 
     function closeEnlargedImage(): void {
         isImageEnlarged = false;
+        resetFullResolution();
+        resetZoom();
         document.body.classList.remove('overflow-hidden');
+        document.documentElement.classList.remove('overflow-hidden');
+    }
+
+    function handleLightboxBackdropClick(e: MouseEvent): void {
+        const target = e.target;
+        if (!(target instanceof Element)) return;
+        if (target.closest('button, a, .enlarged-image, .lightbox-thumbs')) return;
+        closeEnlargedImage();
     }
 
     function nextEnlargedImage(): void {
         if (sortedImageKeys.length === 0) return;
+        resetFullResolution();
         enlargedImageIndex = (enlargedImageIndex + 1) % sortedImageKeys.length;
+        resetZoom();
     }
 
     function prevEnlargedImage(): void {
         if (sortedImageKeys.length === 0) return;
+        resetFullResolution();
         enlargedImageIndex = (enlargedImageIndex - 1 + sortedImageKeys.length) % sortedImageKeys.length;
+        resetZoom();
     }
 
     function handleKeydown(e: KeyboardEvent): void {
@@ -162,7 +585,24 @@
     };
 
     const getThumbnailSet = (imageKey: string): string[] => {
+        const cachedResolution = $imageResolutionCache[getImageResolutionCacheKey(slug, imageKey)];
+        const fullResolutionBase = getFullResolutionBase(imageKey);
+        if (fullResolutionBase && cachedResolution === 'full') {
+            return [
+                `${fullResolutionBase}.avif`,
+                `${fullResolutionBase}.webp`,
+                `${fullResolutionBase}.jpg`
+            ];
+        }
+        if (cachedResolution === 'standard') return imageSets[imageKey] || [];
         return thumbnailImageSets[imageKey] || imageSets[imageKey] || [];
+    };
+
+    const getFullResolutionBase = (imageKey: string): string => {
+        const set = imageSets[imageKey] || [];
+        const jpg = set.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg');
+        const fallback = jpg || set[0];
+        return fallback ? `${getBaseFilename(fallback)}-full` : '';
     };
 
     const currentAvif = $derived(currentImageSet.find(img => getExtension(img) === 'avif'));
@@ -192,8 +632,11 @@
         window.addEventListener('keydown', handleKeydown);
         
         return () => {
+            cancelInteractionFrames();
+            cancelFullResolutionLoad();
             window.removeEventListener('keydown', handleKeydown);
             document.body.classList.remove('overflow-hidden');
+            document.documentElement.classList.remove('overflow-hidden');
         };
     });
 
@@ -227,7 +670,11 @@
         <main id="toy-details">
             <div class="toy-detail-shell">
         <header class="toy-detail-title">
-            <a href="/toys" class="title-back-link" aria-label="Back to toy gallery">&larr;</a>
+            <a href="/toys" class="title-back-link" aria-label="Back to toy gallery">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M19 12H5m6-6-6 6 6 6" />
+                </svg>
+            </a>
             <div class="title-plate">
                 <h1>{toy.name || 'Unnamed Toy'}</h1>
                 {#if toy.faction}
@@ -272,24 +719,10 @@
                                              fetchpriority="high"
                                              decoding="async"
                                              width="1728"
-                                             height="2304" />
+                                             height="2304"
+                                             onload={(e) => handleStandardResolutionLoad(e, currentImageKey)} />
                                     </picture>
                                 </button>
-                            {/if}
-                            
-                            {#if sortedImageKeys.length > 0}
-                                {@const currentKey = sortedImageKeys[currentImageKeyIndex]}
-                                <a 
-                                    href={fullResPath(currentKey)} 
-                                    download
-                                    class="absolute top-3 right-3 z-20 flex min-h-11 min-w-11 items-center justify-center bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg"
-                                    title="Download full resolution"
-                                    aria-label="Download full resolution image"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                    </svg>
-                                </a>
                             {/if}
                             
                             {#if sortedImageKeys.length > 1}
@@ -308,16 +741,17 @@
                                     </svg>
                                 </button>
                                 
-                                <div class="absolute bottom-3 sm:bottom-4 inset-x-0 flex justify-center space-x-2 sm:space-x-2 z-20">
+                                <div class="photo-tabs">
                                     {#each sortedImageKeys as _, i}
-                                        <button class="flex h-11 w-11 items-center justify-center rounded-full transition-all duration-300" 
+                                        <button
+                                                class="photo-tab"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     currentImageKeyIndex = i;
                                                 }}
                                                 aria-label="View image {i+1}"
                                                 aria-current={i === currentImageKeyIndex ? 'true' : 'false'}>
-                                            <span class="block h-3 w-3 rounded-full shadow-md transition-transform duration-300 {i === currentImageKeyIndex ? 'scale-125 bg-rose-400' : 'bg-white/45'}"></span>
+                                            {i + 1}
                                         </button>
                                     {/each}
                                 </div>
@@ -457,148 +891,220 @@
     {@const enlargedWebp = enlargedSet.find(img => getExtension(img) === 'webp')}
     {@const enlargedJpg = enlargedSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
     {@const enlargedFallback = enlargedJpg || enlargedSet[0]}
+    {@const enlargedFullResolutionBase = enlargedFallback ? `${getBaseFilename(enlargedFallback)}-full` : ''}
 
-    <div 
-        class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-2 sm:p-4"
-        onclick={closeEnlargedImage}
-        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeEnlargedImage(); } }}
+    <div
+        class="lightbox"
+        style:--lightbox-accent={fullscreenTheme.accent}
+        style:--lightbox-accent-ink={fullscreenTheme.accentInk}
+        onclick={handleLightboxBackdropClick}
+        onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                closeEnlargedImage();
+            }
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="enlarged-image-title"
         tabindex="0"
     >
-        <div class="absolute top-4 right-4 z-50">
-            <button 
-                class="flex min-h-11 min-w-11 items-center justify-center rounded-full bg-black/30 p-2 text-white transition-colors duration-300 hover:bg-black/50"
-                onclick={closeEnlargedImage}
-                aria-label="Close enlarged image view"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-        
-        <h2 id="enlarged-image-title" class="sr-only">Enlarged image {enlargedImageIndex + 1} of {sortedImageKeys.length} - {toy.name}</h2>
-        
-        <div 
-            class="relative max-w-5xl w-full h-[80vh] flex items-center justify-center"
-            ontouchstart={handleEnlargedTouchStart}
-            ontouchmove={handleEnlargedTouchMove}
-            ontouchend={handleEnlargedTouchEnd}
-            onclick={(e) => e.stopPropagation()}
-            role="presentation"
-        >
-            {#if enlargedFallback}
-                <picture class="enlarged-picture">
-                    {#if enlargedAvif}
-                        <source srcset={getImagePath(enlargedAvif)} type="image/avif" />
-                    {/if}
-                    {#if enlargedWebp}
-                        <source srcset={getImagePath(enlargedWebp)} type="image/webp" />
-                    {/if}
-                    {#if enlargedJpg}
-                        <source srcset={getImagePath(enlargedJpg)} type="image/jpeg" />
-                    {/if}
-                    <img 
-                        src={getImagePath(enlargedAvif || enlargedWebp || enlargedFallback)} 
-                        alt="{toy.name} - enlarged view {enlargedImageIndex+1}" 
-                        class="enlarged-image"
-                        sizes="100vw"
-                        loading="eager"
-                        fetchpriority="high"
-                        decoding="async"
-                        width="1728"
-                        height="2304"
-                    />
-                </picture>
-            {/if}
-            
-            <a 
-                href={fullResPath(enlargedKey)} 
-                download
-                class="absolute top-4 left-4 flex min-h-11 min-w-11 items-center justify-center bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all duration-300 opacity-80 hover:opacity-100"
-                onclick={(e) => e.stopPropagation()}
-                title="Download full resolution"
-                aria-label="Download full resolution image"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-            </a>
-            
-            <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-black/40 text-white px-3 py-1 rounded-full text-xs md:hidden opacity-70">
-                Swipe to navigate • Tap to close
+        <div class="lightbox-shell">
+            <div class="lightbox-topbar">
+                <h2 id="enlarged-image-title" class="lightbox-title">
+                    <span>Image {enlargedImageIndex + 1} of {sortedImageKeys.length}</span>
+                    <span>{toy.name}</span>
+                </h2>
+                <span class="lightbox-help">← → Navigate · ESC Close</span>
+                <div class="lightbox-actions">
+                    <a
+                        href={fullResPath(enlargedKey)}
+                        download
+                        class="lightbox-action"
+                        title="Download full resolution"
+                        aria-label="Download full resolution image"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                    </a>
+                    <button class="lightbox-action" onclick={closeEnlargedImage} aria-label="Close enlarged image view">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
             </div>
-            
-            {#if sortedImageKeys.length > 1}
-                <button 
-                    class="absolute left-2 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 p-2 text-white opacity-80 transition-all duration-300 hover:bg-black/45 hover:opacity-100"
-                    onclick={(e) => { e.stopPropagation(); prevEnlargedImage(); }}
-                    aria-label="Previous image"
+
+            <div class="lightbox-stage-row">
+                <div
+                    class="lightbox-stage"
+                    class:zoomed={zoomScale > MIN_ZOOM}
+                    ontouchstart={handleEnlargedTouchStart}
+                    ontouchmove={handleEnlargedTouchMove}
+                    ontouchend={handleEnlargedTouchEnd}
+                    onwheel={handleZoomWheel}
+                    ondblclick={toggleZoom}
+                    onpointerdown={handlePointerDown}
+                    onpointermove={handlePointerMove}
+                    onpointerup={handlePointerEnd}
+                    onpointercancel={handlePointerEnd}
+                    role="group"
+                    aria-label="Enlarged toy image"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-                <button 
-                    class="absolute right-2 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 p-2 text-white opacity-80 transition-all duration-300 hover:bg-black/45 hover:opacity-100"
-                    onclick={(e) => { e.stopPropagation(); nextEnlargedImage(); }}
-                    aria-label="Next image"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                </button>
-                
-                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/40 text-white px-4 py-1.5 rounded-full text-sm opacity-70">
-                    {enlargedImageIndex + 1} / {sortedImageKeys.length}
-                </div>
-                
-                <div class="absolute bottom-16 left-0 right-0 flex justify-center overflow-x-auto gap-2 p-2">
-                    {#each sortedImageKeys as thumbKey, i}
-                        {@const thumbSet = getThumbnailSet(thumbKey)}
-                        {@const thumbAvif = thumbSet.find(img => getExtension(img) === 'avif')}
-                        {@const thumbWebp = thumbSet.find(img => getExtension(img) === 'webp')}
-                        {@const thumbJpg = thumbSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
-                        {@const thumbFallback = thumbJpg || thumbSet[0]}
-                        
-                        <button 
-                            class="w-12 h-12 sm:w-14 sm:h-14 rounded-md overflow-hidden transition-all duration-300 border-2 {i === enlargedImageIndex ? 'border-rose-400 scale-110' : 'border-gray-700 opacity-40 hover:opacity-80'}"
-                            onclick={(e) => { e.stopPropagation(); enlargedImageIndex = i; }}
-                            aria-label="View image {i+1}"
-                            aria-current={i === enlargedImageIndex ? 'true' : 'false'}
+                    {#key enlargedKey}
+                    {#if enlargedFallback}
+                        <picture
+                            class="enlarged-picture enlarged-picture-standard"
+                            data-resolution="standard"
                         >
-                            {#if thumbFallback}
-                                <picture>
-                                    {#if thumbAvif}
-                                        <source srcset={getImagePath(thumbAvif)} type="image/avif" />
-                                    {/if}
-                                    {#if thumbWebp}
-                                        <source srcset={getImagePath(thumbWebp)} type="image/webp" />
-                                    {/if}
-                                    {#if thumbJpg}
-                                        <source srcset={getImagePath(thumbJpg)} type="image/jpeg" />
-                                    {/if}
-                                    <img 
-                                        src={getImagePath(thumbAvif || thumbWebp || thumbFallback)} 
-                                        alt="Thumbnail {i+1}" 
-                                        class="w-full h-full object-cover"
-                                        loading="lazy"
-                                        decoding="async"
-                                        width="480"
-                                        height="640"
-                                    />
-                                </picture>
+                            {#if enlargedAvif}
+                                <source srcset={getImagePath(enlargedAvif)} type="image/avif" />
                             {/if}
-                        </button>
-                    {/each}
+                            {#if enlargedWebp}
+                                <source srcset={getImagePath(enlargedWebp)} type="image/webp" />
+                            {/if}
+                            {#if enlargedJpg}
+                                <source srcset={getImagePath(enlargedJpg)} type="image/jpeg" />
+                            {/if}
+                            <img
+                                src={getImagePath(enlargedAvif || enlargedWebp || enlargedFallback)}
+                                alt="{toy.name} - enlarged view {enlargedImageIndex+1}"
+                                class="enlarged-image"
+                                data-resolution="standard"
+                                sizes="100vw"
+                                loading="eager"
+                                fetchpriority="high"
+                                decoding="async"
+                                width="1728"
+                                height="2304"
+                                draggable="false"
+                                style={`transform: translate3d(${zoomOffsetX}px, ${zoomOffsetY}px, 0) scale(${zoomScale});`}
+                                onload={(e) => handleStandardResolutionLoad(e, enlargedKey)}
+                            />
+                        </picture>
+
+                        {#if (fullResolutionRequested || useFullResolution) && enlargedFullResolutionBase}
+                            <picture
+                                class="enlarged-picture enlarged-picture-full"
+                                class:active={useFullResolution}
+                                data-resolution="full"
+                                aria-hidden="true"
+                            >
+                                <source srcset={getImagePath(`${enlargedFullResolutionBase}.avif`)} type="image/avif" />
+                                <source srcset={getImagePath(`${enlargedFullResolutionBase}.webp`)} type="image/webp" />
+                                <source srcset={getImagePath(`${enlargedFullResolutionBase}.jpg`)} type="image/jpeg" />
+                                <img
+                                    src={getImagePath(`${enlargedFullResolutionBase}.jpg`)}
+                                    alt=""
+                                    class="enlarged-image"
+                                    data-resolution="full"
+                                    sizes="100vw"
+                                    loading="eager"
+                                    decoding="async"
+                                    width="3456"
+                                    height="4608"
+                                    draggable="false"
+                                    style={`transform: translate3d(${zoomOffsetX}px, ${zoomOffsetY}px, 0) scale(${zoomScale});`}
+                                    onload={(e) => handleFullResolutionLoad(e, enlargedKey)}
+                                    onerror={() => handleFullResolutionError(enlargedKey)}
+                                />
+                            </picture>
+                        {/if}
+                    {/if}
+                    {/key}
                 </div>
-            {/if}
-        </div>
-        
-        <div class="absolute bottom-4 right-4 text-gray-400 text-xs hidden sm:block opacity-70">
-            Use arrow keys ← → to navigate • ESC to close
+
+            </div>
+
+            <div class="lightbox-below-image">
+                {#if sortedImageKeys.length > 1}
+                    <span class="lightbox-hint">Swipe to navigate · Tap outside to close</span>
+                {/if}
+                <div class="lightbox-controls">
+                    {#if sortedImageKeys.length > 1}
+                        <div class="lightbox-navigation-controls">
+                            <button class="lightbox-nav lightbox-nav-prev" onclick={prevEnlargedImage} aria-label="Previous image">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            <span class="lightbox-counter">{enlargedImageIndex + 1} / {sortedImageKeys.length}</span>
+                            <button class="lightbox-nav lightbox-nav-next" onclick={nextEnlargedImage} aria-label="Next image">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    {/if}
+                    <div
+                        class="lightbox-zoom-controls"
+                        class:standalone={sortedImageKeys.length === 1}
+                        aria-label="Zoom controls"
+                    >
+                        <button class="lightbox-action" onclick={zoomOut} aria-label="Zoom out" disabled={zoomScale === MIN_ZOOM}>−</button>
+                        <button
+                            type="button"
+                            class="lightbox-zoom-readout"
+                            onclick={resetZoom}
+                            aria-label="Current zoom {Math.round(zoomScale * 100)}%. Reset zoom to 100%"
+                            aria-live="polite"
+                            title="Reset zoom to 100%"
+                            disabled={zoomScale === MIN_ZOOM}
+                        >
+                            {Math.round(zoomScale * 100)}%
+                        </button>
+                        <button class="lightbox-action" onclick={zoomIn} aria-label="Zoom in" disabled={zoomScale === MAX_ZOOM}>+</button>
+                    </div>
+                </div>
+                {#if sortedImageKeys.length > 1}
+                    <div class="lightbox-thumbs">
+                        {#each sortedImageKeys as thumbKey, i}
+                            {@const thumbSet = getThumbnailSet(thumbKey)}
+                            {@const thumbAvif = thumbSet.find(img => getExtension(img) === 'avif')}
+                            {@const thumbWebp = thumbSet.find(img => getExtension(img) === 'webp')}
+                            {@const thumbJpg = thumbSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
+                            {@const thumbFallback = thumbJpg || thumbSet[0]}
+
+                            <button
+                                class:active={i === enlargedImageIndex}
+                                class="lightbox-thumb"
+                                onclick={() => {
+                                    if (i !== enlargedImageIndex) {
+                                        resetFullResolution();
+                                        enlargedImageIndex = i;
+                                        resetZoom();
+                                    }
+                                }}
+                                aria-label="View image {i+1}"
+                                aria-current={i === enlargedImageIndex ? 'true' : 'false'}
+                            >
+                                {#if thumbFallback}
+                                    <picture>
+                                        {#if thumbAvif}
+                                            <source srcset={getImagePath(thumbAvif)} type="image/avif" />
+                                        {/if}
+                                        {#if thumbWebp}
+                                            <source srcset={getImagePath(thumbWebp)} type="image/webp" />
+                                        {/if}
+                                        {#if thumbJpg}
+                                            <source srcset={getImagePath(thumbJpg)} type="image/jpeg" />
+                                        {/if}
+                                        <img
+                                            src={getImagePath(thumbAvif || thumbWebp || thumbFallback)}
+                                            alt="Thumbnail {i+1}"
+                                            loading="lazy"
+                                            decoding="async"
+                                            width="480"
+                                            height="640"
+                                        />
+                                    </picture>
+                                {/if}
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
         </div>
     </div>
 {/if}
@@ -715,41 +1221,38 @@
         --detail-muted: #d9cedc;
         --detail-wash-a: rgba(225, 0, 0, 0.42);
         --detail-wash-b: rgba(111, 77, 161, 0.34);
+        --detail-field: #090b1f;
+        --detail-field-deep: #17153f;
+        --detail-grid-line: #20255d;
         color: var(--detail-ink);
-        background:
-            radial-gradient(circle at 16% 14%, var(--detail-wash-a), transparent 31rem),
-            radial-gradient(circle at 86% 20%, var(--detail-wash-b), transparent 32rem),
-            linear-gradient(160deg, #050308 0%, #0c0715 50%, #17050e 100%);
+        background-color: color-mix(in srgb, var(--detail-field), #050308 34%);
+        background-image:
+            radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--detail-wash-a), transparent 70%), transparent 28rem),
+            radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--detail-wash-b), transparent 74%), transparent 30rem),
+            linear-gradient(color-mix(in srgb, var(--detail-grid-line), transparent 78%) 1px, transparent 1px),
+            linear-gradient(90deg, color-mix(in srgb, var(--detail-grid-line), transparent 78%) 1px, transparent 1px);
+        background-size: auto, auto, var(--site-grid-size, 3.5rem) var(--site-grid-size, 3.5rem), var(--site-grid-size, 3.5rem) var(--site-grid-size, 3.5rem);
     }
 
     #toy-page::before {
         content: "";
-        position: absolute;
+        position: fixed;
         inset: 0;
         z-index: -1;
-        background-image:
-            radial-gradient(circle, color-mix(in srgb, var(--detail-accent), transparent 42%) 0 1.65px, transparent 1.85px);
-        background-position: 0 0;
-        background-size: 22px 22px;
-        mask-image:
-            radial-gradient(ellipse at 8% 12%, black 0 8rem, rgba(0, 0, 0, 0.52) 16rem, transparent 30rem),
-            radial-gradient(ellipse at 95% 10%, black 0 7rem, rgba(0, 0, 0, 0.38) 17rem, transparent 32rem);
-        opacity: 0.38;
+        background:
+            linear-gradient(180deg, rgba(5, 3, 8, 0) 0%, rgba(5, 3, 8, 0.26) 48%, rgba(5, 3, 8, 0.54) 100%);
         pointer-events: none;
     }
 
     #toy-page::after {
         content: "";
-        position: absolute;
+        position: fixed;
         inset: 0;
         z-index: -1;
-        background-image: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0 1px, transparent 1.2px);
-        background-position: 9px 7px;
-        background-size: 34px 34px;
-        mask-image:
-            radial-gradient(ellipse at 83% 18%, black 0 7rem, rgba(0, 0, 0, 0.42) 15rem, transparent 27rem),
-            radial-gradient(ellipse at 12% 86%, black 0 6rem, rgba(0, 0, 0, 0.32) 15rem, transparent 25rem);
-        opacity: 0.22;
+        background:
+            radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--detail-accent), transparent 84%), transparent 18rem),
+            radial-gradient(circle at 92% 16%, color-mix(in srgb, var(--detail-accent), transparent 88%), transparent 20rem);
+        opacity: 0.75;
         pointer-events: none;
     }
 
@@ -758,6 +1261,9 @@
         --detail-accent: #ff4b4b;
         --detail-wash-a: rgba(225, 0, 0, 0.58);
         --detail-wash-b: rgba(255, 195, 92, 0.22);
+        --detail-field: #140609;
+        --detail-field-deep: #371015;
+        --detail-grid-line: #3b0f15;
     }
 
     #toy-page[data-faction='Decepticon'],
@@ -765,12 +1271,18 @@
         --detail-accent: #b891ff;
         --detail-wash-a: rgba(111, 77, 161, 0.62);
         --detail-wash-b: rgba(59, 18, 90, 0.5);
+        --detail-field: #100719;
+        --detail-field-deep: #241537;
+        --detail-grid-line: #2b1742;
     }
 
     #toy-page[data-faction='IKEAtron'] {
         --detail-accent: #feda00;
         --detail-wash-a: rgba(0, 88, 171, 0.56);
         --detail-wash-b: rgba(254, 218, 0, 0.34);
+        --detail-field: #06101f;
+        --detail-field-deep: #092545;
+        --detail-grid-line: #0b2b4d;
     }
 
     #toy-content {
@@ -788,7 +1300,8 @@
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: auto minmax(0, 1fr);
         gap: clamp(0.75rem, 2vw, 1rem);
-        width: min(100%, 88rem);
+        width: calc(100% - clamp(1rem, 3vw, 3rem));
+        max-width: none;
         min-height: calc(100dvh - 4.5rem);
         margin: 0 auto;
         padding: clamp(0.5rem, 2.2vw, 1.15rem);
@@ -862,6 +1375,17 @@
         transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
     }
 
+    .title-back-link svg {
+        width: 1.35rem;
+        height: 1.35rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transform: translateX(-1px);
+    }
+
     .title-back-link:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 0 rgba(0, 0, 0, 0.34);
@@ -892,11 +1416,17 @@
     }
 
     .image-stage {
+        touch-action: pan-y pinch-zoom;
+        overscroll-behavior-x: auto;
+        overscroll-behavior-y: auto;
         position: relative;
+        overflow: hidden;
         aspect-ratio: 3 / 4;
         width: 100%;
         max-height: calc(100dvh - 11rem);
         min-height: 20rem;
+        border-radius: calc(0.6rem - 2px);
+        background: #050308;
     }
 
     .image-stage picture {
@@ -909,6 +1439,56 @@
         width: 100%;
         height: 100%;
         object-fit: contain;
+        border-radius: inherit;
+    }
+
+    .photo-tabs {
+        position: absolute;
+        inset: auto 0 0.8rem;
+        z-index: 20;
+        display: flex;
+        justify-content: center;
+        gap: 0.45rem;
+        padding-inline: 0.75rem;
+    }
+
+    .photo-tab {
+        display: grid;
+        place-items: center;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+        color: #fff7f8;
+        background: #050308;
+        border: 3px solid #050308;
+        border-radius: 0.55rem;
+        box-shadow: 0 6px 0 rgba(0, 0, 0, 0.38);
+        font-family: Goldman, sans-serif;
+        font-size: 0.82rem;
+        font-weight: 800;
+        line-height: 1;
+        transition:
+            transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+            color 180ms ease,
+            background-color 180ms ease;
+    }
+
+    .photo-tab[aria-current='true'] {
+        color: #050308;
+        background: var(--detail-accent);
+        transform: translateY(-2px);
+    }
+
+    .photo-tab:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--detail-accent), white 18%);
+        outline-offset: 3px;
+    }
+
+    @media (hover: hover) {
+        .photo-tab:hover {
+            color: #050308;
+            background: color-mix(in srgb, var(--detail-accent), white 18%);
+            transform: translateY(-2px);
+        }
     }
 
     .detail-column {
@@ -1059,7 +1639,7 @@
 
         .detail-layout {
             display: grid;
-            grid-template-columns: minmax(25rem, 0.95fr) minmax(22rem, 0.9fr);
+            grid-template-columns: minmax(0, 1.1fr) minmax(24rem, 0.9fr);
             align-items: start;
             height: 100%;
         }
@@ -1077,7 +1657,7 @@
         }
 
         .image-stage {
-            height: min(calc(100dvh - 11rem), 48rem);
+            height: calc(100dvh - 12rem);
             min-height: 0;
             max-height: none;
             aspect-ratio: auto;
@@ -1204,20 +1784,562 @@
         }
     }
 
-    .enlarged-picture {
+    .lightbox {
+        --lightbox-accent: #f05278;
+        --lightbox-accent-ink: #210016;
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        box-sizing: border-box;
+        display: grid;
+        place-items: center;
+        height: auto;
+        overflow: hidden;
+        padding: clamp(0.5rem, 2vw, 1rem);
+        background: rgba(0, 0, 0, 0.96);
+    }
+
+    .lightbox-shell {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 0.65rem;
+        width: min(100%, 78rem);
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .lightbox-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex: 0 0 auto;
+        min-width: 0;
+        padding: 0.25rem 0.35rem;
+        background: #050308;
+        border-radius: 0.45rem;
+    }
+
+    .lightbox-title {
+        display: flex;
+        flex: 1 1 auto;
+        gap: 0.6rem;
+        min-width: 0;
+        overflow: hidden;
+        color: color-mix(in srgb, var(--lightbox-accent), white 38%);
+        font-family: Goldman, sans-serif;
+        font-size: clamp(0.78rem, 2vw, 1rem);
+        line-height: 1.15;
+        white-space: nowrap;
+    }
+
+    .lightbox-title span:first-child {
+        flex: 0 0 auto;
+        width: 7rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .lightbox-title span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .lightbox-actions {
+        display: flex;
+        gap: 0.45rem;
+        flex: 0 0 auto;
+    }
+
+    .lightbox-action,
+    .lightbox-nav {
+        display: grid;
+        place-items: center;
+        min-width: 2.75rem;
+        height: 2.75rem;
+        min-height: 2.75rem;
+        color: color-mix(in srgb, var(--lightbox-accent), white 38%);
+        background: rgba(5, 3, 8, 0.92);
+        border: 2px solid color-mix(in srgb, var(--lightbox-accent), white 38%);
+        box-shadow: none;
+        transition:
+            transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+            color 180ms ease,
+            background-color 180ms ease,
+            opacity 180ms ease;
+    }
+
+    .lightbox-action {
+        border-radius: 0.45rem;
+    }
+
+    .lightbox-nav {
+        flex: 0 0 auto;
+        border-radius: 999px;
+        box-shadow: none;
+    }
+
+    .lightbox-stage-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: center;
+        justify-content: center;
+        gap: clamp(0.35rem, 1.6vw, 0.7rem);
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .lightbox-stage {
+        position: relative;
+        touch-action: none;
+        overscroll-behavior: contain;
+        user-select: none;
         display: flex;
         align-items: center;
         justify-content: center;
+        flex: 1 1 auto;
+        align-self: stretch;
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: #050308;
+        border: 4px solid #050308;
+        border-radius: 0.65rem;
+        box-shadow: none;
+        cursor: zoom-in;
+    }
+
+    .lightbox-stage.zoomed {
+        cursor: grab;
+    }
+
+    .lightbox-stage.zoomed:active {
+        cursor: grabbing;
+    }
+
+    .lightbox-below-image {
+        display: grid;
+        justify-items: center;
+        gap: 0.48rem;
+        flex: 0 0 auto;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .lightbox-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: nowrap;
+        gap: 1rem;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .lightbox-navigation-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .lightbox-zoom-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin-left: 0.25rem;
+        padding-left: 0.75rem;
+        border-left: 1px solid color-mix(in srgb, var(--lightbox-accent), transparent 40%);
+    }
+
+    .lightbox-zoom-controls.standalone {
+        margin-left: 0;
+        padding-left: 0;
+        border-left: 0;
+    }
+
+    .lightbox-zoom-readout {
+        display: inline-grid;
+        place-items: center;
+        min-width: 3.4rem;
+        height: 2.75rem;
+        min-height: 2.75rem;
+        padding: 0.35rem 0.5rem;
+        color: color-mix(in srgb, var(--lightbox-accent), white 38%);
+        background: rgba(5, 3, 8, 0.92);
+        border: 2px solid color-mix(in srgb, var(--lightbox-accent), white 38%);
+        border-radius: 0.45rem;
+        font-family: Goldman, sans-serif;
+        font-size: 0.76rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .lightbox-action:disabled,
+    .lightbox-zoom-readout:disabled {
+        cursor: not-allowed;
+        opacity: 0.4;
+    }
+
+    .lightbox-hint {
+        display: none;
+        padding: 0.28rem 0.55rem;
+        color: #fff7f8;
+        background: rgba(5, 3, 8, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 0.35rem;
+        font-size: 0.72rem;
+    }
+
+    .lightbox-counter {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 4.25rem;
+        box-sizing: border-box;
+        width: 4.25rem;
+        min-width: 4.25rem;
+        max-width: 4.25rem;
+        height: 2.75rem;
+        min-height: 2.75rem;
+        padding: 0.35rem 0.7rem;
+        color: var(--lightbox-accent-ink);
+        background: var(--lightbox-accent);
+        border: 3px solid #050308;
+        border-radius: 0.36rem;
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
+        font-family: Goldman, sans-serif;
+        font-size: 0.82rem;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .lightbox-thumbs {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.45rem;
+        width: 100%;
+        overflow: hidden;
+        padding: 0.5rem;
+        background: rgba(5, 3, 8, 0.94);
+        border: 3px solid #050308;
+        border-radius: 0.45rem;
+        box-shadow: none;
+    }
+
+    .lightbox-thumb {
+        flex: 0 0 auto;
+        width: 3.25rem;
+        height: 3.25rem;
+        overflow: hidden;
+        background: #050308;
+        border: 3px solid #050308;
+        border-radius: 0.35rem;
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.42);
+        opacity: 0.76;
+        transition: transform 180ms ease, opacity 180ms ease, border-color 180ms ease;
+    }
+
+    .lightbox-thumb.active {
+        border-color: #f4edf5;
+        opacity: 1;
+        transform: translateY(-3px);
+    }
+
+    .lightbox-thumb picture,
+    .lightbox-thumb img {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    .lightbox-thumb img {
+        object-fit: cover;
+    }
+
+    .lightbox-help {
+        display: none;
+        flex: 0 0 auto;
+        color: #aaa1af;
+        font-size: 0.75rem;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .lightbox-action:focus-visible,
+    .lightbox-nav:focus-visible,
+    .lightbox-zoom-readout:focus-visible,
+    .lightbox-thumb:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--lightbox-accent), white 15%);
+        outline-offset: 3px;
+    }
+
+    @media (hover: hover) {
+        .lightbox-action:hover,
+        .lightbox-nav:hover {
+            color: #050308;
+            background: color-mix(in srgb, var(--lightbox-accent), white 18%);
+            transform: translateY(-2px);
+        }
+
+        .lightbox-thumb:hover {
+            border-color: #aaa1af;
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+    }
+
+    @media (min-width: 768px) {
+        .lightbox-help {
+            display: inline-flex;
+        }
+    }
+
+    @media (min-width: 900px) and (min-height: 520px) and (min-aspect-ratio: 4/3) {
+        .lightbox-shell {
+            grid-template-areas:
+                "topbar topbar topbar"
+                "thumbs stage controls";
+            grid-template-columns: 4.75rem minmax(0, 1fr) 5rem;
+            grid-template-rows: auto minmax(0, 1fr);
+            width: min(100%, max(90rem, calc(133.333dvh + 3.125rem)));
+        }
+
+        .lightbox-topbar {
+            grid-area: topbar;
+        }
+
+        .lightbox-stage-row {
+            grid-area: stage;
+        }
+
+        .lightbox-below-image {
+            display: contents;
+        }
+
+        .lightbox-controls {
+            grid-area: controls;
+            align-self: center;
+            flex-direction: column;
+            gap: 0.75rem;
+            width: auto;
+            min-height: 0;
+        }
+
+        .lightbox-navigation-controls,
+        .lightbox-zoom-controls {
+            flex-direction: column;
+        }
+
+        .lightbox-navigation-controls > .lightbox-nav,
+        .lightbox-zoom-controls > .lightbox-action,
+        .lightbox-counter,
+        .lightbox-zoom-readout {
+            box-sizing: border-box;
+            width: 4.25rem;
+            min-width: 4.25rem;
+            max-width: 4.25rem;
+        }
+
+        .lightbox-navigation-controls > .lightbox-nav {
+            height: 4.25rem;
+            min-height: 4.25rem;
+        }
+
+        .lightbox-zoom-controls {
+            margin-top: 0.25rem;
+            margin-left: 0;
+            padding-top: 0.75rem;
+            padding-left: 0;
+            border-top: 1px solid color-mix(in srgb, var(--lightbox-accent), transparent 40%);
+            border-left: 0;
+        }
+
+        .lightbox-zoom-controls.standalone {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: 0;
+        }
+
+        .lightbox-thumbs {
+            grid-area: thumbs;
+            align-items: center;
+            align-self: stretch;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            justify-content: safe center;
+            width: auto;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-gutter: stable;
+        }
+
+        .lightbox-thumb.active {
+            transform: none;
+        }
+
+        @media (hover: hover) {
+            .lightbox-thumb:hover {
+                transform: translateX(2px);
+            }
+        }
+    }
+
+    @media (max-width: 767px) {
+        .lightbox {
+            place-items: start center;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior-y: contain;
+        }
+
+        .lightbox-shell {
+            grid-template-rows: auto minmax(0, auto) auto;
+            align-content: start;
+            height: auto;
+            min-height: 100%;
+            overflow: visible;
+        }
+
+        .lightbox-hint {
+            display: block;
+        }
+
+        .lightbox-stage-row {
+            position: relative;
+            align-self: center;
+            width: 100%;
+            height: auto;
+            max-height: none;
+            aspect-ratio: 3 / 4;
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .lightbox-nav {
+            position: static;
+            z-index: 2;
+            transform: none;
+        }
+
+        .lightbox-nav-prev {
+            left: auto;
+        }
+
+        .lightbox-nav-next {
+            right: auto;
+        }
+
+        .lightbox-stage {
+            max-width: none;
+            overflow: hidden;
+            background: #050308;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .lightbox-stage .enlarged-image {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+        }
+    }
+
+    @media (max-width: 520px) {
+        .lightbox-shell {
+            gap: 0.5rem;
+        }
+
+        .lightbox-title {
+            gap: 0.45rem;
+            font-size: 0.72rem;
+        }
+
+        .lightbox-action,
+        .lightbox-nav {
+            width: 2.25rem;
+            min-width: 2.25rem;
+            height: 2.25rem;
+            min-height: 2.25rem;
+        }
+
+        .lightbox-controls {
+            gap: 0.35rem;
+        }
+
+        .lightbox-navigation-controls,
+        .lightbox-zoom-controls {
+            gap: 0.2rem;
+        }
+
+        .lightbox-zoom-controls {
+            margin-left: 0.15rem;
+            padding-left: 0.35rem;
+        }
+
+        .lightbox-counter,
+        .lightbox-zoom-readout {
+            height: 2.25rem;
+            min-height: 2.25rem;
+        }
+
+        .lightbox-counter {
+            padding-inline: 0.45rem;
+        }
+
+        .lightbox-zoom-readout {
+            min-width: 3rem;
+            padding-inline: 0.35rem;
+            font-size: 0.65rem;
+        }
+
+        .lightbox-thumb {
+            width: 2.85rem;
+            height: 2.85rem;
+        }
+    }
+
+    .enlarged-picture {
+        position: absolute;
+        inset: 0;
+        display: block;
         width: 100%;
         height: 100%;
         min-width: 0;
         min-height: 0;
+        z-index: 0;
+    }
+
+    .enlarged-picture-full {
+        z-index: 1;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 120ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .enlarged-picture-full.active {
+        opacity: 1;
     }
 
     .enlarged-image {
+        display: block;
         width: 100%;
         height: 100%;
         object-fit: contain;
+        object-position: center center;
+        transform-origin: center center;
+        user-select: none;
+        -webkit-user-drag: none;
+        will-change: transform;
     }
 
     @media (prefers-reduced-motion: reduce) {

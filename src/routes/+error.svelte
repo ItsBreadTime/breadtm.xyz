@@ -7,7 +7,7 @@
     let displayMessage = $derived(status === 404 ? 'Route missing' : message);
     let recoveryCopy = $derived(
         status === 404
-            ? "That route isn't on the shelf. It may have moved, been mistyped, or transformed into accessories."
+            ? "Uhhhh... Where are you going? It's not safe out there."
             : 'Something jammed while assembling this page. The safest exits are still below.'
     );
 

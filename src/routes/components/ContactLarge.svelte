@@ -3,12 +3,12 @@
     import { copy } from '../../lib/utils/clipboard';
 </script>
 
-<div class="bg-purple-600 iconbg lg:border-r-4 lg:border-b-0 border-black">
-    <span class="items-center justify-center m-3 flex lg:hidden" use:copy={username}>
+<div class="bg-purple-600 iconbg flex h-full items-center justify-center lg:border-r-4 lg:border-b-0 border-black">
+    <span class="items-center justify-center flex lg:hidden" use:copy={username}>
         <img src={image} alt="{title} logo" width="70" height="70" decoding="async" />
         <h3 class="text-4xl sm:text-5xl ml-4 font-bold text-purple-200">{title}</h3>
     </span>
-    <span class="items-center justify-center m-8 hidden lg:flex" use:copy={username}>
+    <span class="items-center justify-center p-8 hidden lg:flex" use:copy={username}>
         <img src={image} alt="{title} logo" class="w-36 xl:w-40" width="160" height="160" decoding="async" loading="lazy" />
     </span>
 </div>

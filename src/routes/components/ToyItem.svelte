@@ -1,4 +1,8 @@
 <script lang="ts">
+    import { getFactionTheme } from '$lib/toys/factions';
+    import { imageResolutionCache, getImageResolutionCacheKey } from '$lib/toys/fullResolutionCache';
+    import Factions from './Factions.svelte';
+
     let { 
         name, 
         image = undefined, 
@@ -21,10 +25,9 @@
         index?: number;
     } = $props();
     
-    import Factions from "./Factions.svelte";
-
     let imageLoaded = $state(false);
     let imageError = $state(false);
+    let theme = $derived(getFactionTheme(faction));
 
     let imagePath = $derived(hasImages && image ? `/toys/${slug}/${image}` : '');
     let baseImagePath = $derived.by(() => {
@@ -35,22 +38,45 @@
         }
         return '';
     });
+    let primaryImageKey = $derived.by(() => {
+        if (!hasImages || !image) return '';
+        const extensionIndex = image.lastIndexOf('.');
+        if (extensionIndex < 0) return '';
+        const stem = image.substring(0, extensionIndex);
+        return stem.endsWith('-thumb') ? stem.slice(0, -6) : stem;
+    });
+    let cachedResolution = $derived(
+        primaryImageKey
+            ? $imageResolutionCache[getImageResolutionCacheKey(slug, primaryImageKey)]
+            : undefined
+    );
+    let cachedImageBasePath = $derived.by(() => {
+        if (!primaryImageKey || !cachedResolution) return '';
+        const suffix = cachedResolution === 'full' ? '-full' : '';
+        return `/toys/${slug}/${primaryImageKey}${suffix}`;
+    });
+    let displayBaseImagePath = $derived(cachedImageBasePath || baseImagePath);
+    let displayImagePath = $derived(cachedImageBasePath ? `${cachedImageBasePath}.jpg` : imagePath);
     
     const toyPagePath = $derived(`/toys/${slug}`);
     const loadingMode = $derived(index < 2 ? 'eager' : 'lazy');
     const fetchPriority = $derived(index === 0 ? 'high' : 'auto');
-    const cardImageSizes = '(max-width: 340px) calc(100vw - 1.5rem), (max-width: 720px) calc((100vw - 2.5rem) / 2), 16rem';
+    const cardImageSizes = '(max-width: 351px) calc(100vw - 1.5rem), (max-width: 959px) calc((100vw - 3rem) / 2), (max-width: 1279px) calc((100vw - 5rem) / 3), 25rem';
 </script>
 
 <a 
     href={toyPagePath} 
     class="toy-card group"
     data-faction={faction || 'Unknown'}
+    style:--card-accent={theme.accent}
+    style:--card-accent-ink={theme.accentInk}
+    style:--card-surface={theme.surface}
+    style:--card-panel={theme.panel}
+    style:--card-panel-ink={theme.panelInk}
+    style:--card-shadow={theme.shadow}
 >
     <div class="poster-frame">
-        <div class="image-shade"></div>
-        
-        {#if !imageLoaded && (baseImagePath || imagePath)}
+        {#if !imageLoaded && (displayBaseImagePath || displayImagePath)}
             <div class="absolute inset-0 skeleton-pulse z-[1]"></div>
         {/if}
         
@@ -58,15 +84,15 @@
             <div class="missing-image">
                 <span>{name}</span>
             </div>
-        {:else if baseImagePath}
+        {:else if displayBaseImagePath}
             <picture>
-                <source srcset="{baseImagePath}.avif" type="image/avif" />
-                <source srcset="{baseImagePath}.webp" type="image/webp" />
-                <source srcset="{baseImagePath}.jpg" type="image/jpeg" />
+                <source srcset="{displayBaseImagePath}.avif" type="image/avif" />
+                <source srcset="{displayBaseImagePath}.webp" type="image/webp" />
+                <source srcset="{displayBaseImagePath}.jpg" type="image/jpeg" />
                 <img 
-                    src={imagePath} 
-                    alt="Image of {name}" 
-                    class="toy-image group-hover:scale-[1.06]" 
+                    src={displayImagePath}
+                    alt={name}
+                    class="toy-image"
                     sizes={cardImageSizes}
                     loading={loadingMode}
                     fetchpriority={fetchPriority}
@@ -77,11 +103,11 @@
                     onerror={() => { imageError = true; imageLoaded = true; }}
                 />
             </picture>
-        {:else if imagePath}
+        {:else if displayImagePath}
             <img 
-                src={imagePath} 
-                alt="Image of {name}" 
-                class="toy-image group-hover:scale-[1.06]" 
+                src={displayImagePath}
+                alt={name}
+                class="toy-image"
                 sizes={cardImageSizes}
                 loading={loadingMode}
                 fetchpriority={fetchPriority}
@@ -97,87 +123,66 @@
             </div>
         {/if}
         
-        <div class="glow-ring"></div>
-        
-        <div class="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0">
-            <div class="bg-white/15 backdrop-blur-md rounded-full p-2 border border-white/20">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-            </div>
-        </div>
-        
-        <div class="card-copy">
-            <h3>{name}</h3>
-            
-            <div class="meta-row">
-                {#if faction}
-                    <Factions faction={faction} />
-                {/if}
-                {#if year}
-                    <span class="meta-chip">{year}</span>
-                {/if}
-                {#if series}
-                    <span class="meta-chip series-chip">{series}</span>
-                {/if}
-            </div>
-        </div>
+        <div class="card-edge"></div>
     </div>
-    
-    {#if description}
-        <div class="description">
+
+    <div class="card-copy">
+        <h3>{name}</h3>
+    </div>
+
+    <div class="info-plate">
+        <div class="meta-row">
+            {#if faction}
+                <Factions faction={faction} />
+            {/if}
+            {#if year}
+                <span class="meta-chip">{year}</span>
+            {/if}
+            {#if series}
+                <span class="meta-chip">{series}</span>
+            {/if}
+        </div>
+
+        <div class:description-empty={!description} class="description">
+            {#if description}
             <div>
                 {@html description}
             </div>
+            {/if}
         </div>
-    {/if}
+    </div>
 </a>
 
 <style>
     .toy-card {
-        display: block;
+        display: grid;
+        grid-template-rows: auto auto 1fr;
         height: 100%;
         overflow: hidden;
         color: white;
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 38%),
-            linear-gradient(135deg, var(--card-a, #22102e), var(--card-b, #09070e));
-        border: 2px solid rgba(255, 255, 255, 0.1);
-        border-radius: 0.75rem;
+        background: var(--card-surface, #09070e);
+        border: var(--site-outline-width, 4px) solid var(--site-outline, #050308);
+        border-radius: var(--site-radius, 0.65rem);
+        box-shadow: 0 0.4rem 0 var(--site-outline, #050308);
         transform: translateY(0);
-        transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), 
-                    border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        transition:
+            transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+            border-color 180ms ease,
+            box-shadow 180ms ease;
     }
 
-    .toy-card[data-faction='Autobot'],
-    .toy-card[data-faction='Maximal'] {
-        --card-a: #500808;
-        --card-b: #160508;
-        --card-accent: rgba(255, 70, 70, 0.64);
-        --card-text: #ffd9d9;
-    }
-
-    .toy-card[data-faction='Decepticon'],
-    .toy-card[data-faction='Predacon'] {
-        --card-a: #31174f;
-        --card-b: #100719;
-        --card-accent: rgba(184, 145, 255, 0.62);
-        --card-text: #eadcff;
-    }
-
-    .toy-card[data-faction='IKEAtron'] {
-        --card-a: #05376b;
-        --card-b: #07172e;
-        --card-accent: rgba(254, 218, 0, 0.72);
-        --card-text: #fff1a0;
+    .toy-card:focus-visible {
+        outline: 3px solid var(--card-accent);
+        outline-offset: 4px;
+        border-color: var(--card-accent);
     }
 
     .poster-frame {
         position: relative;
         aspect-ratio: 3 / 4;
         overflow: hidden;
-        background: rgba(0, 0, 0, 0.32);
+        border-radius: calc(var(--site-radius, 0.65rem) - 3px) calc(var(--site-radius, 0.65rem) - 3px) 0 0;
+        background: #060409;
     }
 
     .poster-frame::before {
@@ -185,25 +190,31 @@
         position: absolute;
         inset: 0;
         z-index: 4;
-        background: linear-gradient(130deg, var(--card-accent, rgba(255, 255, 255, 0.3)) 0 1px, transparent 1px 38%);
-        opacity: 0.24;
-        pointer-events: none;
-    }
-
-    .image-shade {
-        position: absolute;
-        inset: auto 0 0;
-        z-index: 3;
-        height: 46%;
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.48), transparent);
+        box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--card-accent), #050308 18%);
         pointer-events: none;
     }
 
     .toy-image {
+        display: block;
         width: 100%;
         height: 100%;
         object-fit: cover;
-        transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.7s ease;
+        object-position: center center;
+        transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease;
+    }
+
+    .poster-frame picture {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        overflow: hidden;
+    }
+
+    .skeleton-pulse,
+    .toy-image,
+    .missing-image,
+    .poster-frame::before {
+        border-radius: inherit;
     }
 
     .missing-image {
@@ -212,70 +223,101 @@
         width: 100%;
         height: 100%;
         padding: 1rem;
-        background: rgba(0, 0, 0, 0.3);
+        background: var(--card-surface);
         text-align: center;
     }
 
     .missing-image span {
-        color: var(--card-text, #d7d1dc);
+        color: var(--card-panel-ink, #f5edf6);
         font-family: Goldman, sans-serif;
         font-size: 1rem;
     }
 
-    .glow-ring {
+    .card-edge {
         position: absolute;
         inset: 0;
         z-index: 5;
         border-radius: inherit;
-        box-shadow: inset 0 0 0 2px var(--card-accent, rgba(255, 255, 255, 0.26));
+        box-shadow: inset 0 0 0 4px var(--card-accent);
         opacity: 0;
-        transition: opacity 0.35s ease;
+        transition: opacity 180ms ease;
         pointer-events: none;
     }
 
     .card-copy {
-        position: absolute;
-        inset: auto 0 0;
+        position: relative;
         z-index: 6;
-        padding: 0.75rem;
+        display: flex;
+        align-items: flex-end;
+        width: 100%;
+        min-height: 4rem;
+        padding: 0.62rem 0.72rem;
+        color: var(--card-accent-ink);
+        background: var(--card-accent);
+        border-top: 4px solid var(--site-outline, #050308);
+        border-bottom: 4px solid var(--site-outline, #050308);
+        transition: background-color 180ms ease;
     }
 
     .card-copy h3 {
         overflow: hidden;
-        color: white;
+        color: var(--card-accent-ink);
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
         line-clamp: 2;
         font-family: Goldman, sans-serif;
-        font-size: clamp(0.95rem, 2vw, 1.15rem);
+        min-height: 2.1em;
+        font-size: clamp(1rem, 1.7vw, 1.15rem);
         font-weight: 700;
         line-height: 1.05;
         letter-spacing: 0;
-        text-shadow: 0 2px 0 rgba(0, 0, 0, 0.75);
-        transition: color 0.25s ease;
+    }
+
+    .info-plate {
+        position: relative;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 0.55rem;
+        min-height: 7.25rem;
+        padding: 0.72rem 0.75rem 0.82rem;
+        color: var(--card-panel-ink);
+        background: var(--card-panel);
+        border-radius: 0 0 calc(var(--site-radius, 0.65rem) - 4px) calc(var(--site-radius, 0.65rem) - 4px);
     }
 
     .meta-row {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.35rem;
-        margin-top: 0.5rem;
+        flex-wrap: nowrap;
+        gap: 0.4rem;
+        align-items: flex-start;
+        min-width: 0;
+        overflow: visible;
     }
 
     .meta-chip {
-        padding: 0.16rem 0.44rem;
-        color: #f1e8f2;
-        background: rgba(0, 0, 0, 0.52);
-        border-radius: 999px;
-        font-family: Goldman, sans-serif;
-        font-size: 0.7rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        min-width: 0;
+        height: 2rem;
+        padding: 0.08rem 0.55rem 0;
+        overflow: hidden;
+        color: var(--card-panel-ink);
+        background: color-mix(in srgb, var(--card-surface), black 18%);
+        border: 2px solid #050308;
+        border-radius: 0.35rem;
+        font-size: 0.875rem;
+        font-weight: 800;
         line-height: 1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .description {
-        padding: 0.65rem 0.75rem 0.75rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        min-height: 2.8em;
+        padding-top: 0.08rem;
     }
 
     .description div {
@@ -284,24 +326,53 @@
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
         line-clamp: 2;
-        color: color-mix(in srgb, var(--card-text, #d7d1dc), white 8%);
-        font-size: 0.78rem;
+        color: var(--card-panel-ink);
+        font-size: 0.9rem;
+        font-weight: 500;
         line-height: 1.45;
+    }
+
+    .description-empty::after {
+        content: "";
+        display: block;
+        min-height: 2.8em;
+    }
+
+    @media (max-width: 63.999rem) {
+        .meta-row {
+            gap: 0.25rem;
+        }
+
+        .meta-chip,
+        .meta-row :global(.faction-badge) {
+            height: 1.7rem;
+            padding-inline: 0.35rem;
+            font-size: 0.7rem;
+        }
     }
 
     @media (hover: hover) {
         .toy-card:hover {
             transform: translateY(-3px);
-            border-color: color-mix(in srgb, var(--card-accent, rgba(255, 255, 255, 0.28)), transparent 20%);
+            box-shadow: 0 0.55rem 0 var(--site-outline, #050308);
         }
 
-        .toy-card:hover .glow-ring {
-            opacity: 0.55;
+        .toy-card:hover .card-edge {
+            opacity: 0.72;
         }
 
-        .toy-card:hover h3 {
-            color: var(--card-text, #ffe8f1);
+        .toy-card:hover .card-copy {
+            background: color-mix(in srgb, var(--card-accent), white 12%);
         }
+
+        .toy-card:hover .toy-image {
+            transform: scale(1.035);
+        }
+    }
+
+    .toy-card:active {
+        transform: translateY(1px);
+        box-shadow: 0 0.25rem 0 var(--site-outline, #050308);
     }
 
     .skeleton-pulse {
@@ -314,23 +385,54 @@
         50% { opacity: 0.7; }
     }
     @media (max-width: 520px) {
+        .toy-card {
+            grid-template-rows: auto auto auto;
+            height: auto;
+        }
+
         .card-copy {
-            padding: 0.6rem;
+            min-height: 3.75rem;
+            padding: 0.58rem 0.65rem;
         }
 
-        .series-chip {
-            display: none;
+        .card-copy h3 {
+            font-size: 1rem;
         }
 
-        .description {
-            display: none;
+        .info-plate {
+            grid-template-rows: auto auto;
+            gap: 0.4rem;
+            min-height: 0;
+            padding: 0.6rem 0.45rem 0.7rem;
+        }
+
+        .meta-row {
+            --badge-height: 1.4rem;
+            --badge-padding-inline: 0.26rem;
+            --badge-font-size: 0.58rem;
+            --badge-shadow: 0 3px 0 #050308;
+            flex-wrap: nowrap;
+            gap: 0.2rem;
+        }
+
+        .meta-chip {
+            height: 1.4rem;
+            min-width: 0;
+            padding-inline: 0.26rem;
+            box-shadow: 0 2px 0 #050308;
+            font-size: 0.58rem;
+            white-space: nowrap;
+        }
+
+        .description div {
+            font-size: 0.875rem;
         }
     }
 
     @media (prefers-reduced-motion: reduce) {
         .toy-card,
         .toy-image,
-        .glow-ring,
+        .card-edge,
         .skeleton-pulse {
             transition: none;
             animation: none;

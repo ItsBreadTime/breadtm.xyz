@@ -23,14 +23,23 @@ const totalMemoryGB = getTotalMemoryGB();
 
 // Output formats configurations
 const FORMATS = ['webp', 'avif', 'jpg'];
-const COMPRESSION_SETTINGS_VERSION = 3;
-const THUMBNAIL_MAX_DIMENSION = 640;
+const COMPRESSION_SETTINGS_VERSION = 7;
+// Cards can approach 480 CSS pixels wide, so retain enough detail for 2x
+// displays instead of stretching the former 640px thumbnail output.
+const THUMBNAIL_MAX_DIMENSION = 960;
 const OUTPUT_SIZES = [
   {
     suffix: '',
     resize: ({ originalWidth }) => ({
       width: Math.max(1, Math.round(originalWidth / 2))
     })
+  },
+  {
+    // Keep the source dimensions for fullscreen zooming while still encoding
+    // every format through Sharp. The normal image stays on the smaller
+    // output until the viewer actually needs the extra detail.
+    suffix: '-full',
+    resize: () => null
   },
   {
     suffix: '-thumb',
@@ -49,22 +58,27 @@ const OUTPUT_SIZES = [
 
 const getEncodingOptions = (suffix) => {
   const isThumbnail = suffix === '-thumb';
+  const isFullResolution = suffix === '-full';
 
   return {
     webp: {
-      quality: isThumbnail ? 42 : 40,
-      effort: 4,
-      smartSubsample: true
+      quality: isThumbnail ? 78 : isFullResolution ? 62 : 65,
+      effort: isThumbnail ? 4 : 3,
+      smartSubsample: true,
+      preset: 'photo'
     },
     avif: {
-      quality: isThumbnail ? 34 : 35,
-      effort: isThumbnail ? 3 : 4,
-      chromaSubsampling: isThumbnail ? '4:2:0' : '4:4:4'
+      quality: isThumbnail ? 60 : 45,
+      // Effort 2 is dramatically faster than the default/high-effort modes;
+      // quality controls fidelity, while effort mostly searches for fewer bytes.
+      effort: isThumbnail ? 3 : 2,
+      chromaSubsampling: '4:4:4'
     },
     jpeg: {
-      quality: isThumbnail ? 42 : 40,
+      quality: isThumbnail ? 80 : 68,
       mozjpeg: true,
-      chromaSubsampling: isThumbnail ? '4:2:0' : '4:4:4'
+      progressive: true,
+      chromaSubsampling: isThumbnail ? '4:4:4' : '4:2:0'
     }
   };
 };
@@ -170,44 +184,42 @@ async function processImage(task, state) {
   const originalHeight = orientation >= 5 ? metadata.width : metadata.height;
   const image = sharp(sourcePath).rotate();
   
-  const compressions = [];
-
   for (const size of OUTPUT_SIZES) {
     const resizeOptions = size.resize({ originalWidth, originalHeight });
-    const resized = image.clone().resize({
-      ...resizeOptions,
-      withoutEnlargement: true,
-      kernel: sharp.kernel.lanczos3,
-      fastShrinkOnLoad: true
-    });
+    const resized = resizeOptions
+      ? image.clone().resize({
+          ...resizeOptions,
+          withoutEnlargement: true,
+          kernel: sharp.kernel.lanczos3,
+          fastShrinkOnLoad: true
+        })
+      : image.clone();
     const encodingOptions = getEncodingOptions(size.suffix);
 
     // WebP balances compression and iteration speed.
-    compressions.push(
+    const compressions = [
       resized
         .clone()
         .webp(encodingOptions.webp)
-        .toFile(path.join(targetDir, `${outputFilename}${size.suffix}.webp`))
-    );
+        .toFile(path.join(targetDir, `${outputFilename}${size.suffix}.webp`)),
 
-    // AVIF is kept at moderate effort so local regeneration stays practical.
-    compressions.push(
+      // AVIF is kept at low effort so local regeneration stays practical.
       resized
         .clone()
         .avif(encodingOptions.avif)
-        .toFile(path.join(targetDir, `${outputFilename}${size.suffix}.avif`))
-    );
+        .toFile(path.join(targetDir, `${outputFilename}${size.suffix}.avif`)),
 
-    // MozJPEG Options
-    compressions.push(
+      // JPEG is the compatibility fallback, encoded progressively via MozJPEG.
       resized
         .clone()
         .jpeg(encodingOptions.jpeg)
         .toFile(path.join(targetDir, `${outputFilename}${size.suffix}.jpg`))
-    );
-  }
+    ];
 
-  await Promise.all(compressions);
+    // Bound peak memory and CPU pressure: finish one resolution before
+    // scheduling the next three encoders for this source image.
+    await Promise.all(compressions);
+  }
 
   state[relPath] = {
     hash: currentHash,

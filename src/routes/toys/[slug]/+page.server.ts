@@ -26,6 +26,7 @@ const getExtension = (filename: string): string => {
 };
 
 const isThumbnail = (filename: string): boolean => /-thumb\.[^.]+$/i.test(filename);
+const isFullResolution = (filename: string): boolean => /-full\.[^.]+$/i.test(filename);
 
 const getThumbnailImageKey = (filename: string): string => {
     return getBaseFilename(filename).replace(/-thumb$/i, '');
@@ -73,7 +74,7 @@ export const load: PageServerLoad = async ({ params }) => {
     
     // Get list of available images for this toy
     const allImages = toyImagesMap[slug] || [];
-    const availableImages = allImages.filter(filename => !isThumbnail(filename));
+    const availableImages = allImages.filter(filename => !isThumbnail(filename) && !isFullResolution(filename));
     const availableThumbnails = allImages.filter(isThumbnail);
     
     // Group images by base filename (without extension)
