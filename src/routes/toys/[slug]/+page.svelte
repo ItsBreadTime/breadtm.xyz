@@ -47,7 +47,6 @@
     const sortedImageKeys = $derived(toy.sortedImageKeys || []);
     let currentImageKeyIndex: number = $state(0);
     const currentImageKey = $derived(sortedImageKeys[currentImageKeyIndex] || '');
-    const currentImageSet = $derived(currentImageKey ? imageSets[currentImageKey] || [] : []);
 
     let isImageEnlarged: boolean = $state(false);
     let enlargedImageIndex: number = $state(0);
@@ -604,6 +603,24 @@
         const fallback = jpg || set[0];
         return fallback ? `${getBaseFilename(fallback)}-full` : '';
     };
+
+    const currentImageSet = $derived.by(() => {
+        if (!currentImageKey) return [];
+
+        const cachedResolution = $imageResolutionCache[
+            getImageResolutionCacheKey(slug, currentImageKey)
+        ];
+        const fullResolutionBase = getFullResolutionBase(currentImageKey);
+        if (cachedResolution === 'full' && fullResolutionBase) {
+            return [
+                `${fullResolutionBase}.avif`,
+                `${fullResolutionBase}.webp`,
+                `${fullResolutionBase}.jpg`
+            ];
+        }
+
+        return imageSets[currentImageKey] || [];
+    });
 
     const currentAvif = $derived(currentImageSet.find(img => getExtension(img) === 'avif'));
     const currentWebp = $derived(currentImageSet.find(img => getExtension(img) === 'webp'));
