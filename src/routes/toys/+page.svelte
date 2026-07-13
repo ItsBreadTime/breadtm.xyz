@@ -50,16 +50,33 @@
 
     let emptyStateMessage = $derived.by(() => {
         const query = searchTerm.trim().toLowerCase();
-        if (query === 'kaiju' || query === 'kaijus') return "Today we are't facing the monsters at our door";
-        if (query === 'drift') return "Incompatible.";
-        if (query === 'kup') return 'BAH-WEEP-GRAAAGHNAH WHEEP NI-NI BONG';
-        if (query === 'starscream' || query.startsWith('starsc')) return 'Traitor...';
-        if (query === 'mutant' || query === 'mutants' || query == 'muties') return 'Found one? Report to claim your bounty.';
-        if (query === 'drokk' || query === 'mutants' || query == 'muties') return 'Mind your language, citizen.';
-        if (query === 'grud') return "Who, me?";
-        if (query === 'i am the law') return 'Impersonating a judge.\n6 months iso-cubes.';
-        if (query === 'breadtm' || query === 'bread') return "Yep, that's me.";
-        if (query === 'ibread') return "For your everyday needs.";
+        if (query.startsWith('starsc')) return 'Traitor...';
+
+        const messages: Array<[string[], string]> = [
+            [['kaiju', 'kaijus'], "Today we aren't facing the monsters at our door."],
+            [['drift'], 'Incompatible.'],
+            [['jeager'], "That's not what they're called."],
+            [['kup'], 'BAH-WEEP-GRAAAGHNAH WHEEP NI-NI BONG'],
+            [['mutant', 'mutants', 'mutie', 'muties'], 'Found one? Report to claim your bounty.'],
+            [['drokk'], 'Mind your language, citizen.'],
+            [['grud'], 'Who, me?'],
+            [['i am the law'], 'Impersonating a judge. 6 months iso-cubes.'],
+            [['america'], 'North or South?'],
+            [['democracy'], 'Requires participation.'],
+            [['villain', 'villains'], 'According to whom?'],
+            [['bread', 'breadtm'], "Yep, that's me."],
+            [['ibread'], 'For your everyday needs.'],
+            [['together as one'], "Now you're getting it."],
+            [['hexane'], 'Bit specific.'],
+            [['movie', 'movies', 'film', 'films', 'book', 'books'], 'Wrong shelf.'],
+            [['toy', 'toys', 'merch', 'merchandise'], "They're collectibles."],
+            [['robot', 'robots', 'bot', 'bots'], 'Who are you calling "robots"... My Cybertronian friends or my mechs?'],
+            [['spoiler', 'spoilers'], 'Not even once.'],
+            [['train', 'trains'], 'まもなく、秋葉原、秋葉原です。']
+        ];
+
+        const match = messages.find(([triggers]) => triggers.includes(query));
+        if (match) return match[1];
         return '';
     });
 

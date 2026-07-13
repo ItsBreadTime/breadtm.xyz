@@ -1,6 +1,5 @@
 <script lang="ts">
     import { getFactionTheme } from '$lib/toys/factions';
-    import { imageResolutionCache, getImageResolutionCacheKey } from '$lib/toys/fullResolutionCache';
     import Factions from './Factions.svelte';
 
     let { 
@@ -38,26 +37,6 @@
         }
         return '';
     });
-    let primaryImageKey = $derived.by(() => {
-        if (!hasImages || !image) return '';
-        const extensionIndex = image.lastIndexOf('.');
-        if (extensionIndex < 0) return '';
-        const stem = image.substring(0, extensionIndex);
-        return stem.endsWith('-thumb') ? stem.slice(0, -6) : stem;
-    });
-    let cachedResolution = $derived(
-        primaryImageKey
-            ? $imageResolutionCache[getImageResolutionCacheKey(slug, primaryImageKey)]
-            : undefined
-    );
-    let cachedImageBasePath = $derived.by(() => {
-        if (!primaryImageKey || !cachedResolution) return '';
-        const suffix = cachedResolution === 'full' ? '-full' : '';
-        return `/toys/${slug}/${primaryImageKey}${suffix}`;
-    });
-    let displayBaseImagePath = $derived(cachedImageBasePath || baseImagePath);
-    let displayImagePath = $derived(cachedImageBasePath ? `${cachedImageBasePath}.jpg` : imagePath);
-    
     const toyPagePath = $derived(`/toys/${slug}`);
     const loadingMode = $derived(index < 2 ? 'eager' : 'lazy');
     const fetchPriority = $derived(index === 0 ? 'high' : 'auto');
@@ -76,7 +55,7 @@
     style:--card-shadow={theme.shadow}
 >
     <div class="poster-frame">
-        {#if !imageLoaded && (displayBaseImagePath || displayImagePath)}
+        {#if !imageLoaded && (baseImagePath || imagePath)}
             <div class="absolute inset-0 skeleton-pulse z-[1]"></div>
         {/if}
         
@@ -84,13 +63,13 @@
             <div class="missing-image">
                 <span>{name}</span>
             </div>
-        {:else if displayBaseImagePath}
+        {:else if baseImagePath}
             <picture>
-                <source srcset="{displayBaseImagePath}.avif" type="image/avif" />
-                <source srcset="{displayBaseImagePath}.webp" type="image/webp" />
-                <source srcset="{displayBaseImagePath}.jpg" type="image/jpeg" />
+                <source srcset="{baseImagePath}.avif" type="image/avif" />
+                <source srcset="{baseImagePath}.webp" type="image/webp" />
+                <source srcset="{baseImagePath}.jpg" type="image/jpeg" />
                 <img 
-                    src={displayImagePath}
+                    src={imagePath}
                     alt={name}
                     class="toy-image"
                     sizes={cardImageSizes}
@@ -103,9 +82,9 @@
                     onerror={() => { imageError = true; imageLoaded = true; }}
                 />
             </picture>
-        {:else if displayImagePath}
+        {:else if imagePath}
             <img 
-                src={displayImagePath}
+                src={imagePath}
                 alt={name}
                 class="toy-image"
                 sizes={cardImageSizes}

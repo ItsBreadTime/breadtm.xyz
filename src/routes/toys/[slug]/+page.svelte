@@ -54,6 +54,7 @@
     let zoomOffsetX: number = $state(0);
     let zoomOffsetY: number = $state(0);
     let requestedFullResolutionKey: string | null = $state(null);
+    let inlineFullResolutionRequestedKey: string | null = $state(null);
     const enlargedImageKey = $derived(sortedImageKeys[enlargedImageIndex] || '');
     const fullResolutionRequested = $derived(requestedFullResolutionKey === enlargedImageKey);
     const useFullResolution = $derived(
@@ -83,10 +84,12 @@
     const ZOOM_BUTTON_STEP = 0.75;
     const WHEEL_ZOOM_SENSITIVITY = 0.0035;
     const FULL_RESOLUTION_IDLE_DELAY = 220;
+    const INLINE_FULL_RESOLUTION_DELAY = 900;
 
     let zoomFrame: number | null = null;
     let panFrame: number | null = null;
     let fullResolutionTimer: number | null = null;
+    let inlineFullResolutionTimer: number | null = null;
     let pendingZoomScale = MIN_ZOOM;
     let pendingZoomClientX: number | null = null;
     let pendingZoomClientY: number | null = null;
@@ -279,6 +282,14 @@
         cancelFullResolutionLoad();
     }
 
+    function cancelInlineFullResolutionLoad(): void {
+        if (inlineFullResolutionTimer !== null) {
+            window.clearTimeout(inlineFullResolutionTimer);
+            inlineFullResolutionTimer = null;
+        }
+        inlineFullResolutionRequestedKey = null;
+    }
+
     function queueFullResolutionLoad(scale: number): void {
         const requestedImageKey = enlargedImageKey;
         if (!requestedImageKey || useFullResolution || scale <= MIN_ZOOM) return;
@@ -310,10 +321,16 @@
 
         markImageResolutionCached(getImageResolutionCacheKey(slug, imageKey), 'full');
         if (requestedFullResolutionKey === imageKey) requestedFullResolutionKey = null;
+        if (inlineFullResolutionRequestedKey === imageKey) {
+            inlineFullResolutionRequestedKey = null;
+        }
     }
 
     function handleFullResolutionError(imageKey: string): void {
         if (requestedFullResolutionKey === imageKey) requestedFullResolutionKey = null;
+        if (inlineFullResolutionRequestedKey === imageKey) {
+            inlineFullResolutionRequestedKey = null;
+        }
     }
 
     async function handleStandardResolutionLoad(e: Event, imageKey: string): Promise<void> {
@@ -604,23 +621,38 @@
         return fallback ? `${getBaseFilename(fallback)}-full` : '';
     };
 
+    const currentCachedResolution = $derived(
+        currentImageKey
+            ? $imageResolutionCache[getImageResolutionCacheKey(slug, currentImageKey)]
+            : undefined
+    );
+    const currentStandardImageSet = $derived(
+        currentImageKey ? imageSets[currentImageKey] || [] : []
+    );
+    const currentThumbnailImageSet = $derived(
+        currentImageKey
+            ? thumbnailImageSets[currentImageKey] || currentStandardImageSet
+            : []
+    );
+    const currentFullResolutionBase = $derived(
+        currentImageKey ? getFullResolutionBase(currentImageKey) : ''
+    );
     const currentImageSet = $derived.by(() => {
-        if (!currentImageKey) return [];
-
-        const cachedResolution = $imageResolutionCache[
-            getImageResolutionCacheKey(slug, currentImageKey)
-        ];
-        const fullResolutionBase = getFullResolutionBase(currentImageKey);
-        if (cachedResolution === 'full' && fullResolutionBase) {
+        if (currentCachedResolution === 'full' && currentFullResolutionBase) {
             return [
-                `${fullResolutionBase}.avif`,
-                `${fullResolutionBase}.webp`,
-                `${fullResolutionBase}.jpg`
+                `${currentFullResolutionBase}.avif`,
+                `${currentFullResolutionBase}.webp`,
+                `${currentFullResolutionBase}.jpg`
             ];
         }
-
-        return imageSets[currentImageKey] || [];
+        if (currentCachedResolution === 'standard') return currentStandardImageSet;
+        return currentThumbnailImageSet;
     });
+
+    const currentStandardAvif = $derived(currentStandardImageSet.find(img => getExtension(img) === 'avif'));
+    const currentStandardWebp = $derived(currentStandardImageSet.find(img => getExtension(img) === 'webp'));
+    const currentStandardJpg = $derived(currentStandardImageSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg'));
+    const currentStandardFallback = $derived(currentStandardJpg || currentStandardImageSet[0]);
 
     const currentAvif = $derived(currentImageSet.find(img => getExtension(img) === 'avif'));
     const currentWebp = $derived(currentImageSet.find(img => getExtension(img) === 'webp'));
@@ -637,6 +669,28 @@
     };
 
     $effect(() => {
+        const imageKey = currentImageKey;
+        if (!imageKey || currentCachedResolution !== 'standard') return;
+
+        inlineFullResolutionTimer = window.setTimeout(() => {
+            inlineFullResolutionTimer = null;
+            if (currentImageKey === imageKey && currentCachedResolution === 'standard') {
+                inlineFullResolutionRequestedKey = imageKey;
+            }
+        }, INLINE_FULL_RESOLUTION_DELAY);
+
+        return () => {
+            if (inlineFullResolutionTimer !== null) {
+                window.clearTimeout(inlineFullResolutionTimer);
+                inlineFullResolutionTimer = null;
+            }
+            if (inlineFullResolutionRequestedKey === imageKey) {
+                inlineFullResolutionRequestedKey = null;
+            }
+        };
+    });
+
+    $effect(() => {
         const imageKeySignature = `${slug}:${sortedImageKeys.join('|')}`;
         if (imageKeySignature !== previousImageSignature) {
             previousImageSignature = imageKeySignature;
@@ -651,6 +705,7 @@
         return () => {
             cancelInteractionFrames();
             cancelFullResolutionLoad();
+            cancelInlineFullResolutionLoad();
             window.removeEventListener('keydown', handleKeydown);
             document.body.classList.remove('overflow-hidden');
             document.documentElement.classList.remove('overflow-hidden');
@@ -736,11 +791,55 @@
                                              fetchpriority="high"
                                              decoding="async"
                                              width="1728"
-                                             height="2304"
-                                             onload={(e) => handleStandardResolutionLoad(e, currentImageKey)} />
+                                             height="2304" />
                                     </picture>
                                 </button>
                             {/if}
+
+                            {#key currentImageKey}
+                                {#if !currentCachedResolution && currentStandardFallback}
+                                    <picture class="resolution-preloader" aria-hidden="true">
+                                        {#if currentStandardAvif}
+                                            <source srcset={getImagePath(currentStandardAvif)} type="image/avif" />
+                                        {/if}
+                                        {#if currentStandardWebp}
+                                            <source srcset={getImagePath(currentStandardWebp)} type="image/webp" />
+                                        {/if}
+                                        {#if currentStandardJpg}
+                                            <source srcset={getImagePath(currentStandardJpg)} type="image/jpeg" />
+                                        {/if}
+                                        <img
+                                            src={getImagePath(currentStandardAvif || currentStandardWebp || currentStandardFallback)}
+                                            alt=""
+                                            loading="eager"
+                                            fetchpriority="high"
+                                            decoding="async"
+                                            width="1728"
+                                            height="2304"
+                                            onload={(e) => handleStandardResolutionLoad(e, currentImageKey)}
+                                        />
+                                    </picture>
+                                {/if}
+
+                                {#if inlineFullResolutionRequestedKey === currentImageKey && currentFullResolutionBase}
+                                    <picture class="resolution-preloader" aria-hidden="true">
+                                        <source srcset={getImagePath(`${currentFullResolutionBase}.avif`)} type="image/avif" />
+                                        <source srcset={getImagePath(`${currentFullResolutionBase}.webp`)} type="image/webp" />
+                                        <source srcset={getImagePath(`${currentFullResolutionBase}.jpg`)} type="image/jpeg" />
+                                        <img
+                                            src={getImagePath(`${currentFullResolutionBase}.jpg`)}
+                                            alt=""
+                                            loading="eager"
+                                            fetchpriority="low"
+                                            decoding="async"
+                                            width="3456"
+                                            height="4608"
+                                            onload={(e) => handleFullResolutionLoad(e, currentImageKey)}
+                                            onerror={() => handleFullResolutionError(currentImageKey)}
+                                        />
+                                    </picture>
+                                {/if}
+                            {/key}
                             
                             {#if sortedImageKeys.length > 1}
                                 <button class="absolute left-0 top-1/2 z-20 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-r-md bg-black/30 p-2 text-white shadow-sm transition-all duration-300 hover:bg-black/50 hover:shadow-md"
@@ -1457,6 +1556,17 @@
         height: 100%;
         object-fit: contain;
         border-radius: inherit;
+    }
+
+    .image-stage .resolution-preloader,
+    .image-stage .resolution-preloader img {
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
     }
 
     .photo-tabs {
