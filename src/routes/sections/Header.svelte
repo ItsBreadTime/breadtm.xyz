@@ -3,11 +3,6 @@
     import Time from "../components/Time.svelte";
 </script>
 
-<noscript>
-    <div class="bg-red-300 text-center p-2 text-lg">
-        JS disabled, some features will be hidden (e.g. clocks, copy).
-    </div>
-</noscript>
 <div
     class="py-6 md:py-8 xl:py-12 border-b-8 lg:border-8 border-black relative overflow-hidden bg-blue-500"
     id="header"

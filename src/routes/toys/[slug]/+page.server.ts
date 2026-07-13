@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import precompiledDescriptions from '$lib/precompiled-descriptions.json';
+import toyAssetsManifest from '$lib/toy-assets.json';
 
 // Define image format priority - highest quality/efficiency first
 const FORMAT_PRIORITY = ['avif', 'webp', 'jpg', 'jpeg', 'png'];
@@ -9,11 +10,9 @@ const FORMAT_PRIORITY = ['avif', 'webp', 'jpg', 'jpeg', 'png'];
 // This works at build time with Vite
 const modules = import.meta.glob('../*.md', { eager: true });
 
-// Import all available images at build time - Updated to support multiple formats
-const imageModules = import.meta.glob('/static/toys/**/*.{avif,webp,jpg,jpeg,png}', { eager: true });
-
-// Create a mapping of toy slugs to their available images
-const toyImagesMap: Record<string, string[]> = {};
+// Public assets are already copied by Vite. Use a generated filename manifest
+// so merely discovering them does not import and duplicate every image.
+const toyImagesMap = toyAssetsManifest as Record<string, string[]>;
 
 // Helper function to get base filename without extension
 const getBaseFilename = (filename: string): string => {
@@ -27,6 +26,7 @@ const getExtension = (filename: string): string => {
 
 const isThumbnail = (filename: string): boolean => /-thumb\.[^.]+$/i.test(filename);
 const isFullResolution = (filename: string): boolean => /-full\.[^.]+$/i.test(filename);
+const isCardImage = (filename: string): boolean => /-card\.[^.]+$/i.test(filename);
 
 const getThumbnailImageKey = (filename: string): string => {
     return getBaseFilename(filename).replace(/-thumb$/i, '');
@@ -47,21 +47,7 @@ const compareImageKeys = (a: string, b: string): number => {
     return a.localeCompare(b);
 };
 
-// Process the image modules to create a mapping
-Object.keys(imageModules).forEach(path => {
-    // Extract slug and filename from the path
-    // Path format: /static/toys/[slug]/[filename].[ext]
-    const match = path.match(/\/static\/toys\/([^\/]+)\/([^\/]+)$/);
-    if (match) {
-        const [, slug, filename] = match;
-        if (!toyImagesMap[slug]) {
-            toyImagesMap[slug] = [];
-        }
-        toyImagesMap[slug].push(filename);
-    }
-});
-
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, url }) => {
   const { slug } = params;
   
   try {
@@ -74,7 +60,7 @@ export const load: PageServerLoad = async ({ params }) => {
     
     // Get list of available images for this toy
     const allImages = toyImagesMap[slug] || [];
-    const availableImages = allImages.filter(filename => !isThumbnail(filename) && !isFullResolution(filename));
+    const availableImages = allImages.filter(filename => !isThumbnail(filename) && !isFullResolution(filename) && !isCardImage(filename));
     const availableThumbnails = allImages.filter(isThumbnail);
     
     // Group images by base filename (without extension)
@@ -110,6 +96,8 @@ export const load: PageServerLoad = async ({ params }) => {
     
     // Get the sorted base filenames: main first, then numeric names, then alpha.
     const sortedBaseFilenames = Object.keys(baseFilenameGroups).sort(compareImageKeys);
+    const requestedImageKey = url.searchParams.get('image')?.trim() || '';
+    const requestedImageIndex = sortedBaseFilenames.indexOf(requestedImageKey);
     
     // Type the module correctly
     const mod = metadata as { metadata?: Record<string, any>; default?: any };
@@ -130,7 +118,8 @@ export const load: PageServerLoad = async ({ params }) => {
         // Pass the grouped images and the sorted keys
         imageSets: baseFilenameGroups, 
         thumbnailImageSets: thumbnailFilenameGroups,
-        sortedImageKeys: sortedBaseFilenames
+        sortedImageKeys: sortedBaseFilenames,
+        initialImageIndex: requestedImageIndex >= 0 ? requestedImageIndex : 0
       }
     };
   } catch (e) {

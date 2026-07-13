@@ -84,3 +84,13 @@
 		font-feature-settings: 'sups';
 	}
 }
+
+@supports not selector(:focus-visible) {
+	a:focus,
+	button:focus,
+	input:focus,
+	summary:focus {
+		outline: 3px solid currentColor !important;
+		outline-offset: 3px !important;
+	}
+}

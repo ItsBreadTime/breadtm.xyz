@@ -8,6 +8,9 @@ const __dirname = dirname(__filename);
 
 const TOYS_DIR = join(__dirname, '../src/routes/toys');
 const OUTPUT_FILE = join(__dirname, '../src/lib/precompiled-descriptions.json');
+const TOY_ASSETS_DIR = join(__dirname, '../static/toys');
+const ASSET_MANIFEST_FILE = join(__dirname, '../src/lib/toy-assets.json');
+const IMAGE_FILE_PATTERN = /\.(?:avif|webp|jpe?g|png)$/i;
 
 // Simple frontmatter parser
 function parseFrontmatter(content) {
@@ -74,6 +77,23 @@ async function precompileDescriptions() {
     // Write the precompiled descriptions
     writeFileSync(OUTPUT_FILE, JSON.stringify(compiledDescriptions, null, 2));
     console.log(`Precompiled descriptions for ${Object.keys(compiledDescriptions).length} toys to ${OUTPUT_FILE}`);
+
+    const assetManifest = {};
+    const toyDirectories = readdirSync(TOY_ASSETS_DIR, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    for (const directory of toyDirectories) {
+        const files = readdirSync(join(TOY_ASSETS_DIR, directory.name), { withFileTypes: true })
+            .filter((entry) => entry.isFile() && IMAGE_FILE_PATTERN.test(entry.name))
+            .map((entry) => entry.name)
+            .sort((a, b) => a.localeCompare(b));
+
+        if (files.length > 0) assetManifest[directory.name] = files;
+    }
+
+    writeFileSync(ASSET_MANIFEST_FILE, JSON.stringify(assetManifest, null, 2));
+    console.log(`Indexed image assets for ${Object.keys(assetManifest).length} toys to ${ASSET_MANIFEST_FILE}`);
 }
 
 precompileDescriptions().catch(console.error);

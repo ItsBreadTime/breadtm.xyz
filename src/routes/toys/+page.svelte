@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { flip } from 'svelte/animate';
     import { compareFactions, getFactionTheme } from '$lib/toys/factions';
     import ToyItem from '../components/ToyItem.svelte';
     import Nav from '../sections/Nav.svelte';
@@ -22,9 +21,13 @@
     let toys: Toy[] = $derived(data.toys || []);
     const toyImagesMap = $derived(data.toyImagesMap || {});
 
-    let selectedFaction = $state('');
-    let selectedSeries = $state('');
-    let searchTerm = $state('');
+    function getInitialFilter(name: 'faction' | 'series' | 'search'): string {
+        return data.filters?.[name] || '';
+    }
+
+    let selectedFaction = $state(getInitialFilter('faction'));
+    let selectedSeries = $state(getInitialFilter('series'));
+    let searchTerm = $state(getInitialFilter('search'));
     let showScrollTop = $state(false);
     let reduceMotion = $state(false);
     let seriesMenu: HTMLDetailsElement;
@@ -111,14 +114,23 @@
         if (seriesMenu) seriesMenu.open = false;
     }
 
+    function keepInstantFiltering(event: SubmitEvent) {
+        event.preventDefault();
+    }
+
     function scrollToTop() {
         window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
     }
 
     onMount(() => {
         const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        let scrollFrame: number | null = null;
         const handleScroll = () => {
-            showScrollTop = window.scrollY > 400;
+            if (scrollFrame !== null) return;
+            scrollFrame = window.requestAnimationFrame(() => {
+                scrollFrame = null;
+                showScrollTop = window.scrollY > 400;
+            });
         };
         const handleMotionChange = () => {
             reduceMotion = motionQuery.matches;
@@ -126,11 +138,20 @@
 
         handleMotionChange();
         window.addEventListener('scroll', handleScroll, { passive: true });
-        motionQuery.addEventListener('change', handleMotionChange);
+        if ('addEventListener' in motionQuery) {
+            motionQuery.addEventListener('change', handleMotionChange);
+        } else {
+            (motionQuery as MediaQueryList).addListener(handleMotionChange);
+        }
 
         return () => {
+            if (scrollFrame !== null) window.cancelAnimationFrame(scrollFrame);
             window.removeEventListener('scroll', handleScroll);
-            motionQuery.removeEventListener('change', handleMotionChange);
+            if ('removeEventListener' in motionQuery) {
+                motionQuery.removeEventListener('change', handleMotionChange);
+            } else {
+                (motionQuery as MediaQueryList).removeListener(handleMotionChange);
+            }
         };
     });
 </script>
@@ -178,7 +199,16 @@
                     </div>
                 </section>
 
-                <section class="filter-deck" aria-label="Toy shelf controls">
+                <form
+                    class="filter-deck"
+                    aria-label="Toy shelf controls"
+                    action="/toys"
+                    method="GET"
+                    onsubmit={keepInstantFiltering}
+                >
+                    <input type="hidden" name="series" value={selectedSeries} />
+                    <input type="hidden" name="faction" value={selectedFaction} />
+                    <button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
                     <div class="search-row">
                         <div class="control-cell">
                             <label for="search" class="sr-only">Search toys</label>
@@ -189,9 +219,14 @@
                                 <input
                                     type="text"
                                     id="search"
+                                    name="q"
                                     bind:value={searchTerm}
                                     placeholder="Search toys"
                                 />
+                                <div class="no-js-search-actions no-js-only" aria-label="No-JavaScript filter actions">
+                                    <button type="submit">Apply</button>
+                                    <a href="/toys">Reset</a>
+                                </div>
                             </div>
                         </div>
 
@@ -204,9 +239,27 @@
                                     </svg>
                                 </summary>
                                 <div class="series-options" aria-label="Series options">
-                                    <button class:active={!selectedSeries} onclick={() => selectSeries('')}>All series</button>
+                                    <button
+                                        type="submit"
+                                        name="series"
+                                        value=""
+                                        class:active={!selectedSeries}
+                                        onclick={(event) => {
+                                            event.preventDefault();
+                                            selectSeries('');
+                                        }}
+                                    >All series</button>
                                     {#each series as s}
-                                        <button class:active={selectedSeries === s} onclick={() => selectSeries(s)}>{s}</button>
+                                        <button
+                                            type="submit"
+                                            name="series"
+                                            value={s}
+                                            class:active={selectedSeries === s}
+                                            onclick={(event) => {
+                                                event.preventDefault();
+                                                selectSeries(s);
+                                            }}
+                                        >{s}</button>
                                     {/each}
                                 </div>
                             </details>
@@ -216,10 +269,16 @@
                     <div class="faction-rail-wrap">
                         <div class="faction-rail" aria-label="Filter by faction">
                             <button
+                                type="submit"
+                                name="faction"
+                                value=""
                                 class:active={!selectedFaction}
                                 aria-pressed={!selectedFaction}
                                 aria-label={`Show all toys, ${toys.length} items`}
-                                onclick={() => selectedFaction = ''}
+                                onclick={(event) => {
+                                    event.preventDefault();
+                                    selectedFaction = '';
+                                }}
                                 style:--chip-accent={mixedTheme.accent}
                                 style:--chip-active-ink={mixedTheme.accentInk}
                                 style:--chip-panel={mixedTheme.panel}
@@ -229,11 +288,17 @@
                             </button>
                             {#each factionOptions as option (option.name)}
                                 <button
+                                    type="submit"
+                                    name="faction"
+                                    value={option.name}
                                     class:active={selectedFaction === option.name}
                                     data-faction-chip={option.name}
                                     aria-pressed={selectedFaction === option.name}
                                     aria-label={`Show ${option.name} toys, ${option.count} items`}
-                                    onclick={() => selectFaction(option.name)}
+                                    onclick={(event) => {
+                                        event.preventDefault();
+                                        selectFaction(option.name);
+                                    }}
                                     style:--chip-accent={option.theme.accent}
                                     style:--chip-active-ink={option.theme.accentInk}
                                     style:--chip-panel={option.theme.panel}
@@ -244,15 +309,12 @@
                             {/each}
                         </div>
                     </div>
-                </section>
+                </form>
 
                 {#if filteredToys.length > 0}
                     <section class="toy-grid" aria-label={`Filtered toy collection, ${filteredToys.length} items`}>
                         {#each filteredToys as toy, i (toy.slug)}
-                            <div
-                                class="toy-grid-item"
-                                animate:flip={{ duration: reduceMotion ? 0 : 220 }}
-                            >
+                            <div class="toy-grid-item">
                                 <ToyItem
                                     name={toy.name}
                                     image={getBestImage(toy)}
@@ -274,7 +336,13 @@
                             <span>Add markdown files to <code>src/routes/toys/</code></span>
                         {:else}
                             <p>{emptyStateMessage || 'Erm... who is that?'}</p>
-                            <button onclick={clearAllFilters}>Reset</button>
+                            <a
+                                href="/toys"
+                                onclick={(event) => {
+                                    event.preventDefault();
+                                    clearAllFilters();
+                                }}
+                            >Reset</a>
                         {/if}
                     </section>
                 {/if}
@@ -298,6 +366,7 @@
 <style lang="postcss">
     #toys-page {
         position: relative;
+        min-height: 100vh;
         min-height: 100dvh;
         isolation: isolate;
         --field: rgba(3, 8, 18, 0.96);
@@ -313,6 +382,10 @@
         --page-field-deep: #2e2a78;
         --page-grid-line: #20255d;
         color: var(--ink);
+        background-color: var(--page-field);
+        background-image:
+            radial-gradient(circle at 16% 0%, var(--wash-a), transparent 26rem),
+            radial-gradient(circle at 86% 9%, var(--wash-b), transparent 28rem);
         background-color: color-mix(in srgb, var(--page-field), #050308 30%);
         background-image:
             radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--wash-a), transparent 64%), transparent 26rem),
@@ -320,7 +393,6 @@
             linear-gradient(color-mix(in srgb, var(--page-grid-line), transparent 72%) 1px, transparent 1px),
             linear-gradient(90deg, color-mix(in srgb, var(--page-grid-line), transparent 72%) 1px, transparent 1px);
         background-size: auto, auto, var(--site-grid-size, 3.5rem) var(--site-grid-size, 3.5rem), var(--site-grid-size, 3.5rem) var(--site-grid-size, 3.5rem);
-        transition: background-color 360ms cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     #toys-page::before {
@@ -352,6 +424,7 @@
         isolation: isolate;
         overflow: visible;
         padding: clamp(0.7rem, 1.7vw, 1.1rem);
+        background: var(--page-field-deep);
         background: color-mix(in srgb, var(--page-field-deep), #050308 18%);
         border: var(--site-outline-width, 4px) solid var(--site-outline, #050308);
         border-radius: var(--site-radius, 0.65rem);
@@ -410,6 +483,7 @@
         gap: 0.7rem;
         margin-bottom: clamp(0.8rem, 2vw, 1.3rem);
         padding: clamp(0.8rem, 1.7vw, 1rem) clamp(0.55rem, 1.4vw, 0.75rem) clamp(0.55rem, 1.4vw, 0.75rem);
+        background: var(--page-field-deep);
         background: color-mix(in srgb, var(--page-field-deep), #050308 34%);
         border: var(--site-outline-width, 4px) solid var(--site-outline, #050308);
         border-radius: var(--site-radius, 0.65rem);
@@ -503,6 +577,7 @@
 
     .series-options button:hover {
         color: var(--ink);
+        background: #25101d;
         background: color-mix(in srgb, var(--accent), #07050d 68%);
     }
 
@@ -514,11 +589,20 @@
 
     .series-options button.active:hover {
         color: var(--accent-ink);
+        background: var(--accent);
         background: color-mix(in srgb, var(--accent), white 10%);
     }
 
     .search-field {
         position: relative;
+        display: flex;
+        min-width: 0;
+        overflow: hidden;
+        background-color: var(--field);
+        border: 2px solid #050308;
+        border-radius: 0.45rem;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 3px 0 #050308;
+        transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
     }
 
     .search-icon {
@@ -527,21 +611,23 @@
         top: 50%;
         width: 1.1rem;
         height: 1.1rem;
+        color: var(--accent);
         color: color-mix(in srgb, var(--accent), white 42%);
         transform: translateY(-50%);
         pointer-events: none;
     }
 
     input {
-        width: 100%;
+        flex: 1 1 0;
+        min-width: 0;
+        width: 0;
         min-height: 2.75rem;
         color: var(--ink);
-        background-color: var(--field);
-        border: 2px solid #050308;
-        border-radius: 0.45rem;
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 3px 0 #050308;
+        background-color: transparent;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
         font-size: 1rem;
-        transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
     }
 
     input {
@@ -553,22 +639,26 @@
         opacity: 1;
     }
 
-    input:hover,
+    .search-field:hover,
     .series-summary:hover,
-    input:focus {
+    .search-field:focus-within {
+        border-color: var(--accent);
         border-color: color-mix(in srgb, var(--accent), white 14%);
         background-color: rgba(5, 3, 8, 0.94);
+        box-shadow: inset 0 0 0 1px var(--accent), 0 3px 0 #050308;
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent), white 18%), 0 3px 0 #050308;
     }
 
-    input:focus,
+    .search-field:focus-within,
     .series-summary:focus-visible {
         border-color: var(--accent);
         outline: none;
         box-shadow: 0 3px 0 #050308;
     }
 
-    button:focus-visible {
+    button:focus-visible,
+    .empty-state a:focus-visible {
+        outline: 3px solid var(--accent);
         outline: 3px solid color-mix(in srgb, var(--accent), white 15%);
         outline-offset: 3px;
     }
@@ -594,8 +684,43 @@
         display: none;
     }
 
+    .no-js-only {
+        display: none;
+    }
+
+    .no-js-search-actions {
+        flex: 0 0 auto;
+        align-items: stretch;
+        min-width: 0;
+    }
+
+    .no-js-search-actions button,
+    .no-js-search-actions a {
+        display: flex;
+        min-height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+        padding: 0.45rem 0.75rem;
+        color: var(--accent-ink);
+        background: var(--accent);
+        border: 0;
+        border-left: 2px solid #050308;
+        border-radius: 0;
+        box-shadow: none;
+        font-size: 0.9rem;
+        font-weight: 800;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .no-js-search-actions a {
+        color: var(--ink);
+        background: var(--field);
+        border-radius: 0;
+    }
+
     .faction-rail button,
-    .empty-state button {
+    .empty-state a {
         min-height: 2.75rem;
         border-radius: 999px;
         font-weight: 800;
@@ -618,6 +743,7 @@
         flex: 0 0 auto;
         padding: 0.42rem 0.62rem;
         color: var(--ink);
+        background: var(--chip-panel);
         background: color-mix(in srgb, var(--chip-panel), #07050d 42%);
         border: 2px solid #050308;
         border-radius: 0.55rem;
@@ -651,7 +777,10 @@
         background: #fff7f8;
     }
 
-    .empty-state button {
+    .empty-state a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         flex: 0 0 auto;
         padding: 0.45rem 0.75rem;
         color: var(--accent-ink);
@@ -670,6 +799,7 @@
         padding: 2rem;
         text-align: center;
         color: var(--muted);
+        background: var(--page-field-deep);
         background: color-mix(in srgb, var(--page-field-deep), #050308 34%);
         border: var(--site-outline-width, 4px) solid var(--site-outline, #050308);
         border-radius: var(--site-radius, 0.65rem);
@@ -709,24 +839,28 @@
 
     @media (hover: hover) {
         .faction-rail button:hover,
-        .empty-state button:hover {
+        .empty-state a:hover {
             transform: translateY(-1px);
         }
 
         .faction-rail button:hover {
             color: #fff7f8;
+            background: var(--chip-panel);
             background: color-mix(in srgb, var(--chip-accent), #050308 68%);
+            border-color: var(--chip-accent);
             border-color: color-mix(in srgb, var(--chip-accent), white 12%);
         }
 
         .faction-rail button.active:hover {
             color: var(--chip-active-ink);
+            background: var(--chip-active-bg);
             background: color-mix(in srgb, var(--chip-active-bg), white 8%);
             border-color: #050308;
             transform: translateY(-2px);
         }
 
-        .empty-state button:hover {
+        .empty-state a:hover {
+            background: var(--accent);
             background: color-mix(in srgb, var(--accent), white 10%);
             box-shadow: 0 4px 0 rgba(0, 0, 0, 0.44);
         }
@@ -975,6 +1109,7 @@
     }
 
     .scroll-top-btn:focus-visible {
+        outline: 3px solid var(--accent);
         outline: 3px solid color-mix(in srgb, var(--accent), white 18%);
         outline-offset: 3px;
     }

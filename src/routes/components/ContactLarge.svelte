@@ -19,7 +19,7 @@
         data-umami-event="Contact copy - {title}"
     >
         <h3 class="text-3xl font-bold text-indigo-200 hidden lg:flex">{title}</h3>
-        <span class="lg:my-2 block max-w-full p-2 bg-indigo-700 rounded-md leading-tight [overflow-wrap:anywhere]">{username}</span>
+        <span class="copy-value lg:my-2 block max-w-full p-2 bg-indigo-700 rounded-md leading-tight [overflow-wrap:anywhere]">{username}</span>
         <div class="text-base sm:text-lg lg:text-lg xl:text-xl">{description}</div>
         <a
             href={url}
@@ -29,3 +29,10 @@
         >
 </span>
 </div>
+
+<style>
+    .copy-value {
+        -webkit-user-select: all;
+        user-select: all;
+    }
+</style>

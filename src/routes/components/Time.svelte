@@ -65,6 +65,11 @@
     });
 </script>
 
-<div class="p-2 md:p-4 mb-2 rounded-md text-md md:text-xl bg-violet-600 text-violet-200 jsreq">
-    {clockEmoji} It's currently {time} - {date} for me.
+<div class="p-2 md:p-4 mb-2 rounded-md text-md md:text-xl bg-violet-600 text-violet-200">
+    <span>{clockEmoji} It's currently {time} - {date} for me.</span>
+    <noscript>
+        <span class="block mt-1 text-sm md:text-base text-violet-100">
+            Time shown when this page loaded. Refresh to update it.
+        </span>
+    </noscript>
 </div>

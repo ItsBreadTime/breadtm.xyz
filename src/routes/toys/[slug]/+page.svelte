@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import { error } from '@sveltejs/kit';
     import { page } from '$app/stores'; 
     import { getFactionTheme } from '$lib/toys/factions';
@@ -24,6 +25,7 @@
                 imageSets?: Record<string, string[]>; // Grouped images { 'main': ['main.avif', 'main.webp', 'main.jpg'], '1': [...] }
                 thumbnailImageSets?: Record<string, string[]>; // Thumbnail variants grouped by image key
                 sortedImageKeys?: string[]; // Sorted keys ['main', '1', '2', ...]
+                initialImageIndex?: number;
             };
             component?: any; // The compiled markdown content component
         }
@@ -45,7 +47,11 @@
     const imageSets = $derived(toy.imageSets || {});
     const thumbnailImageSets = $derived(toy.thumbnailImageSets || {});
     const sortedImageKeys = $derived(toy.sortedImageKeys || []);
-    let currentImageKeyIndex: number = $state(0);
+    function getInitialImageIndex(): number {
+        return data.metadata.initialImageIndex || 0;
+    }
+
+    let currentImageKeyIndex: number = $state(getInitialImageIndex());
     const currentImageKey = $derived(sortedImageKeys[currentImageKeyIndex] || '');
 
     let isImageEnlarged: boolean = $state(false);
@@ -54,7 +60,6 @@
     let zoomOffsetX: number = $state(0);
     let zoomOffsetY: number = $state(0);
     let requestedFullResolutionKey: string | null = $state(null);
-    let inlineFullResolutionRequestedKey: string | null = $state(null);
     const enlargedImageKey = $derived(sortedImageKeys[enlargedImageIndex] || '');
     const fullResolutionRequested = $derived(requestedFullResolutionKey === enlargedImageKey);
     const useFullResolution = $derived(
@@ -62,6 +67,12 @@
         && $imageResolutionCache[getImageResolutionCacheKey(slug, enlargedImageKey)] === 'full'
     );
     let previousImageSignature = '';
+    let standardImageReadyKey = $state('');
+    let cacheReady = $state(false);
+
+    onMount(() => {
+        cacheReady = true;
+    });
 
     let touchStartX: number = 0;
     let touchEndX: number = 0;
@@ -84,12 +95,11 @@
     const ZOOM_BUTTON_STEP = 0.75;
     const WHEEL_ZOOM_SENSITIVITY = 0.0035;
     const FULL_RESOLUTION_IDLE_DELAY = 220;
-    const INLINE_FULL_RESOLUTION_DELAY = 900;
+    const lightboxUsesFullResolution = $derived(useFullResolution);
 
     let zoomFrame: number | null = null;
     let panFrame: number | null = null;
     let fullResolutionTimer: number | null = null;
-    let inlineFullResolutionTimer: number | null = null;
     let pendingZoomScale = MIN_ZOOM;
     let pendingZoomClientX: number | null = null;
     let pendingZoomClientY: number | null = null;
@@ -99,11 +109,15 @@
     let pendingPanOffsetY = 0;
 
     function handleTouchStart(e: TouchEvent): void {
-        touchStartX = e.touches[0].clientX;
+        const touch = e.touches[0];
+        if (!touch) return;
+        touchStartX = touch.clientX;
     }
 
     function handleTouchMove(e: TouchEvent): void {
-        touchEndX = e.touches[0].clientX;
+        const touch = e.touches[0];
+        if (!touch) return;
+        touchEndX = touch.clientX;
     }
 
     function handleTouchEnd(e: TouchEvent): void {
@@ -231,10 +245,16 @@
         return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
     }
 
-    function clampPan(value: number, axis: 'x' | 'y', scale = zoomScale): number {
+    function clampPanOffsets(
+        offsetX: number,
+        offsetY: number,
+        scale = zoomScale
+    ): { x: number; y: number } {
         const stage = document.querySelector<HTMLElement>('.lightbox-stage');
-        if (!stage) return value;
-        const image = stage.querySelector<HTMLImageElement>('.enlarged-picture .enlarged-image');
+        if (!stage) return { x: offsetX, y: offsetY };
+        const image = stage.querySelector<HTMLImageElement>(
+            '.enlarged-picture-full.active .enlarged-image, .enlarged-picture-standard .enlarged-image'
+        );
         const naturalWidth = image?.naturalWidth || Number(image?.getAttribute('width')) || stage.clientWidth;
         const naturalHeight = image?.naturalHeight || Number(image?.getAttribute('height')) || stage.clientHeight;
         const imageRatio = naturalWidth / naturalHeight;
@@ -242,10 +262,12 @@
         const stageHeight = stage.clientHeight;
         const containedWidth = Math.min(stageWidth, stageHeight * imageRatio);
         const containedHeight = Math.min(stageHeight, stageWidth / imageRatio);
-        const stageSize = axis === 'x' ? stageWidth : stageHeight;
-        const containedSize = axis === 'x' ? containedWidth : containedHeight;
-        const limit = Math.max(0, (containedSize * scale - stageSize) / 2);
-        return Math.max(-limit, Math.min(limit, value));
+        const limitX = Math.max(0, (containedWidth * scale - stageWidth) / 2);
+        const limitY = Math.max(0, (containedHeight * scale - stageHeight) / 2);
+        return {
+            x: Math.max(-limitX, Math.min(limitX, offsetX)),
+            y: Math.max(-limitY, Math.min(limitY, offsetY))
+        };
     }
 
     function cancelInteractionFrames(): void {
@@ -282,14 +304,6 @@
         cancelFullResolutionLoad();
     }
 
-    function cancelInlineFullResolutionLoad(): void {
-        if (inlineFullResolutionTimer !== null) {
-            window.clearTimeout(inlineFullResolutionTimer);
-            inlineFullResolutionTimer = null;
-        }
-        inlineFullResolutionRequestedKey = null;
-    }
-
     function queueFullResolutionLoad(scale: number): void {
         const requestedImageKey = enlargedImageKey;
         if (!requestedImageKey || useFullResolution || scale <= MIN_ZOOM) return;
@@ -321,16 +335,10 @@
 
         markImageResolutionCached(getImageResolutionCacheKey(slug, imageKey), 'full');
         if (requestedFullResolutionKey === imageKey) requestedFullResolutionKey = null;
-        if (inlineFullResolutionRequestedKey === imageKey) {
-            inlineFullResolutionRequestedKey = null;
-        }
     }
 
     function handleFullResolutionError(imageKey: string): void {
         if (requestedFullResolutionKey === imageKey) requestedFullResolutionKey = null;
-        if (inlineFullResolutionRequestedKey === imageKey) {
-            inlineFullResolutionRequestedKey = null;
-        }
     }
 
     async function handleStandardResolutionLoad(e: Event, imageKey: string): Promise<void> {
@@ -341,6 +349,7 @@
             // A completed load still counts when decode() is unavailable.
         }
 
+        standardImageReadyKey = imageKey;
         markImageResolutionCached(getImageResolutionCacheKey(slug, imageKey), 'standard');
     }
 
@@ -379,8 +388,9 @@
 
         panFrame = window.requestAnimationFrame(() => {
             panFrame = null;
-            zoomOffsetX = clampPan(pendingPanOffsetX, 'x');
-            zoomOffsetY = clampPan(pendingPanOffsetY, 'y');
+            const clampedOffsets = clampPanOffsets(pendingPanOffsetX, pendingPanOffsetY);
+            zoomOffsetX = clampedOffsets.x;
+            zoomOffsetY = clampedOffsets.y;
         });
     }
 
@@ -436,8 +446,9 @@
             if (!useFullResolution) cancelFullResolutionLoad();
             return;
         }
-        zoomOffsetX = clampPan(nextOffsetX, 'x', clampedScale);
-        zoomOffsetY = clampPan(nextOffsetY, 'y', clampedScale);
+        const clampedOffsets = clampPanOffsets(nextOffsetX, nextOffsetY, clampedScale);
+        zoomOffsetX = clampedOffsets.x;
+        zoomOffsetY = clampedOffsets.y;
         pendingPanOffsetX = zoomOffsetX;
         pendingPanOffsetY = zoomOffsetY;
         queueFullResolutionLoad(clampedScale);
@@ -473,9 +484,9 @@
         }
 
         let zoomDelta = e.deltaY;
-        if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+        if (e.deltaMode === 1) {
             zoomDelta *= 16;
-        } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+        } else if (e.deltaMode === 2) {
             zoomDelta *= (e.currentTarget as HTMLElement).clientHeight;
         }
 
@@ -501,7 +512,10 @@
         panStartY = e.clientY;
         panStartOffsetX = zoomOffsetX;
         panStartOffsetY = zoomOffsetY;
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        const target = e.currentTarget as HTMLElement;
+        if (typeof target.setPointerCapture === 'function') {
+            target.setPointerCapture(e.pointerId);
+        }
     }
 
     function handlePointerMove(e: PointerEvent): void {
@@ -517,7 +531,13 @@
         e.preventDefault();
         pointerPanActive = false;
         const target = e.currentTarget as HTMLElement;
-        if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
+        if (
+            typeof target.hasPointerCapture === 'function'
+            && typeof target.releasePointerCapture === 'function'
+            && target.hasPointerCapture(e.pointerId)
+        ) {
+            target.releasePointerCapture(e.pointerId);
+        }
     }
 
     function nextImage(): void {
@@ -528,6 +548,12 @@
     function prevImage(): void {
         if (sortedImageKeys.length === 0) return;
         currentImageKeyIndex = (currentImageKeyIndex - 1 + sortedImageKeys.length) % sortedImageKeys.length;
+    }
+
+    function runGalleryLinkAction(event: MouseEvent | KeyboardEvent, action: () => void): void {
+        if (event instanceof KeyboardEvent && event.key !== ' ') return;
+        event.preventDefault();
+        action();
     }
 
     function openEnlargedImage(index: number): void {
@@ -550,7 +576,7 @@
     function handleLightboxBackdropClick(e: MouseEvent): void {
         const target = e.target;
         if (!(target instanceof Element)) return;
-        if (target.closest('button, a, .enlarged-image, .lightbox-thumbs')) return;
+        if (target.closest('button, a, .lightbox-stage, .lightbox-thumbs')) return;
         closeEnlargedImage();
     }
 
@@ -600,8 +626,21 @@
         return imageBasePath + filename;
     };
 
+    const getImagePagePath = (imageKey: string): string => {
+        if (!imageKey) return '#toy-image-viewer';
+        return `?image=${encodeURIComponent(imageKey)}#toy-image-viewer`;
+    };
+
+    const getAdjacentImageKey = (offset: number): string => {
+        if (sortedImageKeys.length === 0) return '';
+        const index = (currentImageKeyIndex + offset + sortedImageKeys.length) % sortedImageKeys.length;
+        return sortedImageKeys[index];
+    };
+
     const getThumbnailSet = (imageKey: string): string[] => {
-        const cachedResolution = $imageResolutionCache[getImageResolutionCacheKey(slug, imageKey)];
+        const cachedResolution = cacheReady
+            ? $imageResolutionCache[getImageResolutionCacheKey(slug, imageKey)]
+            : undefined;
         const fullResolutionBase = getFullResolutionBase(imageKey);
         if (fullResolutionBase && cachedResolution === 'full') {
             return [
@@ -622,7 +661,7 @@
     };
 
     const currentCachedResolution = $derived(
-        currentImageKey
+        cacheReady && currentImageKey
             ? $imageResolutionCache[getImageResolutionCacheKey(slug, currentImageKey)]
             : undefined
     );
@@ -637,17 +676,7 @@
     const currentFullResolutionBase = $derived(
         currentImageKey ? getFullResolutionBase(currentImageKey) : ''
     );
-    const currentImageSet = $derived.by(() => {
-        if (currentCachedResolution === 'full' && currentFullResolutionBase) {
-            return [
-                `${currentFullResolutionBase}.avif`,
-                `${currentFullResolutionBase}.webp`,
-                `${currentFullResolutionBase}.jpg`
-            ];
-        }
-        if (currentCachedResolution === 'standard') return currentStandardImageSet;
-        return currentThumbnailImageSet;
-    });
+    const currentImageSet = $derived(currentThumbnailImageSet);
 
     const currentStandardAvif = $derived(currentStandardImageSet.find(img => getExtension(img) === 'avif'));
     const currentStandardWebp = $derived(currentStandardImageSet.find(img => getExtension(img) === 'webp'));
@@ -669,30 +698,10 @@
     };
 
     $effect(() => {
-        const imageKey = currentImageKey;
-        if (!imageKey || currentCachedResolution !== 'standard') return;
-
-        inlineFullResolutionTimer = window.setTimeout(() => {
-            inlineFullResolutionTimer = null;
-            if (currentImageKey === imageKey && currentCachedResolution === 'standard') {
-                inlineFullResolutionRequestedKey = imageKey;
-            }
-        }, INLINE_FULL_RESOLUTION_DELAY);
-
-        return () => {
-            if (inlineFullResolutionTimer !== null) {
-                window.clearTimeout(inlineFullResolutionTimer);
-                inlineFullResolutionTimer = null;
-            }
-            if (inlineFullResolutionRequestedKey === imageKey) {
-                inlineFullResolutionRequestedKey = null;
-            }
-        };
-    });
-
-    $effect(() => {
         const imageKeySignature = `${slug}:${sortedImageKeys.join('|')}`;
-        if (imageKeySignature !== previousImageSignature) {
+        if (!previousImageSignature) {
+            previousImageSignature = imageKeySignature;
+        } else if (imageKeySignature !== previousImageSignature) {
             previousImageSignature = imageKeySignature;
             currentImageKeyIndex = 0;
             enlargedImageIndex = 0;
@@ -705,7 +714,6 @@
         return () => {
             cancelInteractionFrames();
             cancelFullResolutionLoad();
-            cancelInlineFullResolutionLoad();
             window.removeEventListener('keydown', handleKeydown);
             document.body.classList.remove('overflow-hidden');
             document.documentElement.classList.remove('overflow-hidden');
@@ -759,6 +767,7 @@
             <div class="image-column">
                 <div class="image-frame group">
                     <div 
+                        id="toy-image-viewer"
                         class="image-stage"
                         ontouchstart={handleTouchStart}
                         ontouchmove={handleTouchMove}
@@ -768,12 +777,14 @@
                     >
                         {#if sortedImageKeys.length > 0}
                             {#if currentFallback}
-                                <button 
+                                <a
+                                    href={fullResPath(currentImageKey)}
                                     class="absolute inset-0 cursor-pointer bg-transparent transition-opacity duration-500 focus:outline-none focus:ring-2 focus:ring-rose-400" 
-                                    onclick={() => openEnlargedImage(currentImageKeyIndex)}
+                                    onclick={(event) => runGalleryLinkAction(event, () => openEnlargedImage(currentImageKeyIndex))}
+                                    onkeydown={(event) => runGalleryLinkAction(event, () => openEnlargedImage(currentImageKeyIndex))}
                                     aria-label="Enlarge image {currentImageKeyIndex + 1}"
                                 >
-                                    <picture>
+                                    <picture class="image-layer image-layer-thumbnail">
                                         {#if currentAvif}
                                             <source srcset={getImagePath(currentAvif)} type="image/avif" />
                                         {/if}
@@ -793,82 +804,91 @@
                                              width="1728"
                                              height="2304" />
                                     </picture>
-                                </button>
+
+                                    {#if currentStandardFallback}
+                                        <picture
+                                            class="image-layer image-layer-standard"
+                                            class:active={standardImageReadyKey === currentImageKey || currentCachedResolution === 'standard' || currentCachedResolution === 'full'}
+                                            aria-hidden="true"
+                                        >
+                                            {#if currentStandardAvif}
+                                                <source srcset={getImagePath(currentStandardAvif)} type="image/avif" />
+                                            {/if}
+                                            {#if currentStandardWebp}
+                                                <source srcset={getImagePath(currentStandardWebp)} type="image/webp" />
+                                            {/if}
+                                            {#if currentStandardJpg}
+                                                <source srcset={getImagePath(currentStandardJpg)} type="image/jpeg" />
+                                            {/if}
+                                            <img
+                                                src={getImagePath(currentStandardAvif || currentStandardWebp || currentStandardFallback)}
+                                                alt=""
+                                                sizes="(max-width: 1023px) calc(100vw - 2rem), min(48vw, 42rem)"
+                                                loading="eager"
+                                                fetchpriority="auto"
+                                                decoding="async"
+                                                width="1728"
+                                                height="2304"
+                                                onload={(e) => handleStandardResolutionLoad(e, currentImageKey)}
+                                            />
+                                        </picture>
+                                    {/if}
+
+                                    {#if currentCachedResolution === 'full' && currentFullResolutionBase}
+                                        <picture
+                                            class="image-layer image-layer-full active"
+                                            aria-hidden="true"
+                                        >
+                                            <source srcset={getImagePath(`${currentFullResolutionBase}.avif`)} type="image/avif" />
+                                            <source srcset={getImagePath(`${currentFullResolutionBase}.webp`)} type="image/webp" />
+                                            <source srcset={getImagePath(`${currentFullResolutionBase}.jpg`)} type="image/jpeg" />
+                                            <img
+                                                src={getImagePath(`${currentFullResolutionBase}.jpg`)}
+                                                alt=""
+                                                sizes="(max-width: 1023px) calc(100vw - 2rem), min(48vw, 42rem)"
+                                                loading="eager"
+                                                fetchpriority="low"
+                                                decoding="async"
+                                                width="3456"
+                                                height="4608"
+                                            />
+                                        </picture>
+                                    {/if}
+
+                                </a>
                             {/if}
-
-                            {#key currentImageKey}
-                                {#if !currentCachedResolution && currentStandardFallback}
-                                    <picture class="resolution-preloader" aria-hidden="true">
-                                        {#if currentStandardAvif}
-                                            <source srcset={getImagePath(currentStandardAvif)} type="image/avif" />
-                                        {/if}
-                                        {#if currentStandardWebp}
-                                            <source srcset={getImagePath(currentStandardWebp)} type="image/webp" />
-                                        {/if}
-                                        {#if currentStandardJpg}
-                                            <source srcset={getImagePath(currentStandardJpg)} type="image/jpeg" />
-                                        {/if}
-                                        <img
-                                            src={getImagePath(currentStandardAvif || currentStandardWebp || currentStandardFallback)}
-                                            alt=""
-                                            loading="eager"
-                                            fetchpriority="high"
-                                            decoding="async"
-                                            width="1728"
-                                            height="2304"
-                                            onload={(e) => handleStandardResolutionLoad(e, currentImageKey)}
-                                        />
-                                    </picture>
-                                {/if}
-
-                                {#if inlineFullResolutionRequestedKey === currentImageKey && currentFullResolutionBase}
-                                    <picture class="resolution-preloader" aria-hidden="true">
-                                        <source srcset={getImagePath(`${currentFullResolutionBase}.avif`)} type="image/avif" />
-                                        <source srcset={getImagePath(`${currentFullResolutionBase}.webp`)} type="image/webp" />
-                                        <source srcset={getImagePath(`${currentFullResolutionBase}.jpg`)} type="image/jpeg" />
-                                        <img
-                                            src={getImagePath(`${currentFullResolutionBase}.jpg`)}
-                                            alt=""
-                                            loading="eager"
-                                            fetchpriority="low"
-                                            decoding="async"
-                                            width="3456"
-                                            height="4608"
-                                            onload={(e) => handleFullResolutionLoad(e, currentImageKey)}
-                                            onerror={() => handleFullResolutionError(currentImageKey)}
-                                        />
-                                    </picture>
-                                {/if}
-                            {/key}
                             
                             {#if sortedImageKeys.length > 1}
-                                <button class="absolute left-0 top-1/2 z-20 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-r-md bg-black/30 p-2 text-white shadow-sm transition-all duration-300 hover:bg-black/50 hover:shadow-md"
-                                        onclick={prevImage}
+                                <a class="absolute left-0 top-1/2 z-20 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-r-md bg-black/30 p-2 text-white shadow-sm transition-all duration-300 hover:bg-black/50 hover:shadow-md"
+                                        href={getImagePagePath(getAdjacentImageKey(-1))}
+                                        onclick={(event) => runGalleryLinkAction(event, prevImage)}
+                                        onkeydown={(event) => runGalleryLinkAction(event, prevImage)}
                                         aria-label="Previous image">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                                     </svg>
-                                </button>
-                                <button class="absolute right-0 top-1/2 z-20 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-l-md bg-black/30 p-2 text-white shadow-sm transition-all duration-300 hover:bg-black/50 hover:shadow-md"
-                                        onclick={nextImage}
+                                </a>
+                                <a class="absolute right-0 top-1/2 z-20 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-l-md bg-black/30 p-2 text-white shadow-sm transition-all duration-300 hover:bg-black/50 hover:shadow-md"
+                                        href={getImagePagePath(getAdjacentImageKey(1))}
+                                        onclick={(event) => runGalleryLinkAction(event, nextImage)}
+                                        onkeydown={(event) => runGalleryLinkAction(event, nextImage)}
                                         aria-label="Next image">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                     </svg>
-                                </button>
+                                </a>
                                 
                                 <div class="photo-tabs">
                                     {#each sortedImageKeys as _, i}
-                                        <button
+                                        <a
+                                                href={getImagePagePath(sortedImageKeys[i])}
                                                 class="photo-tab"
-                                                onclick={(e) => {
-                                                    e.stopPropagation();
-                                                    currentImageKeyIndex = i;
-                                                }}
+                                                onclick={(event) => runGalleryLinkAction(event, () => currentImageKeyIndex = i)}
+                                                onkeydown={(event) => runGalleryLinkAction(event, () => currentImageKeyIndex = i)}
                                                 aria-label="View image {i+1}"
                                                 aria-current={i === currentImageKeyIndex ? 'true' : 'false'}>
                                             {i + 1}
-                                        </button>
+                                        </a>
                                     {/each}
                                 </div>
                             {/if}
@@ -890,10 +910,12 @@
                             {@const jpgSrc = currentSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
                             {@const fallbackSrc = jpgSrc || currentSet[0]}
                             
-                            <button 
+                            <a
+                                href={getImagePagePath(imageKey)}
                                 class="flex-shrink-0 w-20 h-20 sm:w-20 sm:h-20 overflow-hidden rounded-md border-2 transition-all duration-300
                                        {i === currentImageKeyIndex ? 'border-rose-400 ring-2 ring-rose-400 shadow-lg' : 'border-gray-700'}"
-                                onclick={() => currentImageKeyIndex = i}
+                                onclick={(event) => runGalleryLinkAction(event, () => currentImageKeyIndex = i)}
+                                onkeydown={(event) => runGalleryLinkAction(event, () => currentImageKeyIndex = i)}
                                 aria-label="View {toy.name} image {i + 1}"
                                 aria-current={i === currentImageKeyIndex ? 'true' : 'false'}>
                                 {#if fallbackSrc}
@@ -910,7 +932,7 @@
                                         <img src={getImagePath(avifSrc || webpSrc || fallbackSrc)} alt="{toy.name} thumbnail {i + 1}" class="w-full h-full object-cover" loading="lazy" decoding="async" width="480" height="640" />
                                     </picture>
                                 {/if}
-                            </button>
+                            </a>
                         {/each}
                     </div>
                 {/if}
@@ -969,10 +991,12 @@
                             {@const jpgSrc = currentSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg')}
                             {@const fallbackSrc = jpgSrc || currentSet[0]}
                             
-                            <button 
+                            <a
+                                href={getImagePagePath(imageKey)}
                                 class="w-20 h-20 overflow-hidden rounded-md border-2 transition-all duration-300
                                        {i === currentImageKeyIndex ? 'border-rose-400 ring-2 ring-rose-400 shadow-lg scale-105' : 'border-gray-700 hover:border-gray-400'}"
-                                onclick={() => currentImageKeyIndex = i}
+                                onclick={(event) => runGalleryLinkAction(event, () => currentImageKeyIndex = i)}
+                                onkeydown={(event) => runGalleryLinkAction(event, () => currentImageKeyIndex = i)}
                                 aria-label="View {toy.name} image {i + 1}"
                                 aria-current={i === currentImageKeyIndex ? 'true' : 'false'}>
                                 {#if fallbackSrc}
@@ -989,7 +1013,7 @@
                                         <img src={getImagePath(avifSrc || webpSrc || fallbackSrc)} alt="{toy.name} thumbnail {i + 1}" class="w-full h-full object-cover" loading="lazy" decoding="async" width="480" height="640" />
                                     </picture>
                                 {/if}
-                            </button>
+                            </a>
                         {/each}
                     </div>
                 {/if}
@@ -1072,6 +1096,7 @@
                     {#if enlargedFallback}
                         <picture
                             class="enlarged-picture enlarged-picture-standard"
+                            class:inactive={lightboxUsesFullResolution}
                             data-resolution="standard"
                         >
                             {#if enlargedAvif}
@@ -1100,10 +1125,10 @@
                             />
                         </picture>
 
-                        {#if (fullResolutionRequested || useFullResolution) && enlargedFullResolutionBase}
+                        {#if (fullResolutionRequested || lightboxUsesFullResolution) && enlargedFullResolutionBase}
                             <picture
                                 class="enlarged-picture enlarged-picture-full"
-                                class:active={useFullResolution}
+                                class:active={lightboxUsesFullResolution}
                                 data-resolution="full"
                                 aria-hidden="true"
                             >
@@ -1330,6 +1355,7 @@
     
     #toy-page {
         position: relative;
+        min-height: 100vh;
         min-height: 100dvh;
         isolation: isolate;
         --detail-accent: #f05278;
@@ -1341,6 +1367,10 @@
         --detail-field-deep: #17153f;
         --detail-grid-line: #20255d;
         color: var(--detail-ink);
+        background-color: var(--detail-field);
+        background-image:
+            radial-gradient(circle at 16% 0%, var(--detail-wash-a), transparent 28rem),
+            radial-gradient(circle at 88% 8%, var(--detail-wash-b), transparent 30rem);
         background-color: color-mix(in srgb, var(--detail-field), #050308 34%);
         background-image:
             radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--detail-wash-a), transparent 70%), transparent 28rem),
@@ -1355,6 +1385,7 @@
         position: fixed;
         inset: 0;
         z-index: -1;
+        background: transparent;
         background:
             linear-gradient(180deg, rgba(5, 3, 8, 0) 0%, rgba(5, 3, 8, 0.26) 48%, rgba(5, 3, 8, 0.54) 100%);
         pointer-events: none;
@@ -1408,6 +1439,7 @@
 
     #toy-details {
         position: relative;
+        min-height: calc(100vh - 4.5rem);
         min-height: calc(100dvh - 4.5rem);
     }
 
@@ -1418,6 +1450,7 @@
         gap: clamp(0.75rem, 2vw, 1rem);
         width: calc(100% - clamp(1rem, 3vw, 3rem));
         max-width: none;
+        min-height: calc(100vh - 4.5rem);
         min-height: calc(100dvh - 4.5rem);
         margin: 0 auto;
         padding: clamp(0.5rem, 2.2vw, 1.15rem);
@@ -1442,6 +1475,7 @@
         min-width: 0;
         border: 2px solid #050308;
         border-radius: 0.45rem;
+        box-shadow: 0 5px 0 #050308;
         box-shadow: 0 5px 0 color-mix(in srgb, var(--detail-accent), #050308 28%);
     }
 
@@ -1450,6 +1484,7 @@
         min-width: 0;
         padding: 0.55rem 0.8rem;
         color: #050308;
+        background: var(--detail-accent);
         background: color-mix(in srgb, var(--detail-accent), white 50%);
         font-family: Goldman, sans-serif;
         font-size: clamp(1.15rem, 3vw, 2rem);
@@ -1539,6 +1574,7 @@
         overflow: hidden;
         aspect-ratio: 3 / 4;
         width: 100%;
+        max-height: calc(100vh - 11rem);
         max-height: calc(100dvh - 11rem);
         min-height: 20rem;
         border-radius: calc(0.6rem - 2px);
@@ -1558,15 +1594,30 @@
         border-radius: inherit;
     }
 
-    .image-stage .resolution-preloader,
-    .image-stage .resolution-preloader img {
+    .image-stage .image-layer {
         position: absolute;
-        inset: 0 auto auto 0;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
+        inset: 0;
+        transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .image-layer-thumbnail {
+        z-index: 0;
+        opacity: 1;
+    }
+
+    .image-layer-standard {
+        z-index: 1;
         opacity: 0;
-        pointer-events: none;
+    }
+
+    .image-layer-full {
+        z-index: 2;
+        opacity: 0;
+    }
+
+    .image-layer-standard.active,
+    .image-layer-full.active {
+        opacity: 1;
     }
 
     .photo-tabs {
@@ -1606,6 +1657,7 @@
     }
 
     .photo-tab:focus-visible {
+        outline: 3px solid var(--detail-accent);
         outline: 3px solid color-mix(in srgb, var(--detail-accent), white 18%);
         outline-offset: 3px;
     }
@@ -1613,6 +1665,7 @@
     @media (hover: hover) {
         .photo-tab:hover {
             color: #050308;
+            background: var(--detail-accent);
             background: color-mix(in srgb, var(--detail-accent), white 18%);
             transform: translateY(-2px);
         }
@@ -1640,6 +1693,7 @@
 
     #toy-details :global(.border-rose-400),
     #toy-details :global(.border-rose-400\/50) {
+        border-color: var(--detail-accent);
         border-color: color-mix(in srgb, var(--detail-accent), transparent 35%);
     }
 
@@ -1649,6 +1703,7 @@
         overflow: hidden;
         color: var(--detail-ink);
         background: #07050d;
+        border: 2px solid var(--detail-accent);
         border: 2px solid color-mix(in srgb, var(--detail-accent), transparent 42%);
         border-radius: 0.45rem;
         box-shadow: none;
@@ -1675,6 +1730,7 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
+        border-block: 2px solid var(--detail-accent);
         border-block: 2px solid color-mix(in srgb, var(--detail-accent), transparent 38%);
     }
 
@@ -1688,12 +1744,14 @@
     }
 
     .meta-row + .meta-row {
+        border-left: 1px solid var(--detail-accent);
         border-left: 1px solid color-mix(in srgb, var(--detail-accent), transparent 54%);
     }
 
     .meta-row dt,
     .detail-description span {
         display: block;
+        color: var(--detail-muted);
         color: color-mix(in srgb, var(--detail-muted), white 4%);
         font-size: 0.72rem;
         font-weight: 700;
@@ -1713,6 +1771,7 @@
         margin-top: 0.62rem;
         padding-top: 0.58rem;
         color: var(--detail-muted);
+        border-top: 1px solid var(--detail-accent);
         border-top: 1px solid color-mix(in srgb, var(--detail-accent), transparent 66%);
     }
 
@@ -1761,6 +1820,7 @@
     @media (min-width: 1024px) {
         #toy-details,
         .toy-detail-shell {
+            min-height: calc(100vh - 4.5rem);
             min-height: calc(100dvh - 4.5rem);
         }
 
@@ -1784,6 +1844,7 @@
         }
 
         .image-stage {
+            height: calc(100vh - 12rem);
             height: calc(100dvh - 12rem);
             min-height: 0;
             max-height: none;
@@ -1816,6 +1877,7 @@
 
         .image-stage {
             min-height: min(18rem, calc(100vw - 1.75rem));
+            max-height: 68vh;
             max-height: 68dvh;
         }
 
@@ -1840,6 +1902,7 @@
         }
 
         .meta-row + .meta-row {
+            border-left: 1px solid var(--detail-accent);
             border-left: 1px solid color-mix(in srgb, var(--detail-accent), transparent 54%);
         }
 
@@ -1907,6 +1970,7 @@
 
         .meta-row:nth-child(3) {
             grid-column: 1 / -1;
+            border-top: 1px solid var(--detail-accent);
             border-top: 1px solid color-mix(in srgb, var(--detail-accent), transparent 54%);
         }
     }
@@ -1955,6 +2019,7 @@
         gap: 0.6rem;
         min-width: 0;
         overflow: hidden;
+        color: var(--lightbox-accent);
         color: color-mix(in srgb, var(--lightbox-accent), white 38%);
         font-family: Goldman, sans-serif;
         font-size: clamp(0.78rem, 2vw, 1rem);
@@ -1986,8 +2051,10 @@
         min-width: 2.75rem;
         height: 2.75rem;
         min-height: 2.75rem;
+        color: var(--lightbox-accent);
         color: color-mix(in srgb, var(--lightbox-accent), white 38%);
         background: rgba(5, 3, 8, 0.92);
+        border: 2px solid var(--lightbox-accent);
         border: 2px solid color-mix(in srgb, var(--lightbox-accent), white 38%);
         box-shadow: none;
         transition:
@@ -2079,6 +2146,7 @@
         gap: 0.35rem;
         margin-left: 0.25rem;
         padding-left: 0.75rem;
+        border-left: 1px solid var(--lightbox-accent);
         border-left: 1px solid color-mix(in srgb, var(--lightbox-accent), transparent 40%);
     }
 
@@ -2095,8 +2163,10 @@
         height: 2.75rem;
         min-height: 2.75rem;
         padding: 0.35rem 0.5rem;
+        color: var(--lightbox-accent);
         color: color-mix(in srgb, var(--lightbox-accent), white 38%);
         background: rgba(5, 3, 8, 0.92);
+        border: 2px solid var(--lightbox-accent);
         border: 2px solid color-mix(in srgb, var(--lightbox-accent), white 38%);
         border-radius: 0.45rem;
         font-family: Goldman, sans-serif;
@@ -2203,6 +2273,7 @@
     .lightbox-nav:focus-visible,
     .lightbox-zoom-readout:focus-visible,
     .lightbox-thumb:focus-visible {
+        outline: 3px solid var(--lightbox-accent);
         outline: 3px solid color-mix(in srgb, var(--lightbox-accent), white 15%);
         outline-offset: 3px;
     }
@@ -2211,6 +2282,7 @@
         .lightbox-action:hover,
         .lightbox-nav:hover {
             color: #050308;
+            background: var(--lightbox-accent);
             background: color-mix(in srgb, var(--lightbox-accent), white 18%);
             transform: translateY(-2px);
         }
@@ -2235,6 +2307,7 @@
                 "thumbs stage controls";
             grid-template-columns: 4.75rem minmax(0, 1fr) 5rem;
             grid-template-rows: auto minmax(0, 1fr);
+            width: min(100%, max(90rem, calc(133.333vh + 3.125rem)));
             width: min(100%, max(90rem, calc(133.333dvh + 3.125rem)));
         }
 
@@ -2284,6 +2357,7 @@
             margin-left: 0;
             padding-top: 0.75rem;
             padding-left: 0;
+            border-top: 1px solid var(--lightbox-accent);
             border-top: 1px solid color-mix(in srgb, var(--lightbox-accent), transparent 40%);
             border-left: 0;
         }
@@ -2450,11 +2524,14 @@
         z-index: 1;
         opacity: 0;
         pointer-events: none;
-        transition: opacity 120ms cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     .enlarged-picture-full.active {
         opacity: 1;
+    }
+
+    .enlarged-picture-standard.inactive {
+        visibility: hidden;
     }
 
     .enlarged-image {

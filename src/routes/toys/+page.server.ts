@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import precompiledDescriptions from '$lib/precompiled-descriptions.json';
+import toyAssetsManifest from '$lib/toy-assets.json';
 
 // Define the structure of the returned toy object
 interface ToyData {
@@ -21,25 +22,9 @@ const FORMAT_PRIORITY = ['avif', 'webp', 'jpg', 'jpeg', 'png'];
 // Use Vite's glob import feature to import all markdown files at build time
 const modules = import.meta.glob('./*.md', { eager: true });
 
-// Import all available images at build time - Updated to support multiple formats
-const imageModules = import.meta.glob('/static/toys/**/*.{avif,webp,jpg,jpeg,png}', { eager: true });
-
-// Create a mapping of toy slugs to their available images
-const toyImagesMap: Record<string, string[]> = {};
-
-// Process the image modules to create a mapping
-Object.keys(imageModules).forEach(path => {
-    // Extract slug and filename from the path
-    // Path format: /static/toys/[slug]/[filename].[ext]
-    const match = path.match(/\/static\/toys\/([^\/]+)\/([^\/]+)$/);
-    if (match) {
-        const [, slug, filename] = match;
-        if (!toyImagesMap[slug]) {
-            toyImagesMap[slug] = [];
-        }
-        toyImagesMap[slug].push(filename);
-    }
-});
+// Public assets are already copied by Vite. Use a generated filename manifest
+// so merely discovering them does not import and duplicate every image.
+const toyImagesMap = toyAssetsManifest as Record<string, string[]>;
 
 // Helper function to get base filename without extension
 const getBaseFilename = (filename: string): string => {
@@ -53,6 +38,7 @@ const getExtension = (filename: string): string => {
 
 const isThumbnail = (filename: string): boolean => /-thumb\.[^.]+$/i.test(filename);
 const isFullResolution = (filename: string): boolean => /-full\.[^.]+$/i.test(filename);
+const isCardImage = (filename: string): boolean => /-card\.[^.]+$/i.test(filename);
 
 const sortByFormatPriority = (images: string[]) => {
     images.sort((a, b) => {
@@ -84,7 +70,12 @@ const sortImageBases = (a: string, b: string): number => {
     return a.localeCompare(b);
 };
 
-export async function load() {
+const getLastSearchParam = (url: URL, name: string): string => {
+    const values = url.searchParams.getAll(name);
+    return values[values.length - 1]?.trim() || '';
+};
+
+export async function load({ url }) {
     try {
         // Create the toy data objects with precompiled descriptions
         const moduleEntries = Object.entries(modules);
@@ -111,7 +102,7 @@ export async function load() {
                 // Group images by base filename (without extension)
                 const baseFilenameGroups: Record<string, string[]> = {};
                 
-                toyImagesMap[slug].filter(filename => !isThumbnail(filename) && !isFullResolution(filename)).forEach(filename => {
+                toyImagesMap[slug].filter(filename => !isThumbnail(filename) && !isFullResolution(filename) && !isCardImage(filename)).forEach(filename => {
                     const base = getBaseFilename(filename);
                     if (!baseFilenameGroups[base]) {
                         baseFilenameGroups[base] = [];
@@ -200,7 +191,12 @@ export async function load() {
         return { 
             toys: toysWithOrder,
             // Send the full images map to the client to avoid discovery requests
-            toyImagesMap 
+            toyImagesMap,
+            filters: {
+                search: getLastSearchParam(url, 'q').slice(0, 200),
+                series: getLastSearchParam(url, 'series'),
+                faction: getLastSearchParam(url, 'faction')
+            }
         };
     } catch (e) {
         console.error("Error loading toys:", e);

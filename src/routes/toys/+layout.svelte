@@ -9,6 +9,7 @@
 <style>
   #toys-route-shell {
     position: relative;
+    min-height: 100vh;
     min-height: 100dvh;
     background: #030008;
     overscroll-behavior-y: none;

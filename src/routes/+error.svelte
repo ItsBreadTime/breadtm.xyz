@@ -51,7 +51,7 @@
     <meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="flex flex-col min-h-[100dvh]">
+<div class="flex min-h-screen min-h-[100dvh] flex-col">
     <Nav />
 
     <section class="relative overflow-hidden flex-1" id="errorpage">

@@ -1,5 +1,10 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import { getFactionTheme } from '$lib/toys/factions';
+    import {
+        imageResolutionCache,
+        getImageResolutionCacheKey
+    } from '$lib/toys/fullResolutionCache';
     import Factions from './Factions.svelte';
 
     let { 
@@ -26,7 +31,15 @@
     
     let imageLoaded = $state(false);
     let imageError = $state(false);
+    let cacheReady = $state(false);
+    let selectedImageExtension = '';
+    let detailImagePrefetchRequested = false;
+    let prefetchedDetailImage: HTMLImageElement | null = null;
     let theme = $derived(getFactionTheme(faction));
+
+    onMount(() => {
+        cacheReady = true;
+    });
 
     let imagePath = $derived(hasImages && image ? `/toys/${slug}/${image}` : '');
     let baseImagePath = $derived.by(() => {
@@ -37,15 +50,58 @@
         }
         return '';
     });
+    const imageKey = $derived.by(() => {
+        if (!image) return '';
+        return image
+            .replace(/\.[^.]+$/, '')
+            .replace(/-(?:thumb|full)$/i, '');
+    });
+    const cachedResolution = $derived(
+        cacheReady && imageKey
+            ? $imageResolutionCache[getImageResolutionCacheKey(slug, imageKey)]
+            : undefined
+    );
+    const preferredBaseImagePath = $derived.by(() => {
+        if (!imageKey) return baseImagePath;
+        if (cachedResolution === 'full') return `/toys/${slug}/${imageKey}-full`;
+        if (cachedResolution === 'standard') return `/toys/${slug}/${imageKey}`;
+        return baseImagePath;
+    });
+    const cardBaseImagePath = $derived(
+        imageKey ? `/toys/${slug}/${imageKey}-card` : ''
+    );
+    const useResponsiveCardSources = $derived(
+        !!cardBaseImagePath && !cachedResolution
+    );
     const toyPagePath = $derived(`/toys/${slug}`);
-    const loadingMode = $derived(index < 2 ? 'eager' : 'lazy');
-    const fetchPriority = $derived(index === 0 ? 'high' : 'auto');
-    const cardImageSizes = '(max-width: 351px) calc(100vw - 1.5rem), (max-width: 959px) calc((100vw - 3rem) / 2), (max-width: 1279px) calc((100vw - 5rem) / 3), 25rem';
+    const fetchPriority = $derived(index < 2 ? 'high' : 'auto');
+
+    function prefetchDetailImage() {
+        detailImagePrefetchRequested = true;
+        if (!imageKey || !selectedImageExtension || prefetchedDetailImage) return;
+
+        const image = new Image();
+        image.decoding = 'async';
+        image.src = `/toys/${slug}/${imageKey}.${selectedImageExtension}`;
+        prefetchedDetailImage = image;
+    }
+
+    function handleImageLoad(event: Event) {
+        imageLoaded = true;
+        const image = event.currentTarget as HTMLImageElement;
+        const pathname = new URL(image.currentSrc || image.src, window.location.href).pathname;
+        selectedImageExtension = pathname.split('.').pop()?.toLowerCase() || 'jpg';
+        if (detailImagePrefetchRequested) prefetchDetailImage();
+    }
 </script>
 
 <a 
     href={toyPagePath} 
     class="toy-card group"
+    data-sveltekit-preload-code="eager"
+    data-sveltekit-preload-data="hover"
+    onpointerenter={prefetchDetailImage}
+    onfocus={prefetchDetailImage}
     data-faction={faction || 'Unknown'}
     style:--card-accent={theme.accent}
     style:--card-accent-ink={theme.accentInk}
@@ -56,29 +112,34 @@
 >
     <div class="poster-frame">
         {#if !imageLoaded && (baseImagePath || imagePath)}
-            <div class="absolute inset-0 skeleton-pulse z-[1]"></div>
+            <div class="absolute inset-0 skeleton-pulse js-loading-only z-[1]"></div>
         {/if}
         
         {#if imageError}
             <div class="missing-image">
                 <span>{name}</span>
             </div>
-        {:else if baseImagePath}
+        {:else if preferredBaseImagePath}
             <picture>
-                <source srcset="{baseImagePath}.avif" type="image/avif" />
-                <source srcset="{baseImagePath}.webp" type="image/webp" />
-                <source srcset="{baseImagePath}.jpg" type="image/jpeg" />
+                {#if useResponsiveCardSources}
+                    <source srcset="{cardBaseImagePath}.avif 1x, {preferredBaseImagePath}.avif 2x" type="image/avif" />
+                    <source srcset="{cardBaseImagePath}.webp 1x, {preferredBaseImagePath}.webp 2x" type="image/webp" />
+                    <source srcset="{cardBaseImagePath}.jpg 1x, {preferredBaseImagePath}.jpg 2x" type="image/jpeg" />
+                {:else}
+                    <source srcset="{preferredBaseImagePath}.avif" type="image/avif" />
+                    <source srcset="{preferredBaseImagePath}.webp" type="image/webp" />
+                    <source srcset="{preferredBaseImagePath}.jpg" type="image/jpeg" />
+                {/if}
                 <img 
-                    src={imagePath}
+                    src="{preferredBaseImagePath}.jpg"
                     alt={name}
                     class="toy-image"
-                    sizes={cardImageSizes}
-                    loading={loadingMode}
+                    loading="eager"
                     fetchpriority={fetchPriority}
                     decoding="async"
                     width="480"
                     height="640"
-                    onload={() => imageLoaded = true}
+                    onload={handleImageLoad}
                     onerror={() => { imageError = true; imageLoaded = true; }}
                 />
             </picture>
@@ -87,13 +148,12 @@
                 src={imagePath}
                 alt={name}
                 class="toy-image"
-                sizes={cardImageSizes}
-                loading={loadingMode}
+                loading="eager"
                 fetchpriority={fetchPriority}
                 decoding="async"
                 width="480"
                 height="640"
-                onload={() => imageLoaded = true}
+                onload={handleImageLoad}
                 onerror={() => { imageError = true; imageLoaded = true; }}
             />
         {:else}
@@ -169,6 +229,7 @@
         position: absolute;
         inset: 0;
         z-index: 4;
+        box-shadow: inset 0 0 0 3px var(--card-accent);
         box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--card-accent), #050308 18%);
         pointer-events: none;
     }
@@ -284,6 +345,7 @@
         padding: 0.08rem 0.55rem 0;
         overflow: hidden;
         color: var(--card-panel-ink);
+        background: var(--card-surface);
         background: color-mix(in srgb, var(--card-surface), black 18%);
         border: 2px solid #050308;
         border-radius: 0.35rem;
@@ -341,6 +403,7 @@
         }
 
         .toy-card:hover .card-copy {
+            background: var(--card-accent);
             background: color-mix(in srgb, var(--card-accent), white 12%);
         }
 
@@ -415,6 +478,20 @@
         .skeleton-pulse {
             transition: none;
             animation: none;
+        }
+    }
+
+    @supports not (aspect-ratio: 1 / 1) {
+        .poster-frame {
+            height: 0;
+            padding-bottom: 133.333%;
+        }
+
+        .poster-frame picture,
+        .poster-frame > .missing-image,
+        .poster-frame > .skeleton-pulse {
+            position: absolute;
+            inset: 0;
         }
     }
 </style>

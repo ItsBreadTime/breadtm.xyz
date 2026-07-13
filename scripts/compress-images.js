@@ -23,10 +23,11 @@ const totalMemoryGB = getTotalMemoryGB();
 
 // Output formats configurations
 const FORMATS = ['webp', 'avif', 'jpg'];
-const COMPRESSION_SETTINGS_VERSION = 7;
+const COMPRESSION_SETTINGS_VERSION = 8;
 // Cards can approach 480 CSS pixels wide, so retain enough detail for 2x
 // displays instead of stretching the former 640px thumbnail output.
 const THUMBNAIL_MAX_DIMENSION = 960;
+const CARD_IMAGE_WIDTH = 480;
 const OUTPUT_SIZES = [
   {
     suffix: '',
@@ -53,32 +54,41 @@ const OUTPUT_SIZES = [
         fit: sharp.fit.inside
       };
     }
+  },
+  {
+    // A network-light 1x card candidate. The existing thumbnail remains the
+    // higher-density candidate, so high-DPI displays keep their current detail.
+    suffix: '-card',
+    resize: () => ({
+      width: CARD_IMAGE_WIDTH
+    })
   }
 ];
 
 const getEncodingOptions = (suffix) => {
   const isThumbnail = suffix === '-thumb';
   const isFullResolution = suffix === '-full';
+  const isCard = suffix === '-card';
 
   return {
     webp: {
-      quality: isThumbnail ? 78 : isFullResolution ? 62 : 65,
-      effort: isThumbnail ? 4 : 3,
+      quality: isCard ? 75 : isThumbnail ? 78 : isFullResolution ? 62 : 65,
+      effort: isThumbnail || isCard ? 4 : 3,
       smartSubsample: true,
       preset: 'photo'
     },
     avif: {
-      quality: isThumbnail ? 60 : 45,
+      quality: isCard ? 55 : isThumbnail ? 60 : 45,
       // Effort 2 is dramatically faster than the default/high-effort modes;
       // quality controls fidelity, while effort mostly searches for fewer bytes.
-      effort: isThumbnail ? 3 : 2,
+      effort: isThumbnail || isCard ? 3 : 2,
       chromaSubsampling: '4:4:4'
     },
     jpeg: {
-      quality: isThumbnail ? 80 : 68,
+      quality: isCard ? 78 : isThumbnail ? 80 : 68,
       mozjpeg: true,
       progressive: true,
-      chromaSubsampling: isThumbnail ? '4:4:4' : '4:2:0'
+      chromaSubsampling: isThumbnail || isCard ? '4:4:4' : '4:2:0'
     }
   };
 };

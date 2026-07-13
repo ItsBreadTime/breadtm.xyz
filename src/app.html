@@ -8,11 +8,36 @@
 		<meta name="description" content="Hi! I'm Bread and this is my website I guess...">
 		%sveltekit.head%
 		<link rel="preload" href="/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
-		<link rel="preload" href="/fonts/Inter-Italic.woff2" as="font" type="font/woff2" crossorigin>
 		<noscript>
 			<style>
-				.jsreq {
+				.jsreq,
+				.js-loading-only {
 					display: none;
+				}
+
+				.no-js-only {
+					display: flex !important;
+				}
+
+				.search-field input {
+					flex-basis: 0 !important;
+					width: 0 !important;
+					min-width: 0 !important;
+					border-radius: 0.45rem 0 0 0.45rem !important;
+				}
+
+				@media (max-width: 40rem) {
+					.search-row {
+						grid-template-columns: minmax(0, 1fr) !important;
+					}
+				}
+
+				.image-layer-thumbnail {
+					opacity: 0 !important;
+				}
+
+				.image-layer-standard {
+					opacity: 1 !important;
 				}
 			</style>
 		</noscript>

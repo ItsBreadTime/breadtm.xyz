@@ -10,7 +10,12 @@
             >💬 Contacts & Accounts
             <div class="text-yellow-800 font-medium text-lg jsreq">
                 Hint: Click to copy username
-            </div></Title
+            </div>
+            <noscript>
+                <div class="text-yellow-800 font-medium text-base md:text-lg">
+                    Hint: Select a username, then use your browser or device's copy command
+                </div>
+            </noscript></Title
         >
         <div
             class="grid grid-cols-1 lg:grid-cols-6 lg:border-y-4 lg:border-l-4 border-4 lg:border-0 border-black border-t-1"
