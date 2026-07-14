@@ -31,6 +31,7 @@
                     description={toy.description}
                     year={toy.year}
                     hasImages={!!images[toy.slug]?.length}
+                    imageFiles={images[toy.slug] || []}
                     {index}
                 />
             </div>

@@ -4,6 +4,8 @@ import {
     FULL_RESOLUTION_IDLE_DELAY,
     getFullResolutionSources,
     getPictureSources,
+    getToyCollectionPrefetchSources,
+    getToyDetailPrefetchPaths,
     shouldQueueFullResolution
 } from './imageLoading.ts';
 
@@ -47,6 +49,90 @@ test('builds the full-resolution source set in preferred format order', () => {
             fallback: 'main-full.jpg',
             preferred: 'main-full.avif'
         }
+    );
+});
+
+test('prefetches the detail lead image and every thumbnail rail image in the browser-selected format', () => {
+    assert.deepEqual(
+        getToyDetailPrefetchPaths(
+            'optimus',
+            [
+                '2-full.avif',
+                '2-thumb.jpg',
+                'main-card.webp',
+                'main-thumb.avif',
+                '2.webp',
+                'main.webp',
+                '2-thumb.webp',
+                'main-thumb.webp',
+                '2-card.webp'
+            ],
+            'main-thumb.avif',
+            'webp'
+        ),
+        [
+            '/toys/optimus/main.webp',
+            '/toys/optimus/main-thumb.webp',
+            '/toys/optimus/2-thumb.webp'
+        ]
+    );
+});
+
+test('falls back to the best available format while preserving numeric rail order', () => {
+    assert.deepEqual(
+        getToyDetailPrefetchPaths(
+            'megatron',
+            ['10-thumb.jpg', '2-thumb.avif', '1.jpg', '1-thumb.webp', '1.avif'],
+            '1-thumb.webp',
+            'webp'
+        ),
+        [
+            '/toys/megatron/1.avif',
+            '/toys/megatron/1-thumb.webp',
+            '/toys/megatron/2-thumb.avif',
+            '/toys/megatron/10-thumb.jpg'
+        ]
+    );
+});
+
+test('matches the collection card and thumbnail density candidates', () => {
+    const toys = [
+        { slug: 'optimus', thumbnailImage: 'main-thumb.avif' },
+        { slug: 'megatron', thumbnailImage: '1-thumb.avif' }
+    ];
+    const imageFilesMap = {
+        optimus: ['main-card.avif', 'main-thumb.avif', 'main.avif'],
+        megatron: ['1-card.avif', '1-thumb.avif', '1.avif']
+    };
+
+    assert.deepEqual(
+        getToyCollectionPrefetchSources(toys, imageFilesMap),
+        [
+            {
+                src: '/toys/optimus/main-thumb.avif',
+                srcset: '/toys/optimus/main-card.avif 1x, /toys/optimus/main-thumb.avif 2x'
+            },
+            {
+                src: '/toys/megatron/1-thumb.avif',
+                srcset: '/toys/megatron/1-card.avif 1x, /toys/megatron/1-thumb.avif 2x'
+            }
+        ]
+    );
+});
+
+test('falls back to an available collection image without inventing a request', () => {
+    assert.deepEqual(
+        getToyCollectionPrefetchSources(
+            [
+                { slug: 'smolhaj', thumbnailImage: 'main-thumb.webp' },
+                { slug: 'missing', thumbnailImage: 'main-thumb.avif' }
+            ],
+            {
+                smolhaj: ['main-thumb.webp'],
+                missing: []
+            }
+        ),
+        [{ src: '/toys/smolhaj/main-thumb.webp', srcset: undefined }]
     );
 });
 

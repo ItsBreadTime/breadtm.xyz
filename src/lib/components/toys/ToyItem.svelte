@@ -1,10 +1,13 @@
 <script lang="ts">
+    import { preloadData } from '$app/navigation';
     import { onMount } from 'svelte';
     import { getFactionTheme } from '$lib/toys/factions';
     import {
         imageResolutionCache,
-        getImageResolutionCacheKey
+        getImageResolutionCacheKey,
+        markImageResolutionCached
     } from '$lib/toys/fullResolutionCache';
+    import { getToyDetailPrefetchPaths } from '$lib/toys/imageLoading';
     import Factions from './Factions.svelte';
 
     let {
@@ -16,6 +19,7 @@
         description = undefined, 
         year = undefined, 
         hasImages = false,
+        imageFiles = [],
         index = 0
     }: {
         name: string;
@@ -26,6 +30,7 @@
         description?: string;
         year?: string;
         hasImages?: boolean;
+        imageFiles?: string[];
         index?: number;
     } = $props();
     
@@ -33,8 +38,10 @@
     let imageError = $state(false);
     let cacheReady = $state(false);
     let selectedImageExtension = '';
-    let detailImagePrefetchRequested = false;
-    let prefetchedDetailImage: HTMLImageElement | null = null;
+    let detailPrefetchRequested = false;
+    let pagePrefetchRequested = false;
+    let prefetchedDetailImages: HTMLImageElement[] = [];
+    let cardImageElement = $state<HTMLImageElement>();
     let theme = $derived(getFactionTheme(faction));
 
     onMount(() => {
@@ -76,14 +83,50 @@
     const toyPagePath = $derived(`/toys/${slug}`);
     const fetchPriority = $derived(index < 2 ? 'high' : 'auto');
 
-    function prefetchDetailImage() {
-        detailImagePrefetchRequested = true;
-        if (!imageKey || !selectedImageExtension || prefetchedDetailImage) return;
+    function prefetchToyDetail() {
+        detailPrefetchRequested = true;
 
-        const image = new Image();
-        image.decoding = 'async';
-        image.src = `/toys/${slug}/${imageKey}.${selectedImageExtension}`;
-        prefetchedDetailImage = image;
+        if (!pagePrefetchRequested) {
+            pagePrefetchRequested = true;
+            void preloadData(toyPagePath).catch(() => {
+                pagePrefetchRequested = false;
+            });
+        }
+
+        const currentCardSource = cardImageElement?.currentSrc || cardImageElement?.src || image || '';
+        const preferredExtension = selectedImageExtension
+            || currentCardSource.split('.').pop()?.toLowerCase()
+            || '';
+        if (!preferredExtension || prefetchedDetailImages.length > 0) return;
+
+        prefetchedDetailImages = getToyDetailPrefetchPaths(
+            slug,
+            imageFiles,
+            image,
+            preferredExtension
+        ).map((path) => {
+            const prefetchedImage = new Image();
+            prefetchedImage.decoding = 'async';
+            prefetchedImage.fetchPriority = 'low';
+
+            const isStandardMainImage = imageKey
+                && path.startsWith(`/toys/${slug}/${imageKey}.`);
+            if (isStandardMainImage) {
+                prefetchedImage.onload = () => {
+                    void prefetchedImage.decode()
+                        .catch(() => undefined)
+                        .then(() => {
+                            markImageResolutionCached(
+                                getImageResolutionCacheKey(slug, imageKey),
+                                'standard'
+                            );
+                        });
+                };
+            }
+
+            prefetchedImage.src = path;
+            return prefetchedImage;
+        });
     }
 
     function handleImageLoad(event: Event) {
@@ -91,7 +134,7 @@
         const image = event.currentTarget as HTMLImageElement;
         const pathname = new URL(image.currentSrc || image.src, window.location.href).pathname;
         selectedImageExtension = pathname.split('.').pop()?.toLowerCase() || 'jpg';
-        if (detailImagePrefetchRequested) prefetchDetailImage();
+        if (detailPrefetchRequested) prefetchToyDetail();
     }
 </script>
 
@@ -100,8 +143,8 @@
     class="toy-card group"
     data-sveltekit-preload-code="eager"
     data-sveltekit-preload-data="hover"
-    onpointerenter={prefetchDetailImage}
-    onfocus={prefetchDetailImage}
+    onmousemove={prefetchToyDetail}
+    onfocus={prefetchToyDetail}
     data-faction={faction || 'Unknown'}
     style:--card-accent={theme.accent}
     style:--card-accent-ink={theme.accentInk}
@@ -131,6 +174,7 @@
                     <source srcset="{preferredBaseImagePath}.jpg" type="image/jpeg" />
                 {/if}
                 <img 
+                    bind:this={cardImageElement}
                     src="{preferredBaseImagePath}.jpg"
                     alt={name}
                     class="toy-image"
@@ -145,6 +189,7 @@
             </picture>
         {:else if imagePath}
             <img 
+                bind:this={cardImageElement}
                 src={imagePath}
                 alt={name}
                 class="toy-image"
