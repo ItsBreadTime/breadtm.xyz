@@ -1,6 +1,6 @@
 <script>
     let { service = '', name = '', url = '' } = $props();
-    import { copy } from '../../lib/utils/clipboard';
+    import { copy } from '$lib/utils/clipboard';
 </script>
 <span
     class="block min-w-0 text-lg lg:text-xl p-3 sm:p-5 lg:p-8 bg-violet-600 text-gray-100 h-full font-semibold border-b-4 md:border-b-0 border-r-4 border-black"

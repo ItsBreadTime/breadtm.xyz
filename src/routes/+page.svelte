@@ -1,8 +1,8 @@
 <script>
-  import Nav from "./sections/Nav.svelte";
-  import Header from "./sections/Header.svelte";
-  import StuffILike from "./sections/StuffILike.svelte";
-  import Contact from "./sections/Contact.svelte";
+  import Nav from '$lib/components/site/Nav.svelte';
+  import Header from '$lib/components/home/sections/Header.svelte';
+  import StuffILike from '$lib/components/home/sections/StuffILike.svelte';
+  import Contact from '$lib/components/home/sections/Contact.svelte';
 </script>
 
 <Nav />

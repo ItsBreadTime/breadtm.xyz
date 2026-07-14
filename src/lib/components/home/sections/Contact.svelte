@@ -1,7 +1,7 @@
 <script>
-    import Contact from "../components/Contact.svelte";
-    import ContactLarge from "../components/ContactLarge.svelte";
-    import Title from "../components/Title.svelte";
+    import Contact from '../Contact.svelte';
+    import ContactLarge from '../ContactLarge.svelte';
+    import Title from '../Title.svelte';
 </script>
 
 <div class="py-4" id="contacts">

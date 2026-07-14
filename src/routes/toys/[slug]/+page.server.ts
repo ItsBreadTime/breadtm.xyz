@@ -8,7 +8,7 @@ const FORMAT_PRIORITY = ['avif', 'webp', 'jpg', 'jpeg', 'png'];
 
 // Get metadata by importing markdown files
 // This works at build time with Vite
-const modules = import.meta.glob('../*.md', { eager: true });
+const modules = import.meta.glob('../../../content/toys/*.md', { eager: true });
 
 // Public assets are already copied by Vite. Use a generated filename manifest
 // so merely discovering them does not import and duplicate every image.
@@ -52,7 +52,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
   
   try {
     // Look up toy metadata from the map
-    const metadata = modules[`../${slug}.md`];
+    const metadata = modules[`../../../content/toys/${slug}.md`];
     
     if (!metadata) {
       error(404, `Not found: /toys/${slug}`);

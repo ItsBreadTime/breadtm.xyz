@@ -1,6 +1,6 @@
 <script>
-    import Title from "../components/Title.svelte";
-    import Time from "../components/Time.svelte";
+    import Title from '../Title.svelte';
+    import Time from '$lib/components/site/Time.svelte';
 </script>
 
 <div

@@ -1,5 +1,5 @@
 ---
-name: "Smolhaj"
+name: 'Smolhaj'
 faction: "IKEAtron"
 description: "The smol blue shark plushy from IKEA"
 year: "2023"

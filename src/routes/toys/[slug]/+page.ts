@@ -9,8 +9,8 @@ export const load: PageLoad = async ({ params, data }) => {
     const serverData = data;
     
     // Dynamically import the markdown component
-    const modules = import.meta.glob('../*.md', { eager: true });
-    const moduleKey = `../${slug}.md`;
+    const modules = import.meta.glob('../../../content/toys/*.md', { eager: true });
+    const moduleKey = `../../../content/toys/${slug}.md`;
     const module = modules[moduleKey];
     
     if (!module) {

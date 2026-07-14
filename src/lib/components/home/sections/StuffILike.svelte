@@ -1,5 +1,5 @@
 <script>
-    import Title from "../components/Title.svelte";
+    import Title from '../Title.svelte';
 </script>
 
 <div class="md:py-4 relative overflow-hidden" id="stuffilike">

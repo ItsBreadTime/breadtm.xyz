@@ -1,6 +1,6 @@
 <script>
     import { page } from '$app/stores';
-    import Nav from './sections/Nav.svelte';
+    import Nav from '$lib/components/site/Nav.svelte';
 
     let status = $derived($page.status ?? 500);
     let message = $derived($page.error?.message ?? 'Unknown malfunction');

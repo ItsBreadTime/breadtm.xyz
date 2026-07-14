@@ -7,7 +7,7 @@
     } from '$lib/toys/fullResolutionCache';
     import Factions from './Factions.svelte';
 
-    let { 
+    let {
         name, 
         image = undefined, 
         slug, 

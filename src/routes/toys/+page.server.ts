@@ -20,7 +20,7 @@ interface ToyData {
 const FORMAT_PRIORITY = ['avif', 'webp', 'jpg', 'jpeg', 'png'];
 
 // Use Vite's glob import feature to import all markdown files at build time
-const modules = import.meta.glob('./*.md', { eager: true });
+const modules = import.meta.glob('../../content/toys/*.md', { eager: true });
 
 // Public assets are already copied by Vite. Use a generated filename manifest
 // so merely discovering them does not import and duplicate every image.
@@ -80,8 +80,7 @@ export async function load({ url }) {
         // Create the toy data objects with precompiled descriptions
         const moduleEntries = Object.entries(modules);
         const toys = moduleEntries.map(([path, module]) => {
-            // Extract slug from path (e.g., "./beeghaj.md" -> "beeghaj")
-            const slug = path.replace('./', '').replace('.md', '');
+            const slug = path.split('/').pop()?.replace('.md', '') || '';
             
             // Extract metadata from the module
             const mod = module as { metadata?: Record<string, any> };

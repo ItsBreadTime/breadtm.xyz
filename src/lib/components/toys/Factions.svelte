@@ -2,7 +2,7 @@
     import { getFactionTheme } from '$lib/toys/factions';
 
     let { faction = '' }: { faction?: string } = $props();
-    let theme = $derived(getFactionTheme(faction));
+    const theme = $derived(getFactionTheme(faction));
 </script>
 
 <span

@@ -6,7 +6,7 @@ import { compile } from 'mdsvex';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const TOYS_DIR = join(__dirname, '../src/routes/toys');
+const TOYS_DIR = join(__dirname, '../src/content/toys');
 const OUTPUT_FILE = join(__dirname, '../src/lib/precompiled-descriptions.json');
 const TOY_ASSETS_DIR = join(__dirname, '../static/toys');
 const ASSET_MANIFEST_FILE = join(__dirname, '../src/lib/toy-assets.json');

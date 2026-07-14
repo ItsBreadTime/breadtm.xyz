@@ -1,6 +1,6 @@
 <script>
-    let { image = "", url = "", title = "", description = "", username = "" } = $props();
-    import { copy } from '../../lib/utils/clipboard';
+    let { image = '', url = '', title = '', description = '', username = '' } = $props();
+    import { copy } from '$lib/utils/clipboard';
 </script>
 
 <div class="bg-purple-600 iconbg flex h-full items-center justify-center lg:border-r-4 lg:border-b-0 border-black">

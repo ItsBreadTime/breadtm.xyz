@@ -1,6 +1,6 @@
 <script>
-    import Project from "../components/Project.svelte";
-    import Title from "../components/Title.svelte";
+    import Project from '../Project.svelte';
+    import Title from '../Title.svelte';
 </script>
 
 <div class="py-8 relative overflow-hidden" id="projects">
