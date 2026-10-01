@@ -12,9 +12,10 @@ test('renders progressive image layers without an initial full-resolution reques
     });
 
     try {
-        const [{ default: ProgressiveToyImage }, { default: ToyLightbox }, { render }] = await Promise.all([
+        const [{ default: ProgressiveToyImage }, { default: ToyLightbox }, { ZoomPan }, { render }] = await Promise.all([
             server.ssrLoadModule('/src/lib/components/toys/ProgressiveToyImage.svelte'),
             server.ssrLoadModule('/src/lib/components/toys/ToyLightbox.svelte'),
+            server.ssrLoadModule('/src/lib/toys/zoomPan.svelte.ts'),
             server.ssrLoadModule('svelte/server')
         ]);
 
@@ -45,40 +46,22 @@ test('renders progressive image layers without an initial full-resolution reques
         assert.match(progressive, /loading="eager" fetchpriority="auto" decoding="async"/);
         assert.doesNotMatch(progressive, /main-full/);
 
+        const zoom = new ZoomPan({ onswipe: () => {} });
         const lightboxProps = {
             toyName: 'Test Toy',
             imageKeys: ['main'],
             imageSets: { main: ['main.avif', 'main.webp', 'main.jpg'] },
             activeIndex: 0,
-            zoomScale: 1,
-            zoomOffsetX: 0,
-            zoomOffsetY: 0,
-            minZoom: 1,
-            maxZoom: 6,
+            zoom,
             fullResolutionRequested: false,
             usesFullResolution: false,
             getImagePath,
             getThumbnailSet: () => ['main-thumb.avif', 'main-thumb.webp', 'main-thumb.jpg'],
             getDownloadPath: () => '/fullres/toys/test/main.jpg',
             onclose: () => {},
-            onbackdropclick: () => {},
             onprevious: () => {},
             onnext: () => {},
-            onselect: () => {},
-            onzoomout: () => {},
-            onzoomin: () => {},
-            onresetzoom: () => {},
-            ondoubleclick: () => {},
-            onwheel: () => {},
-            ontouchstart: () => {},
-            ontouchmove: () => {},
-            ontouchend: () => {},
-            onpointerdown: () => {},
-            onpointermove: () => {},
-            onpointerend: () => {},
-            onstandardresolutionload: () => {},
-            onfullresolutionload: () => {},
-            onfullresolutionerror: () => {}
+            onselect: () => {}
         };
 
         const lightboxBeforeZoom = render(ToyLightbox, { props: lightboxProps }).body;
@@ -86,7 +69,7 @@ test('renders progressive image layers without an initial full-resolution reques
         assert.doesNotMatch(lightboxBeforeZoom, /main-full/);
 
         const lightboxAfterZoom = render(ToyLightbox, {
-            props: { ...lightboxProps, zoomScale: 2, fullResolutionRequested: true }
+            props: { ...lightboxProps, fullResolutionRequested: true }
         }).body;
         assert.match(lightboxAfterZoom, /main-full\.avif/);
         assert.match(lightboxAfterZoom, /main-full\.webp/);

@@ -11,6 +11,7 @@
         thumbnailImageSet: string[];
         standardImageSet: string[];
         fullResolutionBase?: string;
+        placeholder?: string;
         cachedResolution?: CachedImageResolution;
         standardReady?: boolean;
         getImagePath: (filename: string) => string;
@@ -25,6 +26,7 @@
         thumbnailImageSet,
         standardImageSet,
         fullResolutionBase = '',
+        placeholder,
         cachedResolution,
         standardReady = false,
         getImagePath,
@@ -51,6 +53,11 @@
         onkeydown={onactivate}
         aria-label="Enlarge image {imageIndex + 1}"
     >
+        {#if placeholder}
+            <img class="stage-placeholder" src={placeholder} alt="" aria-hidden="true" />
+
+        {/if}
+
         <picture class="image-layer image-layer-thumbnail">
             {#if thumbnailSources.avif}
                 <source srcset={getImagePath(thumbnailSources.avif)} type="image/avif" />
@@ -64,7 +71,7 @@
             <img
                 src={getImagePath(thumbnailSources.preferred || thumbnailSources.fallback)}
                 alt="{toyName} - view {imageIndex + 1}"
-                class="w-full h-full object-contain bg-black/60"
+                class="w-full h-full object-contain"
                 sizes="(max-width: 1023px) calc(100vw - 2rem), min(48vw, 42rem)"
                 loading="eager"
                 fetchpriority="high"
@@ -135,6 +142,15 @@
         height: 100%;
         object-fit: contain;
         border-radius: inherit;
+    }
+
+    /* The tiny preview upscaled with the photo's own contain fit: soft from
+       the stretch alone, and it never spills past the photo's edges into the
+       letterbox, whatever the photo's orientation. */
+    .stage-placeholder {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
     }
 
     .image-layer {

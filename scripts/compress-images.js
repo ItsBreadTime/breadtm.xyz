@@ -17,6 +17,7 @@ const stateFile = path.join(outputBaseDir, '.compression-state.json');
 // Settings
 const VERBOSE = process.argv.includes('--verbose') || process.argv.includes('-v');
 const FORCE = process.argv.includes('--force') || process.argv.includes('-f');
+const PRUNE = process.argv.includes('--prune');
 
 const getTotalMemoryGB = () => os.totalmem() / (1024 ** 3);
 const totalMemoryGB = getTotalMemoryGB();
@@ -130,9 +131,7 @@ async function scanDirectory(sourceDir, targetDir) {
       const targetPath = path.join(targetDir, item.name);
       
       if (item.isDirectory()) {
-        await fs.mkdir(targetPath, { recursive: true }).catch(err => {
-          if (err.code !== 'EEXIST') console.error(`Error creating directory ${targetPath}:`, err);
-        });
+        // Output directories are created on first write, so folders without photos leave nothing behind.
         tasks.push(...(await scanDirectory(sourcePath, targetPath)));
       } else if (item.isFile() && /\.(jpe?g|png)$/i.test(item.name)) {
         tasks.push({ sourcePath, targetDir, name: item.name });
@@ -186,6 +185,7 @@ async function processImage(task, state) {
 
   if (VERBOSE) console.log(`Processing ${relPath}...`);
 
+  await fs.mkdir(targetDir, { recursive: true });
   const metadata = await sharp(sourcePath).metadata();
   
   // EXIF orientations >= 5 swap width and height
@@ -239,6 +239,43 @@ async function processImage(task, state) {
   return 'processed';
 }
 
+const OUTPUT_SUFFIX = /-(?:thumb|card|full)$/;
+
+// Derivatives whose source photo was renamed or deleted would otherwise stay
+// in static/toys, get indexed by the precompile manifest and show in the gallery.
+async function findOrphans(tasks) {
+  const sourcesByDir = new Map();
+  for (const { targetDir, name } of tasks) {
+    if (!sourcesByDir.has(targetDir)) sourcesByDir.set(targetDir, new Set());
+    sourcesByDir.get(targetDir).add(path.basename(name, path.extname(name)));
+  }
+  const orphans = [];
+  for (const [targetDir, keys] of sourcesByDir) {
+    const files = await fs.readdir(targetDir).catch(() => []);
+    for (const file of files) {
+      const ext = path.extname(file).slice(1).toLowerCase();
+      if (!FORMATS.includes(ext)) continue;
+      if (!keys.has(path.basename(file, path.extname(file)).replace(OUTPUT_SUFFIX, ''))) orphans.push(path.join(targetDir, file));
+    }
+  }
+  return orphans;
+}
+
+async function reportOrphans(tasks, state) {
+  const orphans = await findOrphans(tasks);
+  const sources = new Set(tasks.map(({ sourcePath }) => path.relative(fullresDir, sourcePath)));
+  for (const key of Object.keys(state)) if (!sources.has(key)) delete state[key];
+  if (orphans.length === 0) return;
+  if (!PRUNE) {
+    console.log(`\n⚠️  ${orphans.length} image(s) in static/toys no longer have a source photo:`);
+    for (const file of orphans) console.log(`   ${path.relative(rootDir, file)}`);
+    console.log('   Run with --prune to delete them.');
+    return;
+  }
+  await Promise.all(orphans.map((file) => fs.unlink(file)));
+  console.log(`\n🧹 Pruned ${orphans.length} image(s) with no source photo.`);
+}
+
 async function main() {
   const startTime = Date.now();
   console.log(`System has ${totalMemoryGB.toFixed(2)}GB total memory.`);
@@ -252,6 +289,9 @@ async function main() {
     console.log('No images found in fullres directory.');
     return;
   }
+
+  // Workers pop from `files`, so orphans are resolved against a copy first.
+  await reportOrphans([...files], state);
 
   let processed = 0, skipped = 0, failed = 0, completed = 0;
   const totalFiles = files.length;

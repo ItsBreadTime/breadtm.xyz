@@ -11,26 +11,28 @@
     import Factions from './Factions.svelte';
 
     let {
+        returnHref = "/toys",
         name, 
         image = undefined, 
         slug, 
         faction = undefined, 
-        series = undefined, 
         description = undefined, 
         year = undefined, 
         hasImages = false,
         imageFiles = [],
+        placeholder = undefined,
         index = 0
     }: {
+        returnHref?: string;
         name: string;
         image?: string;
         slug: string;
         faction?: string;
-        series?: string;
         description?: string;
         year?: string;
         hasImages?: boolean;
         imageFiles?: string[];
+        placeholder?: string;
         index?: number;
     } = $props();
     
@@ -80,7 +82,7 @@
     const useResponsiveCardSources = $derived(
         !!cardBaseImagePath && !cachedResolution
     );
-    const toyPagePath = $derived(`/toys/${slug}`);
+    const toyPagePath = $derived(`/toys/${slug}?from=${encodeURIComponent(returnHref + "#toy-" + slug)}`);
     const fetchPriority = $derived(index < 2 ? 'high' : 'auto');
 
     function prefetchToyDetail() {
@@ -152,33 +154,52 @@
     style:--card-panel={theme.panel}
     style:--card-panel-ink={theme.panelInk}
     style:--card-shadow={theme.shadow}
+    style:--deal-index={Math.min(index, 11)}
 >
     <div class="poster-frame">
-        {#if !imageLoaded && (baseImagePath || imagePath)}
-            <div class="absolute inset-0 skeleton-pulse js-loading-only z-[1]"></div>
-        {/if}
-        
-        {#if imageError}
-            <div class="missing-image">
-                <span>{name}</span>
-            </div>
-        {:else if preferredBaseImagePath}
-            <picture>
-                {#if useResponsiveCardSources}
-                    <source srcset="{cardBaseImagePath}.avif 1x, {preferredBaseImagePath}.avif 2x" type="image/avif" />
-                    <source srcset="{cardBaseImagePath}.webp 1x, {preferredBaseImagePath}.webp 2x" type="image/webp" />
-                    <source srcset="{cardBaseImagePath}.jpg 1x, {preferredBaseImagePath}.jpg 2x" type="image/jpeg" />
-                {:else}
-                    <source srcset="{preferredBaseImagePath}.avif" type="image/avif" />
-                    <source srcset="{preferredBaseImagePath}.webp" type="image/webp" />
-                    <source srcset="{preferredBaseImagePath}.jpg" type="image/jpeg" />
-                {/if}
-                <img 
+        <div class="poster-inner">
+            {#if placeholder && !imageError}
+                <div class="image-placeholder" style:background-image="url({placeholder})" aria-hidden="true"></div>
+            {:else if !imageLoaded && (baseImagePath || imagePath)}
+                <div class="absolute inset-0 skeleton-pulse js-loading-only z-[1]"></div>
+            {/if}
+
+            {#if imageError}
+                <div class="missing-image">
+                    <span>{name}</span>
+                </div>
+            {:else if preferredBaseImagePath}
+                <picture>
+                    {#if useResponsiveCardSources}
+                        <source srcset="{cardBaseImagePath}.avif 1x, {preferredBaseImagePath}.avif 2x" type="image/avif" />
+                        <source srcset="{cardBaseImagePath}.webp 1x, {preferredBaseImagePath}.webp 2x" type="image/webp" />
+                        <source srcset="{cardBaseImagePath}.jpg 1x, {preferredBaseImagePath}.jpg 2x" type="image/jpeg" />
+                    {:else}
+                        <source srcset="{preferredBaseImagePath}.avif" type="image/avif" />
+                        <source srcset="{preferredBaseImagePath}.webp" type="image/webp" />
+                        <source srcset="{preferredBaseImagePath}.jpg" type="image/jpeg" />
+                    {/if}
+                    <img
+                        bind:this={cardImageElement}
+                        src="{preferredBaseImagePath}.jpg"
+                        alt={name}
+                        class="toy-image"
+                        loading={index < 4 ? 'eager' : 'lazy'}
+                        fetchpriority={fetchPriority}
+                        decoding="async"
+                        width="480"
+                        height="640"
+                        onload={handleImageLoad}
+                        onerror={() => { imageError = true; imageLoaded = true; }}
+                    />
+                </picture>
+            {:else if imagePath}
+                <img
                     bind:this={cardImageElement}
-                    src="{preferredBaseImagePath}.jpg"
+                    src={imagePath}
                     alt={name}
                     class="toy-image"
-                    loading="eager"
+                    loading={index < 4 ? 'eager' : 'lazy'}
                     fetchpriority={fetchPriority}
                     decoding="async"
                     width="480"
@@ -186,28 +207,12 @@
                     onload={handleImageLoad}
                     onerror={() => { imageError = true; imageLoaded = true; }}
                 />
-            </picture>
-        {:else if imagePath}
-            <img 
-                bind:this={cardImageElement}
-                src={imagePath}
-                alt={name}
-                class="toy-image"
-                loading="eager"
-                fetchpriority={fetchPriority}
-                decoding="async"
-                width="480"
-                height="640"
-                onload={handleImageLoad}
-                onerror={() => { imageError = true; imageLoaded = true; }}
-            />
-        {:else}
-            <div class="missing-image">
-                <span>{name}</span>
-            </div>
-        {/if}
-        
-        <div class="card-edge"></div>
+            {:else}
+                <div class="missing-image">
+                    <span>{name}</span>
+                </div>
+            {/if}
+        </div>
     </div>
 
     <div class="card-copy">
@@ -220,10 +225,7 @@
                 <Factions faction={faction} />
             {/if}
             {#if year}
-                <span class="meta-chip">{year}</span>
-            {/if}
-            {#if series}
-                <span class="meta-chip">{series}</span>
+                <span class="meta-line">{year}</span>
             {/if}
         </div>
 
@@ -238,68 +240,108 @@
 </a>
 
 <style>
+    /* The card is an ink plate: its background is the outline and the row
+       separators; a chamfer clips the top-right corner of the whole card. */
     .toy-card {
         display: grid;
         grid-template-rows: auto auto 1fr;
         height: 100%;
-        overflow: hidden;
+        padding: var(--toys-bw-xl, 5px);
         color: white;
-        background: var(--card-surface, #09070e);
-        border: var(--site-outline-width, 4px) solid var(--site-outline, #050308);
-        border-radius: var(--site-radius, 0.65rem);
-        box-shadow: 0 0.4rem 0 var(--site-outline, #050308);
-        transform: translateY(0);
+        background: var(--toys-ink, #050308);
+        clip-path: polygon(
+            0 0,
+            calc(100% - var(--toys-cut, 14px)) 0,
+            100% var(--toys-cut, 14px),
+            100% 100%,
+            0 100%
+        );
+        filter: drop-shadow(var(--toys-shadow-md, 5px 5px 0 #050308));
+        transform: translate(0, 0);
+        /* Held-frame motion: hover and press land in two stepped frames. */
         transition:
-            transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-            border-color 180ms ease,
-            box-shadow 180ms ease;
+            transform 140ms steps(2, jump-end),
+            background-color 140ms steps(1, jump-end),
+            filter 140ms steps(2, jump-end);
+        /* Cards deal onto the shelf one after another (capped stagger). */
+        animation: card-deal 300ms steps(3, jump-end) backwards;
+        animation-delay: calc(var(--deal-index, 0) * 45ms);
+    }
+
+    @keyframes card-deal {
+        0% {
+            opacity: 0;
+            transform: translate(0, 0.9rem) rotate(-1.5deg) scale(0.94);
+        }
+        60% {
+            opacity: 1;
+            transform: translate(0, -0.2rem) rotate(0.5deg) scale(1.01);
+        }
+        100% {
+            opacity: 1;
+            transform: none;
+        }
     }
 
     .toy-card:focus-visible {
-        outline: 3px solid var(--card-accent);
-        outline-offset: 4px;
-        border-color: var(--card-accent);
+        outline: none;
+        background: var(--card-accent);
     }
 
     .poster-frame {
         position: relative;
         aspect-ratio: 3 / 4;
         overflow: hidden;
-        border-radius: calc(var(--site-radius, 0.65rem) - 3px) calc(var(--site-radius, 0.65rem) - 3px) 0 0;
+        /* The frame's own ink doubles as the keyline around the photo. */
         background: #060409;
+        /* The inner chamfer is cut - border*(2 - √2), not cut - border: at
+           45°, insetting by the border width alone leaves the diagonal band
+           ~30% thinner than the straight edges. */
+        clip-path: polygon(
+            0 0,
+            calc(100% - max(var(--toys-cut, 14px) - var(--toys-bw-xl, 5px) * 0.5858, 0px)) 0,
+            100% max(var(--toys-cut, 14px) - var(--toys-bw-xl, 5px) * 0.5858, 0px),
+            100% 100%,
+            0 100%
+        );
     }
 
-    .poster-frame::before {
-        content: "";
+    /* Ink keyline: a resting inner stroke that inks the photo's edges into the
+       frame, chamfer included. The plate is inset by the keyline width and its
+       cut shrinks by another keyline*(2 - √2), keeping the diagonal band as
+       wide as the straight edges — a rectangular inset stroke (box-shadow)
+       can't follow the chamfer, so the band is drawn by the frame's ink. */
+    .poster-inner {
         position: absolute;
-        inset: 0;
-        z-index: 4;
-        box-shadow: inset 0 0 0 3px var(--card-accent);
-        box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--card-accent), #050308 18%);
-        pointer-events: none;
+        inset: var(--toys-bw-md, 3px);
+        overflow: hidden;
+        /* Faction-tinted halftone behind the photo: covers the gap between the
+           image's load event and its first paint (big AVIFs decode late). */
+        background-color: color-mix(in srgb, var(--card-accent, #d58bb0) 35%, var(--card-surface, #09070e));
+        background-image: var(--toys-halftone);
+        background-size: var(--toys-halftone-size, 8px) var(--toys-halftone-size, 8px);
+        clip-path: polygon(
+            0 0,
+            calc(100% - max(var(--toys-cut, 14px) - (var(--toys-bw-xl, 5px) + var(--toys-bw-md, 3px)) * 0.5858, 0px)) 0,
+            100% max(var(--toys-cut, 14px) - (var(--toys-bw-xl, 5px) + var(--toys-bw-md, 3px)) * 0.5858, 0px),
+            100% 100%,
+            0 100%
+        );
     }
 
     .toy-image {
+        position: relative;
         display: block;
         width: 100%;
         height: 100%;
         object-fit: cover;
         object-position: center center;
-        transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease;
+        transition: transform 160ms steps(2, jump-end);
     }
 
     .poster-frame picture {
         display: block;
         height: 100%;
-        border-radius: inherit;
-        overflow: hidden;
-    }
-
-    .skeleton-pulse,
-    .toy-image,
-    .missing-image,
-    .poster-frame::before {
-        border-radius: inherit;
     }
 
     .missing-image {
@@ -314,20 +356,10 @@
 
     .missing-image span {
         color: var(--card-panel-ink, #f5edf6);
-        font-family: Goldman, sans-serif;
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
         font-size: 1rem;
     }
 
-    .card-edge {
-        position: absolute;
-        inset: 0;
-        z-index: 5;
-        border-radius: inherit;
-        box-shadow: inset 0 0 0 4px var(--card-accent);
-        opacity: 0;
-        transition: opacity 180ms ease;
-        pointer-events: none;
-    }
 
     .card-copy {
         position: relative;
@@ -336,12 +368,26 @@
         align-items: flex-end;
         width: 100%;
         min-height: 4rem;
-        padding: 0.62rem 0.72rem;
+        padding: 0.62rem 0.72rem calc(0.62rem + 0.4rem);
         color: var(--card-accent-ink);
         background: var(--card-accent);
-        border-top: 4px solid var(--site-outline, #050308);
-        border-bottom: 4px solid var(--site-outline, #050308);
-        transition: background-color 180ms ease;
+        border-top: var(--toys-bw-xl, 5px) solid var(--toys-ink, #050308);
+        border-bottom: var(--toys-bw-xl, 5px) solid var(--toys-ink, #050308);
+        transition: background-color 140ms steps(1, jump-end);
+    }
+
+    /* Shade band along the caption's bottom edge: darkened accent, halftone
+       dots. (No corner wedge here — the clamped title can reach the corner
+       and text never sits on shade.) */
+    .card-copy::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 0.4rem;
+        background-color: color-mix(in srgb, var(--card-accent), var(--toys-ink, #050308) 22%);
+        background-image: var(--toys-halftone);
+        background-size: var(--toys-halftone-size, 8px) var(--toys-halftone-size, 8px);
+        pointer-events: none;
     }
 
     .card-copy h3 {
@@ -351,7 +397,7 @@
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
         line-clamp: 2;
-        font-family: Goldman, sans-serif;
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
         min-height: 2.1em;
         font-size: clamp(1rem, 1.7vw, 1.15rem);
         font-weight: 700;
@@ -368,52 +414,69 @@
         padding: 0.72rem 0.75rem 0.82rem;
         color: var(--card-panel-ink);
         background: var(--card-panel);
-        border-radius: 0 0 calc(var(--site-radius, 0.65rem) - 4px) calc(var(--site-radius, 0.65rem) - 4px);
+    }
+
+    /* Shade wedge: flat darker triangle, bottom-right, halftone-dotted, with a
+       deeper solid step along its bottom edge (two-tone wedge). */
+    .info-plate::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: min(48%, 7rem);
+        height: 3.2rem;
+        background-color: color-mix(in srgb, var(--card-panel), #050308 var(--toys-shade-mix, 30%));
+        background-image:
+            var(--toys-halftone),
+            linear-gradient(color-mix(in srgb, var(--card-panel), #050308 var(--toys-shade-mix-2, 48%)) 0 0);
+        background-size:
+            var(--toys-halftone-size, 8px) var(--toys-halftone-size, 8px),
+            100% 0.7rem;
+        background-position: 0 0, left bottom;
+        background-repeat: repeat, no-repeat;
+        clip-path: polygon(100% 0, 100% 100%, 0 100%);
+        pointer-events: none;
+        transition: background-color 140ms steps(1, jump-end);
     }
 
     .meta-row {
+        position: relative;
+        z-index: 1;
         display: flex;
         flex-wrap: nowrap;
-        gap: 0.4rem;
-        align-items: flex-start;
+        gap: 0.6rem;
+        align-items: center;
         min-width: 0;
         overflow: visible;
     }
 
-    .meta-chip {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
+    /* Year is plain metadata, not a sticker: one tracked line
+       beside the faction badge keeps the plate from turning into a tag cloud. */
+    .meta-line {
         min-width: 0;
-        height: 2rem;
-        padding: 0.08rem 0.55rem 0;
         overflow: hidden;
         color: var(--card-panel-ink);
-        background: var(--card-surface);
-        background: color-mix(in srgb, var(--card-surface), black 18%);
-        border: 2px solid #050308;
-        border-radius: 0.35rem;
-        font-size: 0.875rem;
-        font-weight: 800;
-        line-height: 1;
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
+        font-size: 0.85rem;
+        letter-spacing: 0.04em;
+        line-height: 1.2;
+        text-shadow: 1px 1px 0 var(--toys-ink, #050308);
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
     .description {
+        position: relative;
+        z-index: 1;
         min-height: 2.8em;
         padding-top: 0.08rem;
     }
 
+    /* Card copy is short by convention (one line of frontmatter), so it is
+       shown whole: a clamp cut it mid-word. Rows equalise via the grid. */
     .description div {
-        overflow: hidden;
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
         color: var(--card-panel-ink);
-        font-size: 0.9rem;
+        font-size: 0.875rem;
         font-weight: 500;
         line-height: 1.45;
     }
@@ -426,51 +489,77 @@
 
     @media (max-width: 63.999rem) {
         .meta-row {
-            gap: 0.25rem;
+            gap: 0.45rem;
         }
 
-        .meta-chip,
         .meta-row :global(.faction-badge) {
             height: 1.7rem;
             padding-inline: 0.35rem;
             font-size: 0.7rem;
         }
+
+        .meta-line {
+            font-size: 0.75rem;
+        }
     }
 
     @media (hover: hover) {
+        /* The ink plate recolors to the accent: the hover border follows the
+           chamfer instead of being clipped by it. */
+        /* Hover pops the card off the shelf: accent under-stroke plus the
+           long ink offset, the same sticker stack as the title stamp. */
         .toy-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 0.55rem 0 var(--site-outline, #050308);
-        }
-
-        .toy-card:hover .card-edge {
-            opacity: 0.72;
+            background: var(--card-accent);
+            transform: translate(-3px, -3px);
+            filter:
+                drop-shadow(3px 3px 0 var(--card-accent))
+                drop-shadow(var(--toys-shadow-lg, 7px 7px 0 #050308));
         }
 
         .toy-card:hover .card-copy {
-            background: var(--card-accent);
             background: color-mix(in srgb, var(--card-accent), white 12%);
         }
 
+        .toy-card:hover .info-plate::after {
+            background-color: color-mix(in srgb, var(--card-panel), #050308 calc(var(--toys-shade-mix, 30%) + 8%));
+        }
+
         .toy-card:hover .toy-image {
-            transform: scale(1.035);
+            transform: scale(1.04);
         }
     }
 
     .toy-card:active {
-        transform: translateY(1px);
-        box-shadow: 0 0.25rem 0 var(--site-outline, #050308);
+        transform: translate(1px, 1px);
+        filter: drop-shadow(var(--toys-shadow-sm, 3px 3px 0 #050308));
     }
 
+    /* Flat two-frame blink; no gradient sweep. Tinted in the faction accent so
+       a loading grid reads as cards, not empty frames. */
     .skeleton-pulse {
-        background: linear-gradient(110deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
-        animation: skeleton 1.5s ease-in-out infinite;
+        background-color: color-mix(in srgb, var(--card-accent, #d58bb0) 35%, var(--card-surface, #09070e));
+        background-image: var(--toys-halftone);
+        background-size: var(--toys-halftone-size, 8px) var(--toys-halftone-size, 8px);
+        animation: skeleton 1.5s steps(2, jump-none) infinite;
     }
-    
+
     @keyframes skeleton {
         0%, 100% { opacity: 0.4; }
         50% { opacity: 0.7; }
     }
+
+    /* Mobile: cards drop the description and keep photo / caption / meta. */
+    @media (max-width: 47.999rem) {
+        .info-plate {
+            grid-template-rows: auto;
+            min-height: 0;
+        }
+
+        .description {
+            display: none;
+        }
+    }
+
     @media (max-width: 520px) {
         .toy-card {
             grid-template-rows: auto auto auto;
@@ -479,47 +568,50 @@
 
         .card-copy {
             min-height: 3.75rem;
-            padding: 0.58rem 0.65rem;
+            padding: 0.58rem 0.65rem calc(0.58rem + 0.4rem);
         }
 
+        /* Narrow two-up cards: allow a third line before truncating. */
         .card-copy h3 {
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            min-height: 3.15em;
             font-size: 1rem;
         }
 
         .info-plate {
-            grid-template-rows: auto auto;
             gap: 0.4rem;
-            min-height: 0;
             padding: 0.6rem 0.45rem 0.7rem;
         }
 
         .meta-row {
-            --badge-height: 1.4rem;
-            --badge-padding-inline: 0.26rem;
-            --badge-font-size: 0.58rem;
-            --badge-shadow: 0 3px 0 #050308;
-            flex-wrap: nowrap;
-            gap: 0.2rem;
+            --badge-height: 1.5rem;
+            --badge-padding-inline: 0.3rem;
+            --badge-font-size: 0.7rem;
+            --badge-shadow: 2px 2px 0 #050308;
+            flex-wrap: wrap;
+            gap: 0.3rem 0.45rem;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .toy-card {
+            filter: drop-shadow(3px 3px 0 #050308);
         }
 
-        .meta-chip {
-            height: 1.4rem;
-            min-width: 0;
-            padding-inline: 0.26rem;
-            box-shadow: 0 2px 0 #050308;
-            font-size: 0.58rem;
-            white-space: nowrap;
-        }
-
-        .description div {
-            font-size: 0.875rem;
+        @media (hover: hover) {
+            .toy-card:hover {
+                filter:
+                    drop-shadow(2px 2px 0 var(--card-accent))
+                    drop-shadow(4px 4px 0 #050308);
+            }
         }
     }
 
     @media (prefers-reduced-motion: reduce) {
         .toy-card,
         .toy-image,
-        .card-edge,
+        .info-plate::after,
         .skeleton-pulse {
             transition: none;
             animation: none;
@@ -530,13 +622,6 @@
         .poster-frame {
             height: 0;
             padding-bottom: 133.333%;
-        }
-
-        .poster-frame picture,
-        .poster-frame > .missing-image,
-        .poster-frame > .skeleton-pulse {
-            position: absolute;
-            inset: 0;
         }
     }
 </style>

@@ -49,7 +49,7 @@
 {#if visible}
     <button onclick={scrollToTop} class="scroll-top-btn" aria-label="Scroll to top">
         <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+            <path stroke-linecap="square" stroke-linejoin="miter" d="M5 15l7-7 7 7" />
         </svg>
     </button>
 {/if}
@@ -66,15 +66,27 @@
         height: 3rem;
         color: var(--accent-ink);
         background: var(--accent);
-        border: 2px solid #050308;
-        border-radius: 0.55rem;
-        box-shadow: 0 5px 0 #050308;
+        border: 3px solid var(--toys-ink, #050308);
+        border-radius: 0;
+        box-shadow: var(--toys-shadow-sm, 3px 3px 0 #050308);
         animation: scroll-btn-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-        transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
+        transition:
+            transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+            border-color 140ms ease,
+            box-shadow 140ms ease;
     }
     svg { width: 1.25rem; height: 1.25rem; }
-    .scroll-top-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent), white 18%); outline-offset: 3px; }
-    @media (hover: hover) { .scroll-top-btn:hover { transform: translateY(-2px); box-shadow: 0 7px 0 #050308; } }
+    .scroll-top-btn:focus-visible {
+        outline: none;
+        border-color: var(--accent-ink);
+        background: color-mix(in srgb, var(--accent), white 18%);
+    }
+    @media (hover: hover) {
+        .scroll-top-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 var(--toys-ink, #050308);
+        }
+    }
     @media (prefers-reduced-motion: reduce) { .scroll-top-btn { transition: none; animation: none; } }
     @keyframes scroll-btn-enter {
         from { opacity: 0; transform: translateY(16px) scale(0.9); }

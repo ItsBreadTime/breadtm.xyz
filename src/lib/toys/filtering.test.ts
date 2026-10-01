@@ -8,7 +8,6 @@ const toys: Toy[] = [
         slug: 'optimus',
         name: 'Optimus Prime',
         faction: 'Autobot',
-        series: 'Studio Series',
         year: '2024',
         description: 'Leader class',
         image: 'fallback.jpg',
@@ -19,14 +18,12 @@ const toys: Toy[] = [
         slug: 'megatron',
         name: 'Megatron',
         faction: 'Decepticon',
-        series: 'Legacy',
         year: '2023'
     },
     {
         slug: 'smolhaj',
         name: 'Smolhaj',
-        faction: 'IKEAtron',
-        series: 'Blahaj'
+        faction: 'IKEAtron'
     }
 ];
 
@@ -34,20 +31,20 @@ test('builds ordered, deduplicated facets and faction counts', () => {
     const facets = getToyFacets([...toys, { ...toys[0], slug: 'optimus-2' }]);
 
     assert.deepEqual(facets.factions, ['Autobot', 'Decepticon', 'IKEAtron']);
-    assert.deepEqual(facets.series, ['Blahaj', 'Legacy', 'Studio Series']);
     assert.deepEqual(facets.factionCounts, { Autobot: 2, Decepticon: 1, IKEAtron: 1 });
 });
 
-test('combines faction, series, and normalized full-text filters', () => {
+test('combines faction and normalized full-text filters', () => {
     assert.deepEqual(
-        filterToys(toys, { faction: 'Autobot', series: 'Studio Series', search: ' leader ' }).map((toy) => toy.slug),
+        filterToys(toys, { faction: 'Autobot', search: ' leader ' }).map((toy) => toy.slug),
         ['optimus']
     );
     assert.deepEqual(
-        filterToys(toys, { faction: '', series: '', search: '2023' }).map((toy) => toy.slug),
+        filterToys(toys, { faction: '', search: '2023' }).map((toy) => toy.slug),
         ['megatron']
     );
-    assert.deepEqual(filterToys(toys, { faction: 'Autobot', series: 'Legacy', search: '' }), []);
+    assert.deepEqual(filterToys(toys, { faction: '', search: 'smolhaj' }).map((toy) => toy.slug), ['smolhaj']);
+    assert.deepEqual(filterToys(toys, { faction: 'Decepticon', search: 'leader' }), []);
 });
 
 test('preserves the themed empty-state responses and fallback', () => {

@@ -6,9 +6,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', ...defaultTheme.fontFamily.sans],
+        sans: ['Inter', 'Inter Fallback', ...defaultTheme.fontFamily.sans],
         mono: ['CommitMono', ...defaultTheme.fontFamily.mono],
-        accent: ['Goldman', ...defaultTheme.fontFamily.sans],
+        accent: ['Goldman', 'Goldman Fallback', ...defaultTheme.fontFamily.sans],
       },
       colors: {
         ikeayellow: '#feda00',

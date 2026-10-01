@@ -11,11 +11,11 @@
 		"dev": "pnpm run precompile && vite dev --host",
 		"build": "pnpm run precompile && vite build",
 		"preview": "vite preview",
-		"test": "node --test src/lib/**/*.test.ts",
+		"test": "node --test 'src/lib/**/*.test.ts' 'scripts/**/*.test.mjs'",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"compress-images": "node scripts/compress-images.js",
-		"compress-images:no-override": "node scripts/compress-images.js -n",
+		"compress-images:prune": "node scripts/compress-images.js --prune",
 		"precompile": "node scripts/precompile-toys.js"
 	},
 	"devDependencies": {
@@ -25,6 +25,7 @@
 		"@sveltejs/vite-plugin-svelte": "^4.0.0",
 		"@tailwindcss/typography": "^0.5.16",
 		"@types/node": "^20.14.10",
+		"@types/sanitize-html": "^2.16.1",
 		"autoprefixer": "^10.4.14",
 		"mdsvex": "^0.12.5",
 		"postcss": "^8.4.31",
@@ -37,5 +38,8 @@
 		"vite": "^5.4.4",
 		"wrangler": "^4.19.1"
 	},
-	"type": "module"
+	"type": "module",
+	"dependencies": {
+		"sanitize-html": "^2.17.7"
+	}
 }

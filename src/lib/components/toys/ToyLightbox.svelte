@@ -1,81 +1,51 @@
 <script module lang="ts">
+    import type { ZoomPan } from '$lib/toys/zoomPan.svelte';
+
     export interface ToyLightboxProps {
         toyName: string;
         imageKeys: string[];
         imageSets: Record<string, string[]>;
         activeIndex: number;
-        zoomScale: number;
-        zoomOffsetX: number;
-        zoomOffsetY: number;
-        minZoom: number;
-        maxZoom: number;
-        fullResolutionRequested: boolean;
-        usesFullResolution: boolean;
+        zoom: ZoomPan;
+        fullResolutionRequested?: boolean;
+        usesFullResolution?: boolean;
         getImagePath: (filename: string) => string;
         getThumbnailSet: (imageKey: string) => string[];
         getDownloadPath: (imageKey: string) => string;
         onclose: () => void;
-        onbackdropclick: (event: MouseEvent) => void;
         onprevious: () => void;
         onnext: () => void;
         onselect: (index: number) => void;
-        onzoomout: () => void;
-        onzoomin: () => void;
-        onresetzoom: () => void;
-        ondoubleclick: (event: MouseEvent) => void;
-        onwheel: (event: WheelEvent) => void;
-        ontouchstart: (event: TouchEvent) => void;
-        ontouchmove: (event: TouchEvent) => void;
-        ontouchend: (event: TouchEvent) => void;
-        onpointerdown: (event: PointerEvent) => void;
-        onpointermove: (event: PointerEvent) => void;
-        onpointerend: (event: PointerEvent) => void;
-        onstandardresolutionload: (event: Event, imageKey: string) => void | Promise<void>;
-        onfullresolutionload: (event: Event, imageKey: string) => void | Promise<void>;
-        onfullresolutionerror: (imageKey: string) => void;
-        onrootready?: (element: HTMLElement | undefined) => void;
+        onstandardresolutionload?: (event: Event, imageKey: string) => void | Promise<void>;
+        onfullresolutionload?: (event: Event, imageKey: string) => void | Promise<void>;
+        onfullresolutionerror?: (imageKey: string) => void;
     }
 </script>
 
 <script lang="ts">
     import { onMount } from 'svelte';
     import { getFullResolutionSources, getPictureSources } from '$lib/toys/imageLoading';
+    import { getBaseFilename } from '$lib/toys/images';
+    import { MIN_ZOOM, MAX_ZOOM } from '$lib/toys/zoomPan.svelte';
 
     let {
         toyName,
         imageKeys,
         imageSets,
         activeIndex,
-        zoomScale,
-        zoomOffsetX,
-        zoomOffsetY,
-        minZoom,
-        maxZoom,
-        fullResolutionRequested,
-        usesFullResolution,
+        zoom,
+        fullResolutionRequested = false,
+        usesFullResolution = false,
         getImagePath,
         getThumbnailSet,
         getDownloadPath,
         onclose,
-        onbackdropclick,
         onprevious,
         onnext,
         onselect,
-        onzoomout,
-        onzoomin,
-        onresetzoom,
-        ondoubleclick,
-        onwheel,
-        ontouchstart,
-        ontouchmove,
-        ontouchend,
-        onpointerdown,
-        onpointermove,
-        onpointerend,
         onstandardresolutionload,
         onfullresolutionload,
-        onfullresolutionerror,
-        onrootready
+        onfullresolutionerror
     }: ToyLightboxProps = $props();
 
     let rootElement: HTMLElement;
@@ -87,29 +57,52 @@
         activeSources.fallback ? `${getBaseFilename(activeSources.fallback)}-full` : ''
     );
     const fullResolutionSources = $derived(getFullResolutionSources(fullResolutionBase));
-
-    function getBaseFilename(filename: string): string {
-        return filename.split('.').slice(0, -1).join('.');
-    }
+    const imageTransform = $derived(`transform: translate3d(${zoom.x}px, ${zoom.y}px, 0) scale(${zoom.scale});`);
 
     function handleDialogKeydown(event: KeyboardEvent): void {
-        if (event.key !== 'Escape') return;
-        event.stopPropagation();
+        if (event.key === 'Tab') {
+            event.stopPropagation();
+            const items = Array.from(rootElement.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], [tabindex="0"]')).filter(el => el.getClientRects().length > 0);
+            const first = items[0]; const last = items[items.length - 1];
+            if (!first) { event.preventDefault(); rootElement.focus(); }
+            else if (event.shiftKey && (document.activeElement === first || document.activeElement === rootElement)) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && (document.activeElement === last || document.activeElement === rootElement)) { event.preventDefault(); first.focus(); }
+        } else if (['Escape', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+            event.preventDefault(); event.stopPropagation();
+            if (event.key === 'Escape') onclose();
+            else if (event.key === 'ArrowLeft') onprevious();
+            else onnext();
+        }
+    }
+
+    // Clicks on the dimmed surround close the viewer; controls, the image and the rail do not.
+    function handleBackdropClick(event: MouseEvent): void {
+        const target = event.target;
+        if (target instanceof Element && target.closest('button, a, .lightbox-stage, .lightbox-thumbs')) return;
         onclose();
     }
 
     onMount(() => {
+        const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        zoom.root = rootElement;
         rootElement.focus();
-        onrootready?.(rootElement);
+        document.body.classList.add('overflow-hidden');
+        document.documentElement.classList.add('overflow-hidden');
 
-        return () => onrootready?.(undefined);
+        return () => {
+            zoom.root = undefined;
+            zoom.destroy();
+            document.body.classList.remove('overflow-hidden');
+            document.documentElement.classList.remove('overflow-hidden');
+            if (opener?.isConnected) opener.focus();
+        };
     });
 </script>
 
 <div
     class="lightbox"
     bind:this={rootElement}
-    onclick={onbackdropclick}
+    onclick={handleBackdropClick}
     onkeydown={handleDialogKeydown}
     role="dialog"
     aria-modal="true"
@@ -139,8 +132,8 @@
                         stroke="currentColor"
                     >
                         <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
+                            stroke-linecap="square"
+                            stroke-linejoin="miter"
                             stroke-width="2"
                             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                         />
@@ -148,7 +141,7 @@
                 </a>
                 <button type="button" class="lightbox-action" onclick={onclose} aria-label="Close enlarged image view">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
@@ -157,16 +150,16 @@
         <div class="lightbox-stage-row">
             <div
                 class="lightbox-stage"
-                class:zoomed={zoomScale > minZoom}
-                ontouchstart={ontouchstart}
-                ontouchmove={ontouchmove}
-                ontouchend={ontouchend}
-                onwheel={onwheel}
-                ondblclick={ondoubleclick}
-                onpointerdown={onpointerdown}
-                onpointermove={onpointermove}
-                onpointerup={onpointerend}
-                onpointercancel={onpointerend}
+                class:zoomed={zoom.zoomed}
+                ontouchstart={zoom.touchstart}
+                ontouchmove={zoom.touchmove}
+                ontouchend={zoom.touchend}
+                onwheel={zoom.wheel}
+                ondblclick={zoom.dblclick}
+                onpointerdown={zoom.pointerdown}
+                onpointermove={zoom.pointermove}
+                onpointerup={zoom.pointerend}
+                onpointercancel={zoom.pointerend}
                 role="group"
                 aria-label="Enlarged toy image"
             >
@@ -198,8 +191,8 @@
                                 width="1728"
                                 height="2304"
                                 draggable="false"
-                                style={`transform: translate3d(${zoomOffsetX}px, ${zoomOffsetY}px, 0) scale(${zoomScale});`}
-                                onload={(event) => onstandardresolutionload(event, activeImageKey)}
+                                style={imageTransform}
+                                onload={(event) => onstandardresolutionload?.(event, activeImageKey)}
                             />
                         </picture>
 
@@ -224,9 +217,9 @@
                                     width="3456"
                                     height="4608"
                                     draggable="false"
-                                    style={`transform: translate3d(${zoomOffsetX}px, ${zoomOffsetY}px, 0) scale(${zoomScale});`}
-                                    onload={(event) => onfullresolutionload(event, activeImageKey)}
-                                    onerror={() => onfullresolutionerror(activeImageKey)}
+                                    style={imageTransform}
+                                    onload={(event) => onfullresolutionload?.(event, activeImageKey)}
+                                    onerror={() => onfullresolutionerror?.(activeImageKey)}
                                 />
                             </picture>
                         {/if}
@@ -244,13 +237,13 @@
                     <div class="lightbox-navigation-controls">
                         <button type="button" class="lightbox-nav lightbox-nav-prev" onclick={onprevious} aria-label="Previous image">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 19l-7-7 7-7" />
                             </svg>
                         </button>
                         <span class="lightbox-counter">{activeIndex + 1} / {imageKeys.length}</span>
                         <button type="button" class="lightbox-nav lightbox-nav-next" onclick={onnext} aria-label="Next image">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 5l7 7-7 7" />
                             </svg>
                         </button>
                     </div>
@@ -263,27 +256,27 @@
                     <button
                         type="button"
                         class="lightbox-action"
-                        onclick={onzoomout}
+                        onclick={zoom.zoomOut}
                         aria-label="Zoom out"
-                        disabled={zoomScale === minZoom}
+                        disabled={zoom.scale === MIN_ZOOM}
                     >−</button>
                     <button
                         type="button"
                         class="lightbox-zoom-readout"
-                        onclick={onresetzoom}
-                        aria-label="Current zoom {Math.round(zoomScale * 100)}%. Reset zoom to 100%"
+                        onclick={() => zoom.reset()}
+                        aria-label="Current zoom {Math.round(zoom.scale * 100)}%. Reset zoom to 100%"
                         aria-live="polite"
                         title="Reset zoom to 100%"
-                        disabled={zoomScale === minZoom}
+                        disabled={zoom.scale === MIN_ZOOM}
                     >
-                        {Math.round(zoomScale * 100)}%
+                        {Math.round(zoom.scale * 100)}%
                     </button>
                     <button
                         type="button"
                         class="lightbox-action"
-                        onclick={onzoomin}
+                        onclick={zoom.zoomIn}
                         aria-label="Zoom in"
-                        disabled={zoomScale === maxZoom}
+                        disabled={zoom.scale === MAX_ZOOM}
                     >+</button>
                 </div>
             </div>
@@ -366,7 +359,7 @@
         min-width: 0;
         padding: 0.25rem 0.35rem;
         background: #050308;
-        border-radius: 0.45rem;
+        border-radius: 0;
     }
 
     .lightbox-title {
@@ -377,7 +370,7 @@
         overflow: hidden;
         color: var(--lightbox-accent);
         color: color-mix(in srgb, var(--lightbox-accent), white 38%);
-        font-family: Goldman, sans-serif;
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
         font-size: clamp(0.78rem, 2vw, 1rem);
         line-height: 1.15;
         white-space: nowrap;
@@ -402,6 +395,7 @@
 
     .lightbox-action,
     .lightbox-nav {
+        position: relative;
         display: grid;
         place-items: center;
         min-width: 2.75rem;
@@ -420,13 +414,26 @@
             opacity 180ms ease;
     }
 
+    /* Specular strip along the top edge of every lightbox control plate. */
+    .lightbox-action::before,
+    .lightbox-nav::before,
+    .lightbox-counter::before,
+    .lightbox-zoom-readout::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: var(--toys-spec-h, 3px);
+        background: var(--toys-spec, color-mix(in srgb, #ffffff 35%, transparent));
+        pointer-events: none;
+    }
+
     .lightbox-action {
-        border-radius: 0.45rem;
+        border-radius: 0;
     }
 
     .lightbox-nav {
         flex: 0 0 auto;
-        border-radius: 999px;
+        border-radius: 0;
         box-shadow: none;
     }
 
@@ -458,7 +465,7 @@
         overflow: hidden;
         background: #050308;
         border: 4px solid #050308;
-        border-radius: 0.65rem;
+        border-radius: 0;
         box-shadow: none;
         cursor: zoom-in;
     }
@@ -513,6 +520,7 @@
     }
 
     .lightbox-zoom-readout {
+        position: relative;
         display: inline-grid;
         place-items: center;
         min-width: 3.4rem;
@@ -524,8 +532,8 @@
         background: rgba(5, 3, 8, 0.92);
         border: 2px solid var(--lightbox-accent);
         border: 2px solid color-mix(in srgb, var(--lightbox-accent), white 38%);
-        border-radius: 0.45rem;
-        font-family: Goldman, sans-serif;
+        border-radius: 0;
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
         font-size: 0.76rem;
         line-height: 1;
         cursor: pointer;
@@ -542,12 +550,13 @@
         padding: 0.28rem 0.55rem;
         color: #fff7f8;
         background: rgba(5, 3, 8, 0.78);
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        border-radius: 0.35rem;
+        border: 2px solid color-mix(in srgb, var(--lightbox-accent), transparent 55%);
+        border-radius: 0;
         font-size: 0.72rem;
     }
 
     .lightbox-counter {
+        position: relative;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -562,9 +571,9 @@
         color: var(--lightbox-accent-ink);
         background: var(--lightbox-accent);
         border: 3px solid #050308;
-        border-radius: 0.36rem;
-        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
-        font-family: Goldman, sans-serif;
+        border-radius: 0;
+        box-shadow: none;
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
         font-size: 0.82rem;
         font-variant-numeric: tabular-nums;
         line-height: 1;
@@ -572,6 +581,7 @@
         white-space: nowrap;
     }
 
+    /* Thumbs float free on the backdrop — no container box. */
     .lightbox-thumbs {
         display: flex;
         flex-wrap: wrap;
@@ -580,9 +590,9 @@
         width: 100%;
         overflow: hidden;
         padding: 0.5rem;
-        background: rgba(5, 3, 8, 0.94);
-        border: 3px solid #050308;
-        border-radius: 0.45rem;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
         box-shadow: none;
     }
 
@@ -592,15 +602,15 @@
         height: 3.25rem;
         overflow: hidden;
         background: #050308;
-        border: 3px solid #050308;
-        border-radius: 0.35rem;
-        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.42);
-        opacity: 0.76;
+        border: 2px solid color-mix(in srgb, var(--lightbox-accent), transparent 55%);
+        border-radius: 0;
+        box-shadow: none;
+        opacity: 1;
         transition: transform 180ms ease, opacity 180ms ease, border-color 180ms ease;
     }
 
     .lightbox-thumb.active {
-        border-color: #f4edf5;
+        border-color: var(--lightbox-accent);
         opacity: 1;
         transform: translateY(-3px);
     }
@@ -629,9 +639,8 @@
     .lightbox-nav:focus-visible,
     .lightbox-zoom-readout:focus-visible,
     .lightbox-thumb:focus-visible {
-        outline: 3px solid var(--lightbox-accent);
-        outline: 3px solid color-mix(in srgb, var(--lightbox-accent), white 15%);
-        outline-offset: 3px;
+        outline: none;
+        border-color: var(--lightbox-accent);
     }
 
     @media (hover: hover) {
@@ -644,7 +653,7 @@
         }
 
         .lightbox-thumb:hover {
-            border-color: #aaa1af;
+            border-color: color-mix(in srgb, var(--lightbox-accent), white 38%);
             opacity: 1;
             transform: translateY(-2px);
         }

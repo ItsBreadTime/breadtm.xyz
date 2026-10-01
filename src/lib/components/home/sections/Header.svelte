@@ -5,7 +5,7 @@
 
 <div
     class="py-6 md:py-8 xl:py-12 border-b-8 lg:border-8 border-black relative overflow-hidden bg-blue-500"
-    id="header"
+    id="introduction"
 >
     <div class="header-grid absolute inset-0 opacity-25"></div>
     <div class="homepage-content my-3 md:my-5 xl:my-8 relative z-10">
@@ -17,7 +17,7 @@
             >
         </h1>
         <div
-            class="grid grid-cols-1 lg:grid-cols-3 border-4 border-black rounded-lg overflow-hidden shadow-2xl"
+            class="grid grid-cols-1 lg:grid-cols-3 border-4 border-black overflow-hidden shadow-2xl"
         >
             <div
                 class="border-b-4 lg:border-r-4 lg:border-b-0 border-black"
@@ -51,13 +51,13 @@
                         >
                         <div class="lg:mt-2 flex flex-col sm:flex-row gap-2">
                             <a
-                                class="inline-flex min-h-11 items-center justify-center bg-white text-violet-900 px-3 py-2 rounded-md text-center font-bold"
+                                class="inline-flex min-h-11 items-center justify-center bg-white text-violet-900 px-3 py-2 text-center font-bold"
                                 href="#stuffilike"
                             >
                                 Stuff I Like
                             </a>
                             <a
-                                class="inline-flex min-h-11 items-center justify-center bg-white text-violet-900 px-3 py-2 rounded-md text-center font-bold"
+                                class="inline-flex min-h-11 items-center justify-center bg-white text-violet-900 px-3 py-2 text-center font-bold"
                                 href="#contacts"
                             >
                                 Contacts

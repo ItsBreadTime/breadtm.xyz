@@ -3,7 +3,6 @@ import type { Toy } from './types.ts';
 
 export interface ToyFilters {
     faction: string;
-    series: string;
     search: string;
 }
 
@@ -34,13 +33,12 @@ const isPresent = (value: string | undefined): value is string => Boolean(value)
 
 export function getToyFacets(toys: Toy[]) {
     const factions = [...new Set(toys.map((toy) => toy.faction).filter(isPresent))].sort(compareFactions);
-    const series = [...new Set(toys.map((toy) => toy.series).filter(isPresent))].sort();
     const factionCounts = toys.reduce<Record<string, number>>((counts, toy) => {
         if (toy.faction) counts[toy.faction] = (counts[toy.faction] || 0) + 1;
         return counts;
     }, {});
 
-    return { factions, series, factionCounts };
+    return { factions, factionCounts };
 }
 
 export function filterToys(toys: Toy[], filters: ToyFilters): Toy[] {
@@ -48,10 +46,9 @@ export function filterToys(toys: Toy[], filters: ToyFilters): Toy[] {
 
     return toys.filter((toy) => {
         if (filters.faction && toy.faction !== filters.faction) return false;
-        if (filters.series && toy.series !== filters.series) return false;
         if (!query) return true;
 
-        const haystack = [toy.name, toy.faction, toy.series, toy.year, toy.description]
+        const haystack = [toy.name, toy.faction, toy.year, toy.description]
             .filter(isPresent)
             .join(' ')
             .toLowerCase();

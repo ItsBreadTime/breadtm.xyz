@@ -1,0 +1,65 @@
+/* BREADMOJI WRITES · comic zine.
+   Its own identity inside the site's ink language: newsprint ground with a halftone screen,
+   ink-outlined panels with hard offset shadows, and riso-style sticker labels in Goldman.
+   The zine treatment stays on the chrome (toolbar, sidebar, post headers, stickers, notices);
+   post bodies sit on plain paper so the writing reads cleanly. Light only, like the blog. */
+.blog-scene.writes-scene {
+	--canvas: #f3ecdc;
+	--paper: #fffbf2;
+	--heading: #16110d;
+	--ink: #2b241e;
+	--muted: #5c5147;
+	--rule: #16110d;
+	--accent: #b3175c;
+	--notice: #fff1b8;
+	--zine-yellow: #ffd23f;
+	--zine-pink: #ff8cc6;
+	--zine-cyan: #62d2f0;
+	--zine-shadow-sm: 2px 2px 0 var(--rule);
+	--zine-shadow-md: 4px 4px 0 var(--rule);
+	--zine-shadow-lg: 6px 6px 0 var(--rule);
+	background-color: var(--canvas);
+	/* The halftone screen: a fixed dot grid, faint enough to stay texture. */
+	background-image: radial-gradient(rgb(22 17 13 / 0.14) 1.1px, transparent 1.5px);
+	background-size: 9px 9px;
+}
+.blog-scene.writes-scene ::selection { background: var(--zine-pink); color: var(--heading); }
+.blog-scene.writes-scene :focus-visible { outline-color: var(--accent); }
+.blog-scene.writes-scene .blog-button {
+	border: 3px solid var(--rule); background: var(--paper); color: var(--heading);
+	box-shadow: var(--zine-shadow-md);
+}
+.blog-scene.writes-scene .blog-button:hover { background: var(--zine-yellow); }
+.blog-scene.writes-scene .blog-button:active { transform: translate(4px, 4px); box-shadow: none; }
+
+/* A sticker: Goldman caps on a flat riso fill, ink-outlined, slightly off-square. */
+.writes-scene .zine-sticker {
+	display: inline-block; padding: 3px 8px; border: 2px solid var(--rule); background: var(--zine-yellow);
+	color: var(--heading); font-family: Goldman, 'Goldman Fallback', sans-serif; font-weight: 700; font-size: 13px;
+	line-height: 1.2; letter-spacing: 0.04em; text-transform: uppercase; box-shadow: var(--zine-shadow-sm);
+	transform: rotate(-2deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.writes-scene :is(.zine-sticker, .nameplate, .nameplate-code) { transition: transform 120ms ease; }
+}
+
+/* Discord markup in post bodies (see discord.ts). Quiet on the paper so the writing leads. */
+.writes-scene .stream-post .prose blockquote {
+	margin: 0 0 1.2em; padding: 0 0 0 16px; border: 0; border-left: 4px solid var(--rule); background: none; box-shadow: none;
+	font-size: inherit; font-style: normal; font-weight: inherit; color: var(--ink);
+}
+.writes-scene .stream-post .prose blockquote p::before, .writes-scene .stream-post .prose blockquote p::after { content: none; }
+.writes-scene .stream-post .prose blockquote > :last-child { margin-bottom: 0; }
+.writes-scene .prose .dc-subtext { margin: -.6em 0 1.2em; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.writes-scene .prose .dc-subtext small { font-size: inherit; }
+.writes-scene .prose .dc-mention {
+	padding: 0 3px; border-radius: 3px; background: rgb(179 23 92 / 0.12); color: var(--accent); font-weight: 650;
+}
+.writes-scene .prose .dc-time { padding: 0 3px; border-radius: 3px; background: rgb(22 17 13 / 0.08); }
+/* A spoiler is an ink bar until opened: by click or Enter with JS, by focus without it. */
+.writes-scene .prose .dc-spoiler { border-radius: 3px; background: rgb(22 17 13 / 0.1); }
+.writes-scene .prose .dc-spoiler:not([data-revealed]):not(:focus) {
+	background: var(--heading); color: transparent; cursor: pointer; user-select: none;
+}
+.writes-scene .prose .dc-spoiler:not([data-revealed]):not(:focus) * { visibility: hidden; }
+.writes-scene .prose .dc-spoiler:not([data-revealed]):not(:focus):hover { background: #3a302a; }
