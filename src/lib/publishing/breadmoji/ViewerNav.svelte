@@ -98,7 +98,7 @@
 		max-height: calc(100dvh - var(--nav-h, 68px) - var(--toolbar-h, 66px) - 104px); overflow: auto;
 		padding: 4px 0 8px; scrollbar-color: var(--muted) var(--paper);
 	}
-	.drawer-nav { flex: 1; min-height: 0; overflow: auto; scrollbar-color: var(--muted) var(--paper); }
+	.drawer-nav { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-color: var(--muted) var(--paper); }
 
 	.side-switch { display: flex; border-bottom: 3px solid var(--rule); background: var(--canvas); }
 	.side-switch label {

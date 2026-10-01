@@ -146,6 +146,11 @@
 
 	@media (max-width: 999px) {
 		.posts-drawer { display: block; }
+		/* The panel sits between the site navbar and the bottom edge instead of centring over
+		   the navbar, and the page behind holds still: a scrolling page under the scrim makes
+		   mobile browsers resize the viewport mid-gesture. */
+		.drawer-panel { inset: calc(var(--nav-h, 68px) + 12px) 0 12px; height: auto; max-height: 720px; }
+		:global(html:has(.posts-drawer[open])) { overflow: hidden; }
 	}
 	@media (max-width: 760px) {
 		/* The control row docks to the viewport bottom: the reading column gets the
@@ -172,6 +177,8 @@
 		.toolbar-step { flex: 1 1 0; justify-content: center; padding: 8px 6px; white-space: nowrap; box-shadow: var(--zine-shadow-sm); }
 		.posts-drawer { flex: 1 1 0; min-width: 0; }
 		.posts-toggle { width: 100%; justify-content: center; padding: 8px 6px; box-shadow: var(--zine-shadow-sm); }
+		/* Clear the docked control row too, so Posts stays visible as the close toggle. */
+		.drawer-panel { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 	}
 	@media (max-height: 600px) {
 		/* Static again means top-of-page in flow: restore the top-bar chrome the
