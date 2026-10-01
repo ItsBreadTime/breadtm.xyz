@@ -4,6 +4,7 @@
 	import { dateLabel, monthKey } from '$lib/publishing/model';
 	import {
 		credsLabel,
+		pagerItems,
 		ratingStars,
 		statsHref,
 		type KindFilter,
@@ -14,11 +15,16 @@
 	let {
 		initialEntries,
 		initialNext,
+		page = 1,
+		pages = 1,
 		kind,
 		preset
 	}: {
 		initialEntries: MediaLog[];
 		initialNext: string | null;
+		/** This page's number and the slice's page count: without JS the diary is a numbered list. */
+		page?: number;
+		pages?: number;
 		kind: KindFilter;
 		preset: TimePreset;
 	} = $props();
@@ -40,6 +46,10 @@
 		next = initialNext;
 		failure = '';
 		announcement = '';
+		prefetched = undefined;
+		// Once the page settles, fetch the next page so the first "more" is instant.
+		const timer = setTimeout(() => prefetch(next), 300);
+		return () => clearTimeout(timer);
 	});
 
 	function kindLabel(entry: MediaLog): string {
@@ -60,6 +70,29 @@
 		return (title.trim()[0] ?? '?').toUpperCase();
 	}
 
+	type Page = { entries: MediaLog[]; next: string | null };
+	// The page after the one on screen, requested ahead of the reader so "more" lands at once.
+	let prefetched: { cursor: string; page: Promise<Page> } | undefined;
+
+	function fetchPage(cursor: string, signal?: AbortSignal): Promise<Page> {
+		const params = new URLSearchParams();
+		if (kind !== 'all') params.set('kind', kind);
+		if (preset !== 'all') params.set('t', preset);
+		params.set('cursor', cursor);
+		return fetch(`/stats/diary?${params}`, { signal }).then((response) => {
+			if (!response.ok) throw new Error('More entries could not be loaded.');
+			return response.json();
+		});
+	}
+
+	function prefetch(cursor: string | null) {
+		if (!cursor || prefetched?.cursor === cursor) return;
+		const page = fetchPage(cursor);
+		// A failed prefetch is forgotten; the real load retries and reports it.
+		page.catch(() => { if (prefetched?.page === page) prefetched = undefined; });
+		prefetched = { cursor, page };
+	}
+
 	async function loadMore() {
 		if (!next || loading) return;
 		controller?.abort();
@@ -68,18 +101,16 @@
 		loading = true;
 		failure = '';
 		try {
-			const params = new URLSearchParams();
-			if (kind !== 'all') params.set('kind', kind);
-			if (preset !== 'all') params.set('t', preset);
-			params.set('cursor', next);
-			const response = await fetch(`/stats/diary?${params}`, { signal: request.signal });
-			if (!response.ok) throw new Error('More entries could not be loaded.');
-			const batch: { entries: MediaLog[]; next: string | null } = await response.json();
+			const cursor = next;
+			const ahead = prefetched?.cursor === cursor ? prefetched.page : undefined;
+			const batch = await (ahead ?? fetchPage(cursor, request.signal)).catch(() => fetchPage(cursor, request.signal));
+			if (request.signal.aborted) return;
 			const existing = new Set(entries.map((entry) => entry.id));
 			const extra = batch.entries.filter((entry) => !existing.has(entry.id));
 			entries = [...entries, ...extra];
 			next = batch.next;
 			announcement = `${extra.length} more entries loaded.`;
+			prefetch(next);
 			// The observer only reports crossings: on a tall screen the sentinel can
 			// still be in range after a batch, so keep going until it is pushed away.
 			await tick();
@@ -94,8 +125,12 @@
 		}
 	}
 
+	// Without JS the diary pages with a numbered pager; with it, entries append below instead.
+	let enhanced = $state(false);
+
 	let bottomArmed = true;
 	onMount(() => {
+		enhanced = true;
 		const observer = new IntersectionObserver(
 			(records) => {
 				for (const record of records) {
@@ -116,6 +151,39 @@
 	});
 </script>
 
+{#snippet pager(place: 'top' | 'bottom')}
+	<nav class="diary-pager" aria-label="Diary pages{place === 'top' ? '' : ', bottom'}">
+		{#if page > 1}
+			<a class="pager-step" href="{statsHref(kind, preset, page - 1)}#stats-diary" rel="prev">← Previous</a>
+		{:else}
+			<span class="pager-step" aria-disabled="true">← Previous</span>
+		{/if}
+		<ol class="pager-pages">
+			{#each pagerItems(page, pages) as item, index (index)}
+				{#if item === 'gap'}
+					<li class="pager-gap" aria-hidden="true">…</li>
+				{:else}
+					<li>
+						<a
+							class="pager-page"
+							href="{statsHref(kind, preset, item)}#stats-diary"
+							aria-current={item === page ? 'page' : undefined}
+							aria-label="Page {item}">{item}</a
+						>
+					</li>
+				{/if}
+			{/each}
+		</ol>
+		{#if page < pages}
+			<a class="pager-step" href="{statsHref(kind, preset, page + 1)}#stats-diary" rel="next">Next →</a>
+		{:else}
+			<span class="pager-step" aria-disabled="true">Next →</span>
+		{/if}
+	</nav>
+{/snippet}
+
+<!-- Landing past page 1, the pager stays on top even with JS: it is the way back to the start. -->
+{#if pages > 1 && page > 1}{@render pager('top')}{/if}
 <div class="diary" aria-busy={loading}>
 	{#each entries as entry, index (entry.id)}
 		{@const art = entry.poster_url ?? entry.cover_url}
@@ -183,20 +251,15 @@
 	{/each}
 </div>
 <div class="diary-end" bind:this={sentinel}>
-	{#if loading}
+	{#if !enhanced}
+		{#if pages > 1}{@render pager('bottom')}{:else if entries.length}<p>The end is just the beginning.</p>{/if}
+	{:else if loading}
 		<p role="status">Loading entries…</p>
 	{:else if failure}
 		<p role="alert">{failure}</p>
 		<button class="diary-button" onclick={() => loadMore()}>Try again</button>
 	{:else if next}
-		<a
-			class="diary-button"
-			href={statsHref(kind, preset, next)}
-			onclick={(event) => {
-				event.preventDefault();
-				void loadMore();
-			}}>More entries</a
-		>
+		<button class="diary-button" onclick={() => loadMore()}>More entries</button>
 	{:else if entries.length}
 		<p>The end is just the beginning.</p>
 	{/if}
@@ -442,6 +505,75 @@
 		font-weight: 750;
 		color: #fff;
 		text-shadow: 2px 2px 0 var(--site-outline);
+	}
+	/* Numbered pager: ink tiles in the diary-button idiom; the current page is the filled one. */
+	.diary-pager {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+		margin: 0 0 22px;
+		text-shadow: none;
+	}
+	.diary-end .diary-pager {
+		margin: 0;
+	}
+	.pager-pages {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.pager-step,
+	.pager-page {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 44px;
+		min-height: 44px;
+		padding: 6px 14px;
+		border: 3px solid var(--site-outline);
+		background: #f2eff8;
+		color: var(--site-outline);
+		font-size: 16px;
+		font-weight: 800;
+		font-variant-numeric: tabular-nums;
+		text-decoration: none;
+		box-shadow: var(--site-shadow-sm);
+	}
+	a.pager-step:hover,
+	.pager-page:hover {
+		background: #c9f5e0;
+	}
+	a.pager-step:active,
+	.pager-page:active {
+		transform: translate(3px, 3px);
+		box-shadow: none;
+	}
+	.pager-page[aria-current='page'] {
+		background: #2ecc8f;
+	}
+	.pager-step[aria-disabled='true'] {
+		opacity: 0.45;
+		box-shadow: none;
+	}
+	.pager-gap {
+		align-self: center;
+		padding: 0 2px;
+		color: #fff;
+		font-weight: 800;
+		text-shadow: 2px 2px 0 var(--site-outline);
+	}
+	@media (max-width: 520px) {
+		/* Phones keep the numbers on one row; the steps wrap below them. */
+		.diary-pager .pager-pages {
+			order: -1;
+			flex-basis: 100%;
+			justify-content: center;
+		}
 	}
 	.diary-end p {
 		margin: 0 0 12px;

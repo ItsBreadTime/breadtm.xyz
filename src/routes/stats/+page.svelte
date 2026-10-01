@@ -121,7 +121,7 @@
 
 			<section class="diary-section" aria-labelledby="stats-diary" data-poster-group="Diary">
 				<h2 class="stamp stamp-small" id="stats-diary"><span>Diary</span></h2>
-				<DiaryFeed initialEntries={data.diary} initialNext={data.next} kind={data.kind} preset={data.preset} />
+				<DiaryFeed initialEntries={data.diary} initialNext={data.next} page={data.page} pages={data.pages} kind={data.kind} preset={data.preset} />
 			</section>
 		{:else}
 			<div class="panel error-panel" role="alert">

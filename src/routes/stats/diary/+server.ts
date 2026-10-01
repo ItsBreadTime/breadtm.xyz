@@ -2,8 +2,8 @@ import { json } from '@sveltejs/kit';
 import { fetchLogs, parseCursor, parseKind, parsePreset, presetRange } from '$lib/stats/newsspeak';
 import type { RequestHandler } from './$types';
 
-// Infinite-scroll feeder for the diary. The SSR "More entries" link
-// (?cursor= on /stats) remains the no-JS floor for the same pages.
+// Infinite-scroll feeder for the diary. The numbered pager (?page= on
+// /stats) is the no-JS floor for the same entries.
 export const GET: RequestHandler = async ({ url, fetch }) => {
 	const cursor = parseCursor(url.searchParams.get('cursor'));
 	if (!cursor) return json({ message: 'CURSOR_REQUIRED' }, { status: 400 });

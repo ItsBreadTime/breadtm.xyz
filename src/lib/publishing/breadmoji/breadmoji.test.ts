@@ -218,3 +218,14 @@ test('a feed post carries its series from the anthology field', async () => {
 	// A malformed field is ignored rather than trusted.
 	assert.equal(parseSummary(summary('9', { anthology: { designator: 'bad designator', issue_number: 0 } }))?.anthology, null);
 });
+
+test('the server-rendered window keeps the contiguous run that arrived in time', async () => {
+	const { renderFollowing } = await import('./window.server.ts');
+	const post = (id: string) => ({ id }) as unknown as import('./types.ts').RenderedPost;
+	const all = await renderFollowing(['a', 'b', 'c', 'd'], async (id) => post(id));
+	assert.deepEqual(all.map(p => p.id), ['a', 'b', 'c', 'd']);
+	const gap = await renderFollowing(['a', 'b', 'c', 'd'], async (id) => { if (id === 'b') throw new Error('gone'); return post(id); });
+	assert.deepEqual(gap.map(p => p.id), ['a']);
+	const slow = await renderFollowing(['a', 'b'], (id) => new Promise(resolve => setTimeout(() => resolve(post(id)), id === 'a' ? 0 : 200)), 50);
+	assert.deepEqual(slow.map(p => p.id), ['a']);
+});

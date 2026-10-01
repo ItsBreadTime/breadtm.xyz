@@ -4,6 +4,7 @@ import { getIssue, getSeries, listAnthologies, placeIssue } from '$lib/publishin
 import type { WindowSeed } from '$lib/publishing/breadmoji/api.server';
 import { renderRemotePost } from '$lib/publishing/breadmoji/content.server';
 import { remoteFailure } from '$lib/publishing/breadmoji/errors.server';
+import { SSR_WINDOW, renderFollowing } from '$lib/publishing/breadmoji/window.server';
 
 /** A series reads like the feed, but in issue order, and its whole issue list is known up front. */
 export const load: PageServerLoad = async ({ params, fetch }) => {
@@ -25,8 +26,13 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		older: at < 0 ? [] : series.issues.slice(at + 1),
 		moreNewer: false, moreOlder: false, located: at >= 0
 	};
+	const following = await renderFollowing(seed.older.slice(0, SSR_WINDOW - 1).map(issue => issue.id), async (laterIssue) => {
+		const later = await getIssue(series.anthology.designator, laterIssue, fetch);
+		return renderRemotePost(later.raw, placeIssue(later.summary, series.issues));
+	});
 	return {
 		post: renderRemotePost(raw, placeIssue(summary, series.issues)),
+		following,
 		seed,
 		series: series.anthology,
 		anthologies: (await listing) ?? [series.anthology],

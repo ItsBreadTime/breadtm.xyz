@@ -5,7 +5,9 @@ import {
 	genreRows,
 	kindMix,
 	monthSeries,
+	pagerItems,
 	parseCursor,
+	parsePage,
 	parseKind,
 	parsePreset,
 	presetRange,
@@ -91,7 +93,8 @@ test('filter parsing falls back to safe defaults and composes hrefs', () => {
 	assert.equal(parseCursor('bad cursor!'), null);
 	assert.equal(statsHref('all', 'all'), '/stats');
 	assert.equal(statsHref('movie', '2026'), '/stats?kind=movie&t=2026');
-	assert.equal(statsHref('book', 'all', 'abc_-1'), '/stats?kind=book&cursor=abc_-1');
+	assert.equal(statsHref('book', 'all', 3), '/stats?kind=book&page=3');
+	assert.equal(statsHref('book', 'all', 1), '/stats?kind=book');
 });
 
 test('time presets resolve to UTC bounds', () => {
@@ -115,4 +118,14 @@ test('kind mix splits each kind into first-time and repeat logs', () => {
 		]
 	);
 	assert.equal(kindMix({ movie: 3 }, null)[0].repeats, 0);
+});
+
+test('diary pages parse strictly and the pager elides long runs', () => {
+	assert.equal(parsePage('3'), 3);
+	for (const bad of [null, '', '0', '-1', '1.5', '03', 'x']) assert.equal(parsePage(bad), 1);
+	assert.deepEqual(pagerItems(1, 1), [1]);
+	assert.deepEqual(pagerItems(3, 5), [1, 2, 3, 4, 5]);
+	assert.deepEqual(pagerItems(1, 20), [1, 2, 3, 4, 5, 'gap', 20]);
+	assert.deepEqual(pagerItems(10, 20), [1, 'gap', 9, 10, 11, 'gap', 20]);
+	assert.deepEqual(pagerItems(20, 20), [1, 'gap', 16, 17, 18, 19, 20]);
 });

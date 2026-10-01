@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import type { ViewerStream } from './stream.svelte';
 	import Icon from '../Icon.svelte';
 
@@ -23,6 +23,9 @@
 	} = $props();
 
 	const series = $derived(stream.series);
+	// Close and the scrim need JS; without it the summary is the toggle, so Close only appears once it would work.
+	let enhanced = $state(false);
+	onMount(() => { enhanced = true; });
 </script>
 
 {#snippet nameplate()}
@@ -71,7 +74,7 @@
 			<div class="drawer-panel" aria-label="Browse">
 				<div class="drawer-head">
 					<h2>Browse</h2>
-					<button class="drawer-close" onclick={onclose}>Close</button>
+					{#if enhanced}<button class="drawer-close" onclick={onclose}>Close</button>{/if}
 				</div>
 				{@render drawer()}
 			</div>

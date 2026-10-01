@@ -84,6 +84,8 @@ export interface WindowSeed {
 /** Everything the continuous viewer renders from: the feed and a series share it. */
 export interface ViewerData {
 	post: RenderedPost;
+	/** The posts after it, server-rendered so the first page reads on without JS. */
+	following: RenderedPost[];
 	seed: WindowSeed;
 	/** Set when reading one anthology in issue order; null for the whole feed. */
 	series: RemoteAnthology | null;

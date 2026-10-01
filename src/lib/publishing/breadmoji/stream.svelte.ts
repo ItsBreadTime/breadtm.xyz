@@ -3,6 +3,10 @@ import { SvelteMap } from 'svelte/reactivity';
 import type { RemoteAnthology, RemoteSummary, RenderedPost, ViewerData } from './types';
 
 export type Body = RenderedPost | { error: string };
+/** How many bodies one edge load (or read-ahead) asks for; the reader endpoint caps a batch at three. */
+export const READ_AHEAD = 3;
+/** A server-rendered page's worth of posts: the step the no-JS "newer" link takes. Matches SSR_WINDOW. */
+const PAGE_SIZE = 10;
 export const isReady = (body: Body | undefined): body is RenderedPost => !!body && 'html' in body;
 
 /** Each edge of the reading list pages independently: titles in the sidebar, bodies in the stream. */
@@ -29,6 +33,10 @@ export class ViewerStream {
 	status = $state<Record<Edge, EdgeStatus>>({ olderTitles: 'idle', newerTitles: 'idle', olderBodies: 'idle', newerBodies: 'idle' });
 	announcement = $state('');
 	#controllers = new Set<AbortController>();
+	/** Body requests in flight, by id: a read-ahead and the load that needs it share one request. */
+	#pending = new Map<string, Promise<void>>();
+	/** Bumped on reseed, so a request from the previous window never writes into this one. */
+	#generation = 0;
 
 	// A series reads top-down from #1, so "newer" (up) is the previous issue and "older" (down) the next.
 	noun = $derived(this.series ? { one: 'issue', many: 'issues' } : { one: 'post', many: 'posts' });
@@ -42,6 +50,9 @@ export class ViewerStream {
 	canStepOlder = $derived(!!this.adjacentOlder || this.moreOlder);
 	hasNewerAboveWindow = $derived(this.indexOf(this.windowIds[0]) > 0);
 	hasOlderBelowWindow = $derived(this.#tailIndex() < this.summaries.length - 1 || this.moreOlder);
+	// Where the no-JS edge links lead: the post just past the tail, and a page's worth above the head.
+	nextBelowWindow = $derived(this.summaries[this.#tailIndex() + 1]);
+	pageAboveWindow = $derived(this.indexOf(this.windowIds[0]) > 0 ? this.summaries[Math.max(0, this.indexOf(this.windowIds[0]) - PAGE_SIZE)] : undefined);
 	streamItems = $derived(this.windowIds.map(id => ({ id, body: this.bodies.get(id) })));
 
 	constructor(data: ViewerData) {
@@ -55,9 +66,11 @@ export class ViewerStream {
 		this.moreOlder = data.seed.moreOlder;
 		this.moreNewer = data.seed.moreNewer;
 		this.located = data.seed.located;
+		this.#generation++;
+		this.#pending.clear();
 		this.bodies.clear();
-		this.bodies.set(data.post.id, data.post);
-		this.windowIds = [data.post.id];
+		for (const post of [data.post, ...data.following]) this.bodies.set(post.id, post);
+		this.windowIds = [data.post.id, ...data.following.map(post => post.id)];
 		this.currentId = data.post.id;
 		this.pendingId = null;
 		this.status = { olderTitles: 'idle', newerTitles: 'idle', olderBodies: 'idle', newerBodies: 'idle' };
@@ -67,10 +80,10 @@ export class ViewerStream {
 	indexOf(id: string | undefined) { return id === undefined ? -1 : this.summaries.findIndex(s => s.id === id); }
 	titleOf(id: string) { return this.summaries.find(s => s.id === id)?.title; }
 	plural(count: number) { return count === 1 ? this.noun.one : this.noun.many; }
-	/** The two posts after `id`: a fresh window's first neighbours. */
+	/** The two posts after `id` not already shown: a fresh window's first neighbours. */
 	olderNeighbours(id: string) {
 		const index = this.indexOf(id);
-		return this.summaries.slice(index + 1, index + 3).map(s => s.id);
+		return this.summaries.slice(index + 1, index + 3).map(s => s.id).filter(neighbour => !this.windowIds.includes(neighbour));
 	}
 	/** Where the window ends in the list; a tail the list no longer holds counts as the end. */
 	#tailIndex() {
@@ -108,13 +121,45 @@ export class ViewerStream {
 		catch { this.status[edge] = 'failed'; }
 	}
 
-	/** Fetch full bodies into the cache; a per-post failure is stored as that post's error. */
+	/**
+	 * Fetch full bodies into the cache; a per-post failure is stored as that post's error.
+	 * Bodies already cached are reused and ones already in flight are awaited, not requested twice.
+	 */
 	async #fetchBodies(ids: string[]) {
-		const query = `${this.series ? `series=${this.series.designator}&` : ''}ids=${ids.join(',')}`;
-		const batch: { posts: ReaderResult[] } = await this.#fetchJson(`/breadmoji-writes/reader.json?${query}`);
-		for (const result of batch.posts) {
-			this.bodies.set(result.id, result.status === 'ready' ? result.post : { error: result.message ?? 'This post could not be loaded.' });
+		const waiting = ids.flatMap(id => this.#pending.get(id) ?? []);
+		const missing = ids.filter(id => !this.#pending.has(id) && !isReady(this.bodies.get(id)));
+		if (missing.length) {
+			const generation = this.#generation;
+			const query = `${this.series ? `series=${this.series.designator}&` : ''}ids=${missing.join(',')}`;
+			const request = this.#fetchJson(`/breadmoji-writes/reader.json?${query}`).then((batch: { posts: ReaderResult[] }) => {
+				if (generation !== this.#generation) return;
+				for (const result of batch.posts) {
+					this.bodies.set(result.id, result.status === 'ready' ? result.post : { error: result.message ?? 'This post could not be loaded.' });
+				}
+			}).finally(() => { for (const id of missing) if (this.#pending.get(id) === request) this.#pending.delete(id); });
+			for (const id of missing) this.#pending.set(id, request);
+			waiting.push(request);
 		}
+		await Promise.all(waiting);
+	}
+
+	/**
+	 * Read ahead: fetch the next batch beyond an edge of the window into the cache without
+	 * showing it, so reaching that edge appends at once instead of waiting on the network.
+	 * A failure here is silent; the real load retries and reports it.
+	 */
+	async prefetch(direction: 'older' | 'newer', count = READ_AHEAD) {
+		if (direction === 'older') {
+			const tail = this.#tailIndex();
+			// Titles first when the list runs short, so there is something to read ahead into.
+			if (this.summaries.length - 1 - tail < count && this.moreOlder) await this.pageOlderTitles();
+		}
+		const head = this.indexOf(this.windowIds[0]);
+		const tail = this.#tailIndex();
+		const ahead = direction === 'older' ? this.summaries.slice(tail + 1, tail + 1 + count) : this.summaries.slice(Math.max(0, head - count), Math.max(0, head));
+		const wanted = ahead.map(s => s.id).filter(id => !this.windowIds.includes(id) && !isReady(this.bodies.get(id)) && !this.#pending.has(id));
+		if (!wanted.length) return;
+		try { await this.#fetchBodies(wanted); } catch { /* left for the real load */ }
 	}
 
 	/** Load bodies and join them to the contiguous reading window. */
@@ -142,6 +187,7 @@ export class ViewerStream {
 	/** Retry one failed body in place; its position in the window is unchanged. */
 	async retry(id: string) {
 		this.bodies.delete(id);
+		this.#pending.delete(id);
 		try { await this.#fetchBodies([id]); }
 		catch (failure) { this.bodies.set(id, { error: failure instanceof Error ? failure.message : 'This post could not be loaded.' }); }
 	}
@@ -151,7 +197,7 @@ export class ViewerStream {
 		return this.#track('olderBodies', () => this.loadBodies(ids, 'append'));
 	}
 
-	extendOlderBodies(count = 3) {
+	extendOlderBodies(count = READ_AHEAD) {
 		return this.#track('olderBodies', async () => {
 			if (this.#tailIndex() >= this.summaries.length - 1 && this.moreOlder) await this.pageOlderTitles();
 			const tail = this.#tailIndex();
@@ -165,7 +211,7 @@ export class ViewerStream {
 		});
 	}
 
-	extendNewerBodies(count = 3) {
+	extendNewerBodies(count = READ_AHEAD) {
 		return this.#track('newerBodies', async () => {
 			if (this.indexOf(this.windowIds[0]) <= 0 && this.moreNewer) await this.checkNewerTitles();
 			const start = this.indexOf(this.windowIds[0]);

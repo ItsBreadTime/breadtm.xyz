@@ -1,30 +1,39 @@
+import { redirect } from '@sveltejs/kit';
 import {
 	fetchCurrent,
+	fetchDiaryPage,
 	fetchKindRepeats,
-	fetchLogs,
 	fetchStats,
 	genreRows,
 	kindMix,
 	monthSeries,
-	parseCursor,
+	parsePage,
 	parseKind,
 	parsePreset,
 	presetRange,
-	sortRatings
+	sortRatings,
+	statsHref
 } from '$lib/stats/newsspeak';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ url, fetch, setHeaders }) => {
+export const load: PageServerLoad = async (event) => {
+	const data = await loadStats(event);
+	if (data.beyond !== null) redirect(302, `${statsHref(data.kind, data.preset, data.beyond)}#stats-diary`);
+	return data;
+};
+
+async function loadStats({ url, fetch, setHeaders }: Parameters<PageServerLoad>[0]) {
 	const kind = parseKind(url.searchParams.get('kind'));
 	const preset = parsePreset(url.searchParams.get('t'));
 	const { from, to } = presetRange(preset);
-	const cursor = parseCursor(url.searchParams.get('cursor'));
+	const page = parsePage(url.searchParams.get('page'));
 	const filters = { kind, from, to };
+	let beyond: number | null = null;
 	try {
 		const [stats, current, diary, kindRepeats] = await Promise.all([
 			fetchStats(fetch, filters),
 			fetchCurrent(fetch),
-			fetchLogs(fetch, filters, cursor),
+			fetchDiaryPage(fetch, filters, page),
 			// The repeat split is a garnish on the headline bar: if it fails the
 			// kinds still render, unsplit, and the page stays up.
 			fetchKindRepeats(fetch, filters).catch((error) => {
@@ -32,6 +41,8 @@ export const load: PageServerLoad = async ({ url, fetch, setHeaders }) => {
 				return null;
 			})
 		]);
+		// A page past the end (the slice shrank, or a hand-edited URL) goes to the real last page.
+		if (diary.beyond) beyond = diary.pages;
 		const repeats = kind === 'all' ? kindRepeats : { [kind]: stats.summary.repeats };
 		// Only a complete ledger is edge-cached; a failure must not outlive the blip.
 		setHeaders({ 'cache-control': 'public, s-maxage=300, stale-while-revalidate=3600' });
@@ -48,7 +59,10 @@ export const load: PageServerLoad = async ({ url, fetch, setHeaders }) => {
 			current,
 			diary: diary.entries,
 			next: diary.next,
-			error: null as string | null
+			page,
+			pages: diary.pages,
+			error: null as string | null,
+			beyond
 		};
 	} catch (error) {
 		// The reason goes to the logs; readers get a plain message.
@@ -67,7 +81,10 @@ export const load: PageServerLoad = async ({ url, fetch, setHeaders }) => {
 			current: [],
 			diary: [],
 			next: null,
-			error: "NewsSpeak didn't answer. Try again in a bit."
+			page,
+			pages: 1,
+			error: "NewsSpeak didn't answer. Try again in a bit.",
+			beyond: null as number | null
 		};
 	}
-};
+}

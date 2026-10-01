@@ -128,6 +128,10 @@
 	.nav-item.has-issue .nav-meta { grid-column: 2; }
 	.nav-item:hover { background: var(--notice); }
 	.nav-item.current { background: var(--zine-yellow); border-color: var(--rule); box-shadow: var(--zine-shadow-sm); }
+	/* Without JS nothing scrolls the list, so a page landing deep in the archive (the no-JS
+	   "older posts" link) would open on the top of the list; it opens on the current entry
+	   instead. followNav takes over with JS. */
+	.panel-nav .nav-item.current { scroll-initial-target: nearest; }
 	.nav-item.current .nav-title { font-weight: 800; color: var(--heading); }
 	.nav-item.pending .nav-title { opacity: 0.55; font-style: italic; }
 	.nav-title {

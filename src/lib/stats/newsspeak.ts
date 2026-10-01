@@ -92,6 +92,8 @@ export interface CurrentMedia {
 export interface LogsPage {
 	entries: MediaLog[];
 	next: string | null;
+	/** Entries in the whole filtered slice, across every page. */
+	total: number;
 }
 
 // ---------------------------------------------------------------- filters
@@ -145,12 +147,30 @@ export function parseCursor(value: string | null): string | null {
 	return value && /^[A-Za-z0-9_-]{1,512}$/.test(value) ? value : null;
 }
 
-export function statsHref(kind: KindFilter, preset: TimePreset, cursor?: string | null): string {
+/** Diary page numbers are 1-based; anything else reads as the first page. */
+export function parsePage(value: string | null): number {
+	const page = value && /^[1-9]\d{0,4}$/.test(value) ? Number(value) : 1;
+	return page;
+}
+
+export function statsHref(kind: KindFilter, preset: TimePreset, page = 1): string {
 	const params = new URLSearchParams();
 	if (kind !== 'all') params.set('kind', kind);
 	if (preset !== 'all') params.set('t', preset);
-	if (cursor) params.set('cursor', cursor);
+	if (page > 1) params.set('page', String(page));
 	return `/stats${params.size ? `?${params}` : ''}`;
+}
+
+/**
+ * The page numbers a pager shows: all of them when there are few, otherwise the first, the
+ * last, and the current page with its neighbours, with 'gap' where a run is skipped.
+ */
+export function pagerItems(page: number, pages: number): (number | 'gap')[] {
+	if (pages <= 7) return Array.from({ length: pages }, (_, index) => index + 1);
+	const start = Math.max(2, Math.min(page - 1, pages - 4));
+	const end = Math.min(pages - 1, Math.max(page + 1, 5));
+	const middle = Array.from({ length: end - start + 1 }, (_, index) => start + index);
+	return [1, ...(start > 2 ? ['gap' as const] : []), ...middle, ...(end < pages - 1 ? ['gap' as const] : []), pages];
 }
 
 // ------------------------------------------------------------- formatting
@@ -295,9 +315,10 @@ export async function fetchLogs(
 	fetcher: Fetcher,
 	filters: DiaryFilters,
 	cursor: string | null,
-	limit = 25
+	limit = DIARY_PAGE_SIZE,
+	offset: number | null = null
 ): Promise<LogsPage> {
-	const envelope = await apiGet<{ data: MediaLog[]; pagination: { next_cursor: string | null } }>(
+	const envelope = await apiGet<{ data: MediaLog[]; pagination: { next_cursor: string | null; total?: number } }>(
 		fetcher,
 		'/media/logs',
 		{
@@ -306,8 +327,23 @@ export async function fetchLogs(
 			from: filters.from,
 			to: filters.to,
 			cursor,
+			offset: offset ? String(offset) : null,
 			limit: String(limit)
 		}
 	);
-	return { entries: envelope.data, next: envelope.pagination.next_cursor };
+	return { entries: envelope.data, next: envelope.pagination.next_cursor, total: envelope.pagination.total ?? envelope.data.length };
 }
+
+export const DIARY_PAGE_SIZE = 25;
+
+/** One numbered diary page; a page past the end comes back `beyond`, with the real page count. */
+export async function fetchDiaryPage(
+	fetcher: Fetcher,
+	filters: DiaryFilters,
+	page: number
+): Promise<LogsPage & { pages: number; beyond: boolean }> {
+	const logs = await fetchLogs(fetcher, filters, null, DIARY_PAGE_SIZE, (page - 1) * DIARY_PAGE_SIZE);
+	return { ...logs, pages: pageCount(logs.total), beyond: page > 1 && !logs.entries.length };
+}
+
+const pageCount = (total: number) => Math.max(1, Math.ceil(total / DIARY_PAGE_SIZE));

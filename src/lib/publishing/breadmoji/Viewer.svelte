@@ -4,7 +4,7 @@
 	import type { ViewerData } from './types';
 	import { RSS_URL } from './constants';
 	import { dateLabel } from '../model';
-	import { ViewerStream, isReady } from './stream.svelte';
+	import { ViewerStream, isReady, READ_AHEAD } from './stream.svelte';
 	import ContentDisclaimer from '../ContentDisclaimer.svelte';
 	import Icon from '../Icon.svelte';
 	import ViewerPost from './ViewerPost.svelte';
@@ -80,21 +80,39 @@
 	async function pumpOlder() {
 		if (!bottomNear || stream.status.olderBodies !== 'idle' || !stream.hasOlderBelowWindow) return;
 		const before = stream.windowIds.length;
-		await stream.extendOlderBodies(3);
+		await stream.extendOlderBodies(READ_AHEAD);
 		await tick();
 		bottomNear = edgeInRange(bottomSentinel, 'bottom');
 		if (stream.windowIds.length > before) void pumpOlder();
+	}
+
+	/** An edge link: a real page of posts without JS, an in-place load with it. */
+	function loadEdge(event: MouseEvent, direction: 'older' | 'newer') {
+		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		event.preventDefault();
+		void (direction === 'older' ? stream.extendOlderBodies(READ_AHEAD) : stream.extendNewerBodies(READ_AHEAD));
 	}
 
 	async function pumpNewer() {
 		if (!topNear || !wantsNewer || jumping || stream.status.newerBodies !== 'idle') return;
 		if (!stream.hasNewerAboveWindow && !stream.moreNewer) return;
 		const before = stream.windowIds.length;
-		await stream.extendNewerBodies(3);
+		await stream.extendNewerBodies(READ_AHEAD);
 		await tick();
 		topNear = edgeInRange(topSentinel, 'top');
 		if (stream.windowIds.length > before) void pumpNewer();
 	}
+
+	// Read-ahead: whenever the window moves, fetch the next batch past each live edge into the
+	// cache, so the pumps append from memory instead of waiting on the network at the edge.
+	$effect(() => {
+		void stream.windowIds;
+		const timer = setTimeout(() => {
+			void stream.prefetch('older');
+			if (wantsNewer) void stream.prefetch('newer');
+		}, 300);
+		return () => clearTimeout(timer);
+	});
 
 	// Infinite sidebar: an edge sentinel entering its scroller's vicinity pages titles in that direction.
 	$effect(() => {
@@ -288,7 +306,7 @@
 		lastScrollY = window.scrollY;
 		// Pinned at the top of the page, an upward gesture scrolls nothing and fires no scroll event,
 		// so the gesture itself has to count as asking for newer posts.
-		const wantNewer = () => { if (!wantsNewer) { wantsNewer = true; void pumpNewer(); } };
+		const wantNewer = () => { if (!wantsNewer) { wantsNewer = true; void stream.prefetch('newer'); void pumpNewer(); } };
 		const onScroll = () => {
 			// Prepend corrections scroll down, so only a reader's own upward scroll reads as intent.
 			if (window.scrollY < lastScrollY - 4) wantNewer();
@@ -400,8 +418,9 @@
 				{#if stream.hasNewerAboveWindow || stream.moreNewer}
 					<div class="stream-boundary">
 						{#if stream.status.newerBodies === 'loading'}<p role="status">Loading {series ? 'earlier issues' : 'newer posts'}…</p>
-						{:else if stream.status.newerBodies === 'failed'}<p role="alert">{series ? 'Earlier issues' : 'Newer posts'} could not be loaded.</p><button class="blog-button" onclick={() => void stream.extendNewerBodies(3)}>Try again</button>
-						{:else}<button class="blog-button" onclick={() => void stream.extendNewerBodies(3)}>↑ Load {series ? 'earlier issues' : 'newer posts'}</button>{/if}
+						{:else if stream.status.newerBodies === 'failed'}<p role="alert">{series ? 'Earlier issues' : 'Newer posts'} could not be loaded.</p><button class="blog-button" onclick={() => void stream.extendNewerBodies(READ_AHEAD)}>Try again</button>
+						{:else if stream.pageAboveWindow}<a class="blog-button" href={stream.postHref(stream.pageAboveWindow.id)} rel="prev" onclick={(event) => loadEdge(event, 'newer')}>↑ Load {series ? 'earlier issues' : 'newer posts'}</a>
+						{:else}<button class="blog-button" onclick={() => void stream.extendNewerBodies(READ_AHEAD)}>↑ Load {series ? 'earlier issues' : 'newer posts'}</button>{/if}
 					</div>
 				{/if}
 
@@ -418,8 +437,9 @@
 
 				<div class="stream-boundary">
 					{#if stream.status.olderBodies === 'loading'}<p role="status">Loading {series ? 'later issues' : 'older posts'}…</p>
-					{:else if stream.status.olderBodies === 'failed'}<p role="alert">{series ? 'Later issues' : 'Older posts'} could not be loaded.</p><button class="blog-button" onclick={() => void stream.extendOlderBodies(3)}>Try again</button>
-					{:else if stream.hasOlderBelowWindow}<button class="blog-button" onclick={() => void stream.extendOlderBodies(3)}>Load {series ? 'later issues' : 'older posts'} ↓</button>
+					{:else if stream.status.olderBodies === 'failed'}<p role="alert">{series ? 'Later issues' : 'Older posts'} could not be loaded.</p><button class="blog-button" onclick={() => void stream.extendOlderBodies(READ_AHEAD)}>Try again</button>
+					{:else if stream.nextBelowWindow}<a class="blog-button" href={stream.postHref(stream.nextBelowWindow.id)} rel="next" onclick={(event) => loadEdge(event, 'older')}>Load {series ? 'later issues' : 'older posts'} ↓</a>
+					{:else if stream.hasOlderBelowWindow}<button class="blog-button" onclick={() => void stream.extendOlderBodies(READ_AHEAD)}>Load {series ? 'later issues' : 'older posts'} ↓</button>
 					{:else}<p class="stream-end">{series ? `That’s the latest issue of ${series.name}.` : 'You’ve reached the oldest post.'}</p>{/if}
 				</div>
 				<div bind:this={bottomSentinel} class="stream-sentinel" aria-hidden="true"></div>
