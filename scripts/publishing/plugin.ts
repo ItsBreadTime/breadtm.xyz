@@ -8,6 +8,13 @@ import type { ArticleDetails, Post } from '../../src/lib/publishing/types.ts';
 
 const ids = ['catalog', 'articles', 'details', 'feeds', 'providers'];
 const exists = async (file: string) => access(file).then(() => true, () => false);
+// These ids are spliced into generated module source, so re-check the exact shape
+// collect() produces here rather than trusting the slug validation upstream.
+const moduleId = /^\/src\/content\/articles\/[a-z0-9]+(?:-[a-z0-9]+)*\/(?:index\.(?:md|svelte)|provider\.server\.ts)$/;
+const dynamicImport = (id: string) => {
+	if (!moduleId.test(id)) throw new Error(`Refusing to emit an import for an unexpected path: ${id}`);
+	return `() => import(${JSON.stringify(id)})`;
+};
 export function publishing(): Plugin {
 	let root = '';
 	let preview = false;
@@ -58,8 +65,8 @@ export function publishing(): Plugin {
 			const entries = await (pending ??= collect());
 			const name = id.split('/').at(-1);
 			if (name === 'catalog') { const posts = entries.map(e => e.post); return `export const posts = ${JSON.stringify(posts)}; export const revision = ${JSON.stringify(catalogRevision(posts))}; export const preview = ${preview};`; }
-			if (name === 'articles') return `export const articles = {${entries.map(e => `${JSON.stringify(e.post.slug)}: () => import(${JSON.stringify(e.source)})`).join(',')}};`;
-			if (name === 'providers') return `export const providers = {${entries.filter(e => e.provider).map(e => `${JSON.stringify(e.post.slug)}: () => import(${JSON.stringify(e.provider)})`).join(',')}};`;
+			if (name === 'articles') return `export const articles = {${entries.map(e => `${JSON.stringify(e.post.slug)}: ${dynamicImport(e.source)}`).join(',')}};`;
+			if (name === 'providers') return `export const providers = {${entries.filter((e): e is typeof e & { provider: string } => e.provider !== null).map(e => `${JSON.stringify(e.post.slug)}: ${dynamicImport(e.provider)}`).join(',')}};`;
 			return `export const ${name} = ${JSON.stringify(Object.fromEntries(entries.map(e => [e.post.slug, name === 'details' ? e.details : e.feed])))};`;
 		},
 		configureServer(server) {
