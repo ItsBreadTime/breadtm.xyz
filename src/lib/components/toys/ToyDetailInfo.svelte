@@ -1,29 +1,37 @@
 <script lang="ts">
-    import type { Snippet } from 'svelte';
+    import type { Component, Snippet } from 'svelte';
 
     let {
-        series,
+        slug = '',
         year,
         faction,
         description,
-        content
+        notes: Notes,
+        gallery
     }: {
-        series?: string;
+        slug?: string;
         year?: string;
         faction?: string;
         description?: string;
-        content?: Snippet;
+        notes?: Component;
+        gallery?: Snippet;
     } = $props();
+
+    // Empty-state captions, one narrator line picked by slug so a toy always
+    // gets the same one (stable across reloads and between SSR and hydration).
+    const captions = [
+        { kicker: 'Actually...', line: 'turns out it was all just a dream!' },
+        { kicker: 'Uhhhhh...', line: 'something fell, will look into it.' },
+        { kicker: 'Our story so far...', line: 'nothing yet. This one is still under observation.' },
+        { kicker: 'Little did we know...', line: "this chapter hadn't been written yet." },
+        { kicker: 'Later that week...', line: 'the dossier is still on the drafting table.' }
+    ];
+    const caption = $derived(captions[[...slug].reduce((sum, char) => sum + char.charCodeAt(0), 0) % captions.length]);
 </script>
 
 <div class="detail-panel">
+    <div class="panel-band" aria-hidden="true"></div>
     <dl class="meta-list">
-        {#if series}
-            <div class="meta-row">
-                <dt>Series</dt>
-                <dd>{series}</dd>
-            </div>
-        {/if}
         {#if year}
             <div class="meta-row">
                 <dt>Year</dt>
@@ -39,65 +47,115 @@
     </dl>
     {#if description}
         <div class="detail-description">
-            <span>Description</span>
             <div>{@html description}</div>
         </div>
     {/if}
 </div>
 
-<div class="notes-panel prose prose-sm sm:prose-base max-w-none">
-    <div class="prose-content-wrapper">
-        {#if content}
-            {@render content()}
-        {:else}
-            <p class="text-gray-400 italic py-4">No additional content available for this toy.</p>
-        {/if}
-    </div>
+{#if gallery}
+    {@render gallery()}
+{/if}
+
+<div class="notes-panel prose prose-sm sm:prose-base max-w-none" class:is-empty={!Notes}>
+    <div class="panel-band" aria-hidden="true"></div>
+    {#if Notes}
+        <div class="prose-content-wrapper">
+            <Notes />
+        </div>
+    {:else}
+        <div class="notes-empty">
+            <div class="notes-caption">
+                <span class="notes-caption-kicker">{caption.kicker}</span>
+                <span class="notes-caption-line">{caption.line}</span>
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style lang="postcss">
     .prose {
-        --tw-prose-body: theme(colors.gray.300);
-        --tw-prose-headings: theme(colors.rose.300);
-        --tw-prose-lead: theme(colors.gray.400);
-        --tw-prose-links: theme(colors.sky.400);
-        --tw-prose-bold: theme(colors.gray.100);
-        --tw-prose-counters: theme(colors.gray.400);
-        --tw-prose-bullets: theme(colors.rose.400);
-        --tw-prose-hr: theme(colors.gray.700);
-        --tw-prose-quotes: theme(colors.gray.200);
-        --tw-prose-quote-borders: theme(colors.rose.400);
-        --tw-prose-captions: theme(colors.gray.400);
-        --tw-prose-code: theme(colors.amber.300);
-        --tw-prose-pre-code: theme(colors.gray.300);
-        --tw-prose-pre-bg: theme(colors.gray.900);
-        --tw-prose-th-borders: theme(colors.gray.600);
-        --tw-prose-td-borders: theme(colors.gray.700);
+        --tw-prose-body: var(--detail-ink);
+        --tw-prose-headings: var(--detail-ink);
+        --tw-prose-lead: var(--detail-muted);
+        --tw-prose-links: var(--detail-accent);
+        --tw-prose-bold: var(--detail-ink);
+        --tw-prose-counters: var(--detail-accent);
+        --tw-prose-bullets: var(--detail-accent);
+        --tw-prose-hr: var(--toys-ink, #050308);
+        --tw-prose-quotes: var(--detail-muted);
+        --tw-prose-quote-borders: var(--detail-accent);
+        --tw-prose-captions: var(--detail-muted);
+        --tw-prose-code: #ffda65;
+        --tw-prose-pre-code: var(--detail-ink);
+        --tw-prose-pre-bg: var(--toys-ink, #050308);
+        --tw-prose-th-borders: var(--toys-ink, #050308);
+        --tw-prose-td-borders: var(--toys-ink, #050308);
     }
 
     .detail-panel,
     .notes-panel {
         position: relative;
-        overflow: hidden;
         color: var(--detail-ink);
-        background: #07050d;
-        border: 2px solid color-mix(in srgb, var(--detail-accent), transparent 42%);
-        border-radius: 0.45rem;
+        background: color-mix(in srgb, var(--detail-field-deep), #050308 25%);
+        border: 3px solid var(--toys-ink, #050308);
+        border-radius: 0;
+        box-shadow: var(--toys-shadow-md, 5px 5px 0 #050308);
     }
 
+    .detail-panel {
+        /* Interior separators are grooves, not ink outlines: a step lighter
+           than the panel background. */
+        --panel-line: color-mix(in srgb, color-mix(in srgb, var(--detail-field-deep), #050308 25%), #ffffff 12%);
+        overflow: hidden;
+        padding: clamp(0.75rem, 1.8vw, 1rem);
+        padding-bottom: calc(clamp(0.75rem, 1.8vw, 1rem) + 0.6rem);
+    }
+
+    /* Dossier band: a thin unlabeled ink strip, full-bleed across the panel's
+       top. The 2px accent step along its bottom edge reads as the band being
+       bolted onto the panel. */
+    .panel-band {
+        height: 0.5rem;
+        margin: calc(clamp(0.75rem, 1.8vw, 1rem) * -1);
+        margin-bottom: 0.62rem;
+        background: var(--toys-ink, #050308);
+        box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--detail-accent), var(--toys-ink, #050308) 25%);
+    }
+
+    /* Stepped shade band along the panel's bottom inner edge: halftone band
+       (step 1) with a solid deep strip (step 2) at the very bottom. */
+    .detail-panel::after,
+    .notes-panel::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 0.6rem;
+        background-color: color-mix(in srgb, var(--detail-field-deep), #050308 calc(25% + var(--toys-shade-mix, 30%)));
+        background-image:
+            var(--toys-halftone),
+            linear-gradient(color-mix(in srgb, var(--detail-field-deep), #050308 calc(25% + var(--toys-shade-mix-2, 48%))) 0 0);
+        background-size:
+            var(--toys-halftone-size, 8px) var(--toys-halftone-size, 8px),
+            100% 3px;
+        background-position: 0 0, left bottom;
+        background-repeat: repeat, no-repeat;
+        pointer-events: none;
+    }
+
+    /* Corner shade wedge rising off the band, bottom-right. */
     .detail-panel::before,
     .notes-panel::before {
         content: "";
         position: absolute;
-        inset: 0 0 auto;
-        height: 0.18rem;
-        background: var(--detail-accent);
-        opacity: 0.62;
+        right: 0;
+        bottom: 0.6rem;
+        width: min(28%, 4.5rem);
+        height: 2rem;
+        background-color: color-mix(in srgb, var(--detail-field-deep), #050308 calc(25% + var(--toys-shade-mix, 30%)));
+        background-image: var(--toys-halftone);
+        background-size: var(--toys-halftone-size, 8px) var(--toys-halftone-size, 8px);
+        clip-path: polygon(100% 0, 100% 100%, 0 100%);
         pointer-events: none;
-    }
-
-    .detail-panel {
-        padding: clamp(0.75rem, 1.8vw, 1rem);
     }
 
     .meta-list {
@@ -106,7 +164,7 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        border-block: 2px solid color-mix(in srgb, var(--detail-accent), transparent 38%);
+        border-block: 2px solid var(--panel-line, var(--toys-ink, #050308));
     }
 
     .meta-row {
@@ -119,22 +177,24 @@
     }
 
     .meta-row + .meta-row {
-        border-left: 1px solid color-mix(in srgb, var(--detail-accent), transparent 54%);
+        border-left: 2px solid var(--panel-line, var(--toys-ink, #050308));
     }
 
-    dt,
-    .detail-description span {
+    dt {
         display: block;
-        color: color-mix(in srgb, var(--detail-muted), white 4%);
+        color: var(--detail-muted);
         font-size: 0.72rem;
-        font-weight: 700;
+        font-weight: 750;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
     }
 
     dd {
         overflow-wrap: anywhere;
-        color: var(--detail-ink);
-        font-family: Goldman, sans-serif;
+        color: var(--detail-accent);
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
         font-size: 0.92rem;
+        font-weight: 800;
         line-height: 1.05;
     }
 
@@ -144,13 +204,14 @@
         margin-top: 0.62rem;
         padding-top: 0.58rem;
         color: var(--detail-muted);
-        border-top: 1px solid color-mix(in srgb, var(--detail-accent), transparent 66%);
+        border-top: 2px solid var(--panel-line, var(--toys-ink, #050308));
     }
 
     .detail-description div {
         max-width: 68ch;
         color: var(--detail-ink);
         font-size: 0.98rem;
+        font-weight: 400;
         line-height: 1.55;
         text-wrap: pretty;
     }
@@ -159,6 +220,7 @@
         flex: 1 1 auto;
         min-height: 0;
         padding: clamp(0.75rem, 1.8vw, 1rem);
+        padding-bottom: calc(clamp(0.75rem, 1.8vw, 1rem) + 0.6rem);
         overflow: auto;
     }
 
@@ -167,11 +229,11 @@
         z-index: 1;
     }
 
-    .notes-panel :global(*:first-child) {
+    .prose-content-wrapper :global(*:first-child) {
         margin-top: 0;
     }
 
-    .notes-panel :global(*:last-child) {
+    .prose-content-wrapper :global(*:last-child) {
         margin-bottom: 0;
     }
 
@@ -179,8 +241,44 @@
     .notes-panel :global(h2),
     .notes-panel :global(h3) {
         color: var(--detail-ink);
-        font-family: Goldman, sans-serif;
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
         letter-spacing: 0;
+    }
+
+    /* Empty state: one comic narrator caption, sized to its line. */
+    .notes-panel.is-empty {
+        flex: 0 0 auto;
+        overflow: hidden;
+    }
+
+    .notes-empty {
+        position: relative;
+        z-index: 1;
+    }
+
+    .notes-caption {
+        max-width: 26rem;
+        padding: 0.6rem 0.85rem 0.7rem;
+        color: #1a1208;
+        background: #ffda65;
+        border: 3px solid var(--toys-ink, #050308);
+        box-shadow: var(--toys-shadow-sm, 3px 3px 0 #050308);
+    }
+
+    .notes-caption-kicker {
+        display: block;
+        margin-bottom: 0.2rem;
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 800;
+    }
+
+    .notes-caption-line {
+        display: block;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.4;
+        text-wrap: pretty;
     }
 
     .notes-panel :global(p) {
@@ -198,12 +296,11 @@
         margin-top: theme(margin.5);
         margin-bottom: theme(margin.3);
         padding-bottom: theme(padding.2);
-        border-bottom: 1px solid theme(colors.gray.700);
+        border-bottom: 2px solid var(--toys-ink, #050308);
         letter-spacing: 0.02em;
     }
 
     .prose :global(h1) {
-        color: theme(colors.rose.200);
         font-size: 2em;
     }
 
@@ -214,44 +311,43 @@
 
     .prose :global(a) {
         padding: 0 0.15em;
-        border-bottom: 1px dotted theme(colors.sky.400 / 0.5);
+        border-bottom: 1px dotted color-mix(in srgb, var(--detail-accent), transparent 50%);
         text-decoration: none;
-        transition: all 0.2s ease-in-out;
+        transition: border-color 140ms ease, background-color 140ms ease;
     }
 
     .prose :global(a:hover) {
-        color: theme(colors.sky.300);
-        background-color: theme(colors.sky.900 / 0.2);
-        border-bottom-color: theme(colors.sky.300 / 0.8);
+        background-color: color-mix(in srgb, var(--detail-accent), transparent 82%);
+        border-bottom-color: var(--detail-accent);
         border-bottom-style: solid;
     }
 
     .prose :global(img) {
         margin-block: theme(margin.4);
-        border: 2px solid theme(colors.gray.700);
-        border-radius: theme(borderRadius.lg);
-        box-shadow: theme(boxShadow.lg);
+        border: 3px solid var(--toys-ink, #050308);
+        border-radius: 0;
+        box-shadow: var(--toys-shadow-sm, 3px 3px 0 #050308);
     }
 
     .prose :global(code):not(pre code) {
         padding: 0.2em 0.4em;
-        color: theme(colors.amber.300);
-        background-color: theme(colors.gray.700);
-        border-radius: theme(borderRadius.md);
+        color: #ffda65;
+        background-color: var(--toys-ink, #050308);
+        border-radius: 0;
         font-size: 0.9em;
     }
 
     .prose :global(pre) {
-        border: 1px solid theme(colors.gray.700);
-        border-radius: theme(borderRadius.md);
-        box-shadow: theme(boxShadow.md);
+        border: 2px solid var(--toys-ink, #050308);
+        border-radius: 0;
+        box-shadow: var(--toys-shadow-sm, 3px 3px 0 #050308);
     }
 
     .prose :global(blockquote) {
         padding: 0.75em 1em;
-        background-color: theme(colors.gray.800 / 0.5);
-        border-left-width: 4px;
-        border-radius: 0 theme(borderRadius.md) theme(borderRadius.md) 0;
+        background-color: color-mix(in srgb, var(--detail-field-deep), #050308 20%);
+        border: 2px solid var(--toys-ink, #050308);
+        border-radius: 0;
         font-style: italic;
     }
 
@@ -264,12 +360,17 @@
     }
 
     .prose :global(li::marker) {
-        color: theme(colors.rose.400);
+        color: var(--detail-accent);
     }
 
     @media (max-width: 640px) {
         .detail-panel {
             padding: 0.72rem;
+            padding-bottom: calc(0.72rem + 0.6rem);
+        }
+
+        .detail-panel .panel-band {
+            margin: -0.72rem -0.72rem 0.55rem;
         }
 
         .meta-list {
@@ -295,7 +396,7 @@
         dd {
             max-width: 100%;
             font-size: clamp(0.76rem, 3.5vw, 0.9rem);
-            line-height: 1;
+            line-height: 1.2;
             white-space: nowrap;
         }
 
@@ -311,22 +412,12 @@
     }
 
     @media (max-width: 340px) {
-        .detail-panel,
-        .notes-panel {
-            border-radius: 0.45rem;
-        }
-
         .meta-list {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .meta-row:nth-child(odd) {
             border-left: 0;
-        }
-
-        .meta-row:nth-child(3) {
-            grid-column: 1 / -1;
-            border-top: 1px solid color-mix(in srgb, var(--detail-accent), transparent 54%);
         }
     }
 

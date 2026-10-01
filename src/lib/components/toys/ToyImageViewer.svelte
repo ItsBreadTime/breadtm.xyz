@@ -1,7 +1,6 @@
 <script lang="ts">
-    import { onMount, tick } from 'svelte';
-    import { error } from '@sveltejs/kit';
-    import { page } from '$app/stores'; 
+    import { onMount } from 'svelte';
+    import { page } from '$app/state';
     import {
         imageResolutionCache,
         getImageResolutionCacheKey,
@@ -9,320 +8,95 @@
     } from '$lib/toys/fullResolutionCache';
     import {
         FULL_RESOLUTION_IDLE_DELAY,
+        getFullResolutionSources,
+        getPictureSources,
         shouldQueueFullResolution
     } from '$lib/toys/imageLoading';
+    import { getBaseFilename } from '$lib/toys/images';
+    import { MIN_ZOOM, ZoomPan, swipe } from '$lib/toys/zoomPan.svelte';
     import type { ToyDetailData } from '$lib/toys/detailTypes';
     import ProgressiveToyImage from './ProgressiveToyImage.svelte';
     import ToyDetailInfo from './ToyDetailInfo.svelte';
     import ToyLightbox from './ToyLightbox.svelte';
     import ToyThumbnailRail from './ToyThumbnailRail.svelte';
-    
+
     let { data }: { data: ToyDetailData } = $props();
 
-    const toy = $derived.by(() => {
-        if (!data.metadata) {
-            throw error(404, 'Toy metadata not found');
-        }
-        return data.metadata;
-    });
-    const slug = $derived(toy.slug || $page.params.slug);
+    const toy = $derived(data.metadata);
+    const slug = $derived(toy.slug);
+    const imageSets = $derived(toy.imageSets);
+    const thumbnailImageSets = $derived(toy.thumbnailImageSets);
+    const sortedImageKeys = $derived(toy.sortedImageKeys);
+    const imageCount = $derived(sortedImageKeys.length);
+    const cacheKey = (imageKey: string) => getImageResolutionCacheKey(slug, imageKey);
 
-    const contentComponent = $derived(data.component);
-    
-    const imageSets = $derived(toy.imageSets || {});
-    const thumbnailImageSets = $derived(toy.thumbnailImageSets || {});
-    const sortedImageKeys = $derived(toy.sortedImageKeys || []);
-    function getInitialImageIndex(): number {
-        return data.metadata.initialImageIndex || 0;
-    }
-
-    let currentImageKeyIndex: number = $state(getInitialImageIndex());
+    // svelte-ignore state_referenced_locally
+    let currentImageKeyIndex = $state(data.metadata.initialImageIndex);
     const currentImageKey = $derived(sortedImageKeys[currentImageKeyIndex] || '');
 
-    let isImageEnlarged: boolean = $state(false);
-    let enlargedImageIndex: number = $state(0);
-    let zoomScale: number = $state(1);
-    let zoomOffsetX: number = $state(0);
-    let zoomOffsetY: number = $state(0);
+    let isImageEnlarged = $state(false);
+    let enlargedImageIndex = $state(0);
     let requestedFullResolutionKey: string | null = $state(null);
     const enlargedImageKey = $derived(sortedImageKeys[enlargedImageIndex] || '');
     const fullResolutionRequested = $derived(requestedFullResolutionKey === enlargedImageKey);
     const useFullResolution = $derived(
-        enlargedImageKey !== ''
-        && $imageResolutionCache[getImageResolutionCacheKey(slug, enlargedImageKey)] === 'full'
+        enlargedImageKey !== '' && $imageResolutionCache[cacheKey(enlargedImageKey)] === 'full'
     );
-    let previousImageSignature = '';
     let standardImageReadyKey = $state('');
+    // The resolution cache lives in the browser; SSR and hydration render from thumbnails.
     let cacheReady = $state(false);
+    onMount(() => { cacheReady = true; });
 
-    onMount(() => {
-        cacheReady = true;
-    });
+    const step = (index: number, offset: number) => (index + offset + imageCount) % imageCount;
 
-    let touchStartX: number = 0;
-    let touchEndX: number = 0;
-    let panStartX: number = 0;
-    let panStartY: number = 0;
-    let panStartOffsetX: number = 0;
-    let panStartOffsetY: number = 0;
-    let pinchStartDistance: number = 0;
-    let pinchStartScale: number = 1;
-    let pinchStartCenterX: number = 0;
-    let pinchStartCenterY: number = 0;
-    let pinchStartOffsetX: number = 0;
-    let pinchStartOffsetY: number = 0;
-    let pointerPanActive = false;
-    let lightboxElement = $state<HTMLElement>();
-    let previouslyFocusedElement: HTMLElement | null = null;
-    const MIN_SWIPE_DISTANCE = 50;
-    const MIN_ZOOM = 1;
-    const MAX_ZOOM = 6;
-    const ZOOM_BUTTON_STEP = 0.75;
-    const WHEEL_ZOOM_SENSITIVITY = 0.0035;
-    const lightboxUsesFullResolution = $derived(useFullResolution);
+    // ─── Full resolution: fetched only once the reader has zoomed in and paused.
 
-    let zoomFrame: number | null = null;
-    let panFrame: number | null = null;
     let fullResolutionTimer: number | null = null;
-    let pendingZoomScale = MIN_ZOOM;
-    let pendingZoomClientX: number | null = null;
-    let pendingZoomClientY: number | null = null;
-    let pendingZoomOffsetX: number | null = null;
-    let pendingZoomOffsetY: number | null = null;
-    let pendingPanOffsetX = 0;
-    let pendingPanOffsetY = 0;
-
-    function handleTouchStart(e: TouchEvent): void {
-        const touch = e.touches[0];
-        if (!touch) return;
-        touchStartX = touch.clientX;
-    }
-
-    function handleTouchMove(e: TouchEvent): void {
-        const touch = e.touches[0];
-        if (!touch) return;
-        touchEndX = touch.clientX;
-    }
-
-    function handleTouchEnd(e: TouchEvent): void {
-        if (!touchStartX || !touchEndX) return;
-        
-        const swipeDistance = touchEndX - touchStartX;
-        if (Math.abs(swipeDistance) >= MIN_SWIPE_DISTANCE) {
-            if (swipeDistance > 0) {
-                prevImage();
-            } else {
-                nextImage();
-            }
-        }
-        
-        touchStartX = 0;
-        touchEndX = 0;
-    }
-
-    function handleEnlargedTouchStart(e: TouchEvent): void {
-        if (e.touches.length >= 2) {
-            pinchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
-            pinchStartScale = zoomScale;
-            pinchStartCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-            pinchStartCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-            pinchStartOffsetX = zoomOffsetX;
-            pinchStartOffsetY = zoomOffsetY;
-            touchStartX = 0;
-            touchEndX = 0;
-            return;
-        }
-
-        const touch = e.touches[0];
-        if (!touch) return;
-        touchStartX = touch.clientX;
-        touchEndX = touch.clientX;
-        panStartX = touch.clientX;
-        panStartY = touch.clientY;
-        panStartOffsetX = zoomOffsetX;
-        panStartOffsetY = zoomOffsetY;
-    }
-
-    function handleEnlargedTouchMove(e: TouchEvent): void {
-        if (e.touches.length >= 2) {
-            const firstTouch = e.touches[0];
-            const secondTouch = e.touches[1];
-            const distance = getTouchDistance(firstTouch, secondTouch);
-            if (pinchStartDistance > 0) {
-                const targetScale = Math.max(
-                    MIN_ZOOM,
-                    Math.min(MAX_ZOOM, pinchStartScale * (distance / pinchStartDistance))
-                );
-                const stage = e.currentTarget as HTMLElement;
-                const rect = stage.getBoundingClientRect();
-                const currentCenterX = (firstTouch.clientX + secondTouch.clientX) / 2;
-                const currentCenterY = (firstTouch.clientY + secondTouch.clientY) / 2;
-                const focalX = pinchStartCenterX - (rect.left + rect.width / 2);
-                const focalY = pinchStartCenterY - (rect.top + rect.height / 2);
-                const scaleRatio = targetScale / pinchStartScale;
-                const nextOffsetX = currentCenterX - pinchStartCenterX
-                    + focalX
-                    + (pinchStartOffsetX - focalX) * scaleRatio;
-                const nextOffsetY = currentCenterY - pinchStartCenterY
-                    + focalY
-                    + (pinchStartOffsetY - focalY) * scaleRatio;
-                scheduleZoom(targetScale, null, null, nextOffsetX, nextOffsetY);
-            }
-            return;
-        }
-
-        const touch = e.touches[0];
-        if (!touch) return;
-
-        if (zoomScale > MIN_ZOOM) {
-            schedulePan(
-                panStartOffsetX + touch.clientX - panStartX,
-                panStartOffsetY + touch.clientY - panStartY
-            );
-        } else {
-            touchEndX = touch.clientX;
-        }
-    }
-
-    function handleEnlargedTouchEnd(e: TouchEvent): void {
-        if (pinchStartDistance > 0) {
-            if (e.touches.length < 2) {
-                pinchStartDistance = 0;
-                const remainingTouch = e.touches[0];
-                if (remainingTouch) {
-                    panStartX = remainingTouch.clientX;
-                    panStartY = remainingTouch.clientY;
-                    panStartOffsetX = pendingZoomOffsetX ?? zoomOffsetX;
-                    panStartOffsetY = pendingZoomOffsetY ?? zoomOffsetY;
-                }
-            }
-            return;
-        }
-
-        if (zoomScale > MIN_ZOOM) {
-            touchStartX = 0;
-            touchEndX = 0;
-            return;
-        }
-
-        if (!touchStartX || !touchEndX) return;
-        
-        const swipeDistance = touchEndX - touchStartX;
-        if (Math.abs(swipeDistance) >= MIN_SWIPE_DISTANCE) {
-            if (swipeDistance > 0) {
-                prevEnlargedImage();
-            } else {
-                nextEnlargedImage();
-            }
-        }
-        
-        touchStartX = 0;
-        touchEndX = 0;
-    }
-
-    function getTouchDistance(first: Touch, second: Touch): number {
-        return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
-    }
-
-    function clampPanOffsets(
-        offsetX: number,
-        offsetY: number,
-        scale = zoomScale
-    ): { x: number; y: number } {
-        const stage = document.querySelector<HTMLElement>('.lightbox-stage');
-        if (!stage) return { x: offsetX, y: offsetY };
-        const image = stage.querySelector<HTMLImageElement>(
-            '.enlarged-picture-full.active .enlarged-image, .enlarged-picture-standard .enlarged-image'
-        );
-        const naturalWidth = image?.naturalWidth || Number(image?.getAttribute('width')) || stage.clientWidth;
-        const naturalHeight = image?.naturalHeight || Number(image?.getAttribute('height')) || stage.clientHeight;
-        const imageRatio = naturalWidth / naturalHeight;
-        const stageWidth = stage.clientWidth;
-        const stageHeight = stage.clientHeight;
-        const containedWidth = Math.min(stageWidth, stageHeight * imageRatio);
-        const containedHeight = Math.min(stageHeight, stageWidth / imageRatio);
-        const limitX = Math.max(0, (containedWidth * scale - stageWidth) / 2);
-        const limitY = Math.max(0, (containedHeight * scale - stageHeight) / 2);
-        return {
-            x: Math.max(-limitX, Math.min(limitX, offsetX)),
-            y: Math.max(-limitY, Math.min(limitY, offsetY))
-        };
-    }
-
-    function cancelInteractionFrames(): void {
-        if (zoomFrame !== null) {
-            window.cancelAnimationFrame(zoomFrame);
-            zoomFrame = null;
-        }
-        if (panFrame !== null) {
-            window.cancelAnimationFrame(panFrame);
-            panFrame = null;
-        }
-        pendingZoomScale = zoomScale;
-        pendingZoomClientX = null;
-        pendingZoomClientY = null;
-        pendingZoomOffsetX = null;
-        pendingZoomOffsetY = null;
-        pendingPanOffsetX = zoomOffsetX;
-        pendingPanOffsetY = zoomOffsetY;
-    }
-
-    function cancelFullResolutionTimer(): void {
-        if (fullResolutionTimer !== null) {
-            window.clearTimeout(fullResolutionTimer);
-            fullResolutionTimer = null;
-        }
-    }
 
     function cancelFullResolutionLoad(): void {
-        cancelFullResolutionTimer();
+        if (fullResolutionTimer !== null) window.clearTimeout(fullResolutionTimer);
+        fullResolutionTimer = null;
         requestedFullResolutionKey = null;
     }
 
-    function resetFullResolution(): void {
-        cancelFullResolutionLoad();
-    }
+    const wantsFullResolution = (imageKey: string, scale: number) => shouldQueueFullResolution({
+        imageKey,
+        requestedImageKey: requestedFullResolutionKey,
+        usesFullResolution: useFullResolution,
+        zoomScale: scale,
+        minimumZoom: MIN_ZOOM
+    });
 
     function queueFullResolutionLoad(scale: number): void {
-        const requestedImageKey = enlargedImageKey;
-        if (!shouldQueueFullResolution({
-            imageKey: requestedImageKey,
-            requestedImageKey: requestedFullResolutionKey,
-            usesFullResolution: useFullResolution,
-            zoomScale: scale,
-            minimumZoom: MIN_ZOOM
-        })) return;
-
+        const imageKey = enlargedImageKey;
+        if (!wantsFullResolution(imageKey, scale)) return;
         // Once this image's request has mounted, further zoom frames must not
         // unmount and restart it. Only navigation/reset cancels an active load.
-        cancelFullResolutionTimer();
+        if (fullResolutionTimer !== null) window.clearTimeout(fullResolutionTimer);
         fullResolutionTimer = window.setTimeout(() => {
             fullResolutionTimer = null;
-            if (
-                isImageEnlarged
-                && enlargedImageKey === requestedImageKey
-                && shouldQueueFullResolution({
-                    imageKey: requestedImageKey,
-                    requestedImageKey: requestedFullResolutionKey,
-                    usesFullResolution: useFullResolution,
-                    zoomScale,
-                    minimumZoom: MIN_ZOOM
-                })
-            ) {
-                requestedFullResolutionKey = requestedImageKey;
+            if (isImageEnlarged && enlargedImageKey === imageKey && wantsFullResolution(imageKey, zoom.scale)) {
+                requestedFullResolutionKey = imageKey;
             }
         }, FULL_RESOLUTION_IDLE_DELAY);
     }
 
-    async function handleFullResolutionLoad(e: Event, imageKey: string): Promise<void> {
-        const image = e.currentTarget as HTMLImageElement;
-        try {
-            await image.decode();
-        } catch {
-            // A completed load can still be promoted when decode() is unavailable.
+    const zoom = new ZoomPan({
+        onswipe: (offset) => showEnlargedImage(step(enlargedImageIndex, offset)),
+        onchange: (scale) => {
+            if (scale > MIN_ZOOM) queueFullResolutionLoad(scale);
+            else if (!useFullResolution) cancelFullResolutionLoad();
         }
+    });
 
-        markImageResolutionCached(getImageResolutionCacheKey(slug, imageKey), 'full');
+    async function decoded(event: Event): Promise<void> {
+        // A completed load still counts when decode() is unavailable or fails.
+        await (event.currentTarget as HTMLImageElement).decode().catch(() => {});
+    }
+
+    async function handleFullResolutionLoad(event: Event, imageKey: string): Promise<void> {
+        await decoded(event);
+        markImageResolutionCached(cacheKey(imageKey), 'full');
         if (requestedFullResolutionKey === imageKey) requestedFullResolutionKey = null;
     }
 
@@ -330,214 +104,15 @@
         if (requestedFullResolutionKey === imageKey) requestedFullResolutionKey = null;
     }
 
-    async function handleStandardResolutionLoad(e: Event, imageKey: string): Promise<void> {
-        const image = e.currentTarget as HTMLImageElement;
-        try {
-            await image.decode();
-        } catch {
-            // A completed load still counts when decode() is unavailable.
-        }
-
+    async function handleStandardResolutionLoad(event: Event, imageKey: string): Promise<void> {
+        await decoded(event);
         standardImageReadyKey = imageKey;
-        markImageResolutionCached(getImageResolutionCacheKey(slug, imageKey), 'standard');
+        markImageResolutionCached(cacheKey(imageKey), 'standard');
     }
 
-    function scheduleZoom(
-        nextScale: number,
-        clientX: number | null = null,
-        clientY: number | null = null,
-        explicitOffsetX: number | null = null,
-        explicitOffsetY: number | null = null
-    ): void {
-        pendingZoomScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextScale));
-        pendingZoomClientX = clientX;
-        pendingZoomClientY = clientY;
-        pendingZoomOffsetX = explicitOffsetX;
-        pendingZoomOffsetY = explicitOffsetY;
-        if (zoomFrame !== null) return;
+    // ─── Gallery and lightbox navigation
 
-        zoomFrame = window.requestAnimationFrame(() => {
-            zoomFrame = null;
-            const focalClientX = pendingZoomClientX;
-            const focalClientY = pendingZoomClientY;
-            const nextOffsetX = pendingZoomOffsetX;
-            const nextOffsetY = pendingZoomOffsetY;
-            pendingZoomClientX = null;
-            pendingZoomClientY = null;
-            pendingZoomOffsetX = null;
-            pendingZoomOffsetY = null;
-            setZoom(pendingZoomScale, focalClientX, focalClientY, nextOffsetX, nextOffsetY);
-        });
-    }
-
-    function schedulePan(nextOffsetX: number, nextOffsetY: number): void {
-        pendingPanOffsetX = nextOffsetX;
-        pendingPanOffsetY = nextOffsetY;
-        if (panFrame !== null) return;
-
-        panFrame = window.requestAnimationFrame(() => {
-            panFrame = null;
-            const clampedOffsets = clampPanOffsets(pendingPanOffsetX, pendingPanOffsetY);
-            zoomOffsetX = clampedOffsets.x;
-            zoomOffsetY = clampedOffsets.y;
-        });
-    }
-
-    function resetZoom(): void {
-        cancelInteractionFrames();
-        if (!useFullResolution) cancelFullResolutionLoad();
-        zoomScale = MIN_ZOOM;
-        zoomOffsetX = 0;
-        zoomOffsetY = 0;
-        pinchStartDistance = 0;
-        pendingZoomScale = MIN_ZOOM;
-        pendingPanOffsetX = 0;
-        pendingPanOffsetY = 0;
-    }
-
-    function setZoom(
-        nextScale: number,
-        clientX: number | null = null,
-        clientY: number | null = null,
-        explicitOffsetX: number | null = null,
-        explicitOffsetY: number | null = null
-    ): void {
-        const clampedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextScale));
-        const previousScale = zoomScale;
-        let nextOffsetX = explicitOffsetX ?? zoomOffsetX;
-        let nextOffsetY = explicitOffsetY ?? zoomOffsetY;
-
-        if (
-            explicitOffsetX === null
-            && explicitOffsetY === null
-            && clientX !== null
-            && clientY !== null
-            && previousScale > 0
-        ) {
-            const stage = document.querySelector<HTMLElement>('.lightbox-stage');
-            if (stage) {
-                const rect = stage.getBoundingClientRect();
-                const focalX = clientX - (rect.left + rect.width / 2);
-                const focalY = clientY - (rect.top + rect.height / 2);
-                const scaleRatio = clampedScale / previousScale;
-                nextOffsetX = focalX + (zoomOffsetX - focalX) * scaleRatio;
-                nextOffsetY = focalY + (zoomOffsetY - focalY) * scaleRatio;
-            }
-        }
-
-        zoomScale = clampedScale;
-        pendingZoomScale = clampedScale;
-        if (clampedScale === MIN_ZOOM) {
-            zoomOffsetX = 0;
-            zoomOffsetY = 0;
-            pendingPanOffsetX = 0;
-            pendingPanOffsetY = 0;
-            if (!useFullResolution) cancelFullResolutionLoad();
-            return;
-        }
-        const clampedOffsets = clampPanOffsets(nextOffsetX, nextOffsetY, clampedScale);
-        zoomOffsetX = clampedOffsets.x;
-        zoomOffsetY = clampedOffsets.y;
-        pendingPanOffsetX = zoomOffsetX;
-        pendingPanOffsetY = zoomOffsetY;
-        queueFullResolutionLoad(clampedScale);
-    }
-
-    function zoomIn(): void {
-        setZoom(zoomScale + ZOOM_BUTTON_STEP);
-    }
-
-    function zoomOut(): void {
-        setZoom(zoomScale - ZOOM_BUTTON_STEP);
-    }
-
-    function toggleZoom(e: MouseEvent): void {
-        e.stopPropagation();
-        setZoom(zoomScale === MIN_ZOOM ? 2 : MIN_ZOOM, e.clientX, e.clientY);
-    }
-
-    function handleZoomWheel(e: WheelEvent): void {
-        e.preventDefault();
-
-        const hasDominantHorizontalDelta = Math.abs(e.deltaX) > 1
-            && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.75;
-        const isTrackpadPan = zoomScale > MIN_ZOOM
-            && !e.ctrlKey
-            && hasDominantHorizontalDelta;
-
-        if (isTrackpadPan) {
-            const baseX = panFrame === null ? zoomOffsetX : pendingPanOffsetX;
-            const baseY = panFrame === null ? zoomOffsetY : pendingPanOffsetY;
-            schedulePan(baseX - e.deltaX, baseY - e.deltaY);
-            return;
-        }
-
-        let zoomDelta = e.deltaY;
-        if (e.deltaMode === 1) {
-            zoomDelta *= 16;
-        } else if (e.deltaMode === 2) {
-            zoomDelta *= (e.currentTarget as HTMLElement).clientHeight;
-        }
-
-        // Physical wheels can report tiny pixel deltas (for example 4 or 5),
-        // which previously produced a barely visible 2% change. Normalize
-        // non-pinch wheel notches while keeping Ctrl/trackpad pinch continuous.
-        if (!e.ctrlKey && zoomDelta !== 0) {
-            zoomDelta = Math.sign(zoomDelta)
-                * Math.min(64, Math.max(20, Math.abs(zoomDelta)));
-        }
-
-        const scaleFactor = Math.exp(-zoomDelta * WHEEL_ZOOM_SENSITIVITY);
-        const baseScale = zoomFrame === null ? zoomScale : pendingZoomScale;
-        scheduleZoom(baseScale * scaleFactor, e.clientX, e.clientY);
-    }
-
-    function handlePointerDown(e: PointerEvent): void {
-        if (zoomScale === MIN_ZOOM) return;
-        e.preventDefault();
-        e.stopPropagation();
-        pointerPanActive = true;
-        panStartX = e.clientX;
-        panStartY = e.clientY;
-        panStartOffsetX = zoomOffsetX;
-        panStartOffsetY = zoomOffsetY;
-        const target = e.currentTarget as HTMLElement;
-        if (typeof target.setPointerCapture === 'function') {
-            target.setPointerCapture(e.pointerId);
-        }
-    }
-
-    function handlePointerMove(e: PointerEvent): void {
-        if (!pointerPanActive) return;
-        e.preventDefault();
-        schedulePan(
-            panStartOffsetX + e.clientX - panStartX,
-            panStartOffsetY + e.clientY - panStartY
-        );
-    }
-
-    function handlePointerEnd(e: PointerEvent): void {
-        e.preventDefault();
-        pointerPanActive = false;
-        const target = e.currentTarget as HTMLElement;
-        if (
-            typeof target.hasPointerCapture === 'function'
-            && typeof target.releasePointerCapture === 'function'
-            && target.hasPointerCapture(e.pointerId)
-        ) {
-            target.releasePointerCapture(e.pointerId);
-        }
-    }
-
-    function nextImage(): void {
-        if (sortedImageKeys.length === 0) return;
-        currentImageKeyIndex = (currentImageKeyIndex + 1) % sortedImageKeys.length;
-    }
-    
-    function prevImage(): void {
-        if (sortedImageKeys.length === 0) return;
-        currentImageKeyIndex = (currentImageKeyIndex - 1 + sortedImageKeys.length) % sortedImageKeys.length;
-    }
+    const stageSwipe = swipe((offset) => { if (imageCount) currentImageKeyIndex = step(currentImageKeyIndex, offset); });
 
     function runGalleryLinkAction(event: MouseEvent | KeyboardEvent, action: () => void): void {
         if (event instanceof KeyboardEvent && event.key !== ' ') return;
@@ -545,246 +120,169 @@
         action();
     }
 
-    async function openEnlargedImage(index: number): Promise<void> {
-        resetFullResolution();
+    function showEnlargedImage(index: number): void {
+        cancelFullResolutionLoad();
         enlargedImageIndex = index;
-        resetZoom();
-        previouslyFocusedElement = document.activeElement instanceof HTMLElement
-            ? document.activeElement
-            : null;
+        zoom.reset();
+    }
+
+    function openEnlargedImage(index: number): void {
+        showEnlargedImage(index);
         isImageEnlarged = true;
-        document.body.classList.add('overflow-hidden');
-        document.documentElement.classList.add('overflow-hidden');
-        await tick();
-        lightboxElement?.focus();
     }
 
     function closeEnlargedImage(): void {
         isImageEnlarged = false;
-        resetFullResolution();
-        resetZoom();
-        document.body.classList.remove('overflow-hidden');
-        document.documentElement.classList.remove('overflow-hidden');
-        previouslyFocusedElement?.focus();
-        previouslyFocusedElement = null;
+        cancelFullResolutionLoad();
+        zoom.reset();
     }
 
-    function handleLightboxBackdropClick(e: MouseEvent): void {
-        const target = e.target;
-        if (!(target instanceof Element)) return;
-        if (target.closest('button, a, .lightbox-stage, .lightbox-thumbs')) return;
-        closeEnlargedImage();
+    // The lightbox handles its own keys; on the page, arrows flip photos unless
+    // the reader is typing, using a shortcut, or working another control.
+    function handleKeydown(event: KeyboardEvent): void {
+        if (isImageEnlarged || !imageCount || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+        currentImageKeyIndex = step(currentImageKeyIndex, event.key === 'ArrowRight' ? 1 : -1);
     }
 
-    function nextEnlargedImage(): void {
-        if (sortedImageKeys.length === 0) return;
-        resetFullResolution();
-        enlargedImageIndex = (enlargedImageIndex + 1) % sortedImageKeys.length;
-        resetZoom();
-    }
+    // ─── Paths
 
-    function prevEnlargedImage(): void {
-        if (sortedImageKeys.length === 0) return;
-        resetFullResolution();
-        enlargedImageIndex = (enlargedImageIndex - 1 + sortedImageKeys.length) % sortedImageKeys.length;
-        resetZoom();
-    }
-
-    function selectEnlargedImage(index: number): void {
-        if (index === enlargedImageIndex) return;
-        resetFullResolution();
-        enlargedImageIndex = index;
-        resetZoom();
-    }
-
-    function handleLightboxRootReady(element: HTMLElement | undefined): void {
-        lightboxElement = element;
-    }
-
-    function handleKeydown(e: KeyboardEvent): void {
-        if (e.key === 'Tab' && isImageEnlarged && lightboxElement) {
-            const focusable = Array.from(lightboxElement.querySelectorAll<HTMLElement>(
-                'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-            ));
-            if (focusable.length > 0) {
-                const first = focusable[0];
-                const last = focusable[focusable.length - 1];
-                if (
-                    e.shiftKey
-                    && (document.activeElement === first || document.activeElement === lightboxElement)
-                ) {
-                    e.preventDefault();
-                    last.focus();
-                } else if (!e.shiftKey && document.activeElement === last) {
-                    e.preventDefault();
-                    first.focus();
-                }
-            }
-            return;
-        }
-        if (e.key === 'Escape' && isImageEnlarged) {
-            closeEnlargedImage();
-        } else if (e.key === 'ArrowRight') {
-            if (isImageEnlarged) {
-                if (sortedImageKeys.length > 0) nextEnlargedImage();
-            } else {
-                if (sortedImageKeys.length > 0) nextImage();
-            }
-        } else if (e.key === 'ArrowLeft') {
-            if (isImageEnlarged) {
-                if (sortedImageKeys.length > 0) prevEnlargedImage();
-            } else {
-                if (sortedImageKeys.length > 0) prevImage();
-            }
-        }
-    }
-
-    const getBaseFilename = (filename: string): string => {
-        return filename.split('.').slice(0, -1).join('.');
-    };
-
-    const getExtension = (filename: string): string => {
-        return filename.split('.').pop()?.toLowerCase() || '';
-    };
-
-    const imageBasePath = $derived(`/toys/${slug}/`);
-
-    const getImagePath = (filename: string): string => {
-        return imageBasePath + filename;
-    };
+    const getImagePath = (filename: string): string => `/toys/${slug}/${filename}`;
 
     const getImagePagePath = (imageKey: string): string => {
         if (!imageKey) return '#toy-image-viewer';
-        return `?image=${encodeURIComponent(imageKey)}#toy-image-viewer`;
-    };
-
-    const getAdjacentImageKey = (offset: number): string => {
-        if (sortedImageKeys.length === 0) return '';
-        const index = (currentImageKeyIndex + offset + sortedImageKeys.length) % sortedImageKeys.length;
-        return sortedImageKeys[index];
-    };
-
-    const getThumbnailSet = (imageKey: string): string[] => {
-        const cachedResolution = cacheReady
-            ? $imageResolutionCache[getImageResolutionCacheKey(slug, imageKey)]
-            : undefined;
-        const fullResolutionBase = getFullResolutionBase(imageKey);
-        if (fullResolutionBase && cachedResolution === 'full') {
-            return [
-                `${fullResolutionBase}.avif`,
-                `${fullResolutionBase}.webp`,
-                `${fullResolutionBase}.jpg`
-            ];
-        }
-        if (cachedResolution === 'standard') return imageSets[imageKey] || [];
-        return thumbnailImageSets[imageKey] || imageSets[imageKey] || [];
+        const params = new URLSearchParams(page.url.searchParams);
+        params.set('image', imageKey);
+        return `?${params}#toy-image-viewer`;
     };
 
     const getFullResolutionBase = (imageKey: string): string => {
-        const set = imageSets[imageKey] || [];
-        const jpg = set.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg');
-        const fallback = jpg || set[0];
+        const fallback = getPictureSources(imageSets[imageKey] || []).fallback;
         return fallback ? `${getBaseFilename(fallback)}-full` : '';
     };
 
-    const currentCachedResolution = $derived(
-        cacheReady && currentImageKey
-            ? $imageResolutionCache[getImageResolutionCacheKey(slug, currentImageKey)]
-            : undefined
-    );
-    const currentStandardImageSet = $derived(
-        currentImageKey ? imageSets[currentImageKey] || [] : []
-    );
-    const currentThumbnailImageSet = $derived(
-        currentImageKey
-            ? thumbnailImageSets[currentImageKey] || currentStandardImageSet
-            : []
-    );
-    const currentFullResolutionBase = $derived(
-        currentImageKey ? getFullResolutionBase(currentImageKey) : ''
-    );
-    const currentImageSet = $derived(currentThumbnailImageSet);
-
-    const currentStandardAvif = $derived(currentStandardImageSet.find(img => getExtension(img) === 'avif'));
-    const currentStandardWebp = $derived(currentStandardImageSet.find(img => getExtension(img) === 'webp'));
-    const currentStandardJpg = $derived(currentStandardImageSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg'));
-    const currentStandardFallback = $derived(currentStandardJpg || currentStandardImageSet[0]);
-
-    const currentAvif = $derived(currentImageSet.find(img => getExtension(img) === 'avif'));
-    const currentWebp = $derived(currentImageSet.find(img => getExtension(img) === 'webp'));
-    const currentJpg = $derived(currentImageSet.find(img => getExtension(img) === 'jpg' || getExtension(img) === 'jpeg'));
-    const currentFallback = $derived(currentJpg || currentImageSet[0]);
-    const currentPreferred = $derived(currentAvif || currentWebp || currentFallback);
-    
-    const fullResPath = (imageKey: string): string => {
-        const set = imageSets[imageKey] || [];
-        if (set.length === 0) return '#';
-        const jpgVersion = set.find(img => getExtension(img) === 'jpg');
-        const fallbackFilename = jpgVersion ? getBaseFilename(jpgVersion) + '.jpg' : getBaseFilename(set[0]) + '.jpg';
-        return `/fullres/toys/${slug}/${fallbackFilename}`;
+    /** The untouched source photo; falls back to the full-size derivative. */
+    const getDownloadPath = (imageKey: string): string => {
+        const original = toy.originals[imageKey];
+        if (original) return `/fullres/toys/${slug}/${original}`;
+        const base = getFullResolutionBase(imageKey);
+        return base ? getImagePath(`${base}.jpg`) : '#';
     };
 
+    // Rails show the sharpest version already in the browser cache.
+    const getThumbnailSet = (imageKey: string): string[] => {
+        const cached = cacheReady ? $imageResolutionCache[cacheKey(imageKey)] : undefined;
+        const fullResolutionBase = getFullResolutionBase(imageKey);
+        if (fullResolutionBase && cached === 'full') {
+            const { avif, webp, jpg } = getFullResolutionSources(fullResolutionBase);
+            return [avif, webp, jpg].filter((file): file is string => Boolean(file));
+        }
+        if (cached === 'standard') return imageSets[imageKey] || [];
+        return thumbnailImageSets[imageKey] || imageSets[imageKey] || [];
+    };
+
+    const currentCachedResolution = $derived(
+        cacheReady && currentImageKey ? $imageResolutionCache[cacheKey(currentImageKey)] : undefined
+    );
+    const currentStandardImageSet = $derived(currentImageKey ? imageSets[currentImageKey] || [] : []);
+    const currentThumbnailImageSet = $derived(
+        currentImageKey ? thumbnailImageSets[currentImageKey] || currentStandardImageSet : []
+    );
+    const currentSources = $derived(getPictureSources(currentThumbnailImageSet));
+
+    // A different toy (client navigation reuses this component) starts at its first photo.
+    let previousSlug = '';
     $effect(() => {
-        const imageKeySignature = `${slug}:${sortedImageKeys.join('|')}`;
-        if (!previousImageSignature) {
-            previousImageSignature = imageKeySignature;
-        } else if (imageKeySignature !== previousImageSignature) {
-            previousImageSignature = imageKeySignature;
+        if (previousSlug && slug !== previousSlug) {
             currentImageKeyIndex = 0;
             enlargedImageIndex = 0;
         }
+        previousSlug = slug;
     });
 
-    $effect(() => {
-        window.addEventListener('keydown', handleKeydown);
-        
-        return () => {
-            cancelInteractionFrames();
-            cancelFullResolutionLoad();
-            window.removeEventListener('keydown', handleKeydown);
-            document.body.classList.remove('overflow-hidden');
-            document.documentElement.classList.remove('overflow-hidden');
-        };
+    onMount(() => () => {
+        zoom.destroy();
+        cancelFullResolutionLoad();
     });
-
 </script>
 
 
+<svelte:window onkeydown={handleKeydown} />
+
 <svelte:head>
     {#if isImageEnlarged}
-        <title>Viewing {toy.name} - Image {enlargedImageIndex + 1} of {sortedImageKeys.length}</title>
+        <title>{toy.name} (image {enlargedImageIndex + 1} of {sortedImageKeys.length}) · Toy Shelf · BreadTM</title>
     {:else}
-        <title>{toy.name || 'Toy Detail'} | Bread's Toy Collection</title>
+        <title>{toy.name || 'Toy'} · Toy Shelf · BreadTM</title>
     {/if}
-    {#if !isImageEnlarged && currentAvif}
-        <link rel="preload" as="image" href={getImagePath(currentAvif)} type="image/avif" fetchpriority="high" />
-    {:else if !isImageEnlarged && currentWebp}
-        <link rel="preload" as="image" href={getImagePath(currentWebp)} type="image/webp" fetchpriority="high" />
-    {:else if !isImageEnlarged && currentFallback}
-        <link rel="preload" as="image" href={getImagePath(currentFallback)} fetchpriority="high" />
+    {#if !isImageEnlarged && currentSources.avif}
+        <link rel="preload" as="image" href={getImagePath(currentSources.avif)} type="image/avif" fetchpriority="high" />
+    {:else if !isImageEnlarged && currentSources.webp}
+        <link rel="preload" as="image" href={getImagePath(currentSources.webp)} type="image/webp" fetchpriority="high" />
+    {:else if !isImageEnlarged && currentSources.fallback}
+        <link rel="preload" as="image" href={getImagePath(currentSources.fallback)} fetchpriority="high" />
     {/if}
 </svelte:head>
 
         <div class="detail-layout">
+            <!-- Desktop film strip: filed into the dossier column between the
+                 spec sheet and the field notes, not under the evidence photo. -->
+            {#snippet desktopRail()}
+                <ToyThumbnailRail
+                    variant="desktop"
+                    imageKeys={sortedImageKeys}
+                    currentImageIndex={currentImageKeyIndex}
+                    toyName={toy.name}
+                    {getThumbnailSet}
+                    placeholders={toy.placeholders}
+                    {getImagePath}
+                    {getImagePagePath}
+                    onselect={(event, index) => runGalleryLinkAction(event, () => currentImageKeyIndex = index)}
+                />
+            {/snippet}
+
+            {#snippet viewerNav(offset: number, placement: string)}
+                <a
+                    class="viewer-nav {placement}"
+                    href={getImagePagePath(sortedImageKeys[step(currentImageKeyIndex, offset)])}
+                    onclick={(event) => runGalleryLinkAction(event, () => currentImageKeyIndex = step(currentImageKeyIndex, offset))}
+                    onkeydown={(event) => runGalleryLinkAction(event, () => currentImageKeyIndex = step(currentImageKeyIndex, offset))}
+                    aria-label={offset < 0 ? 'Previous image' : 'Next image'}
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-4 w-4 sm:h-5 sm:w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d={offset < 0 ? 'M15 19l-7-7 7-7' : 'M9 5l7 7-7 7'} />
+                    </svg>
+                </a>
+            {/snippet}
+
             <div class="image-column">
                 <div class="image-frame group">
                     <div 
                         id="toy-image-viewer"
                         class="image-stage"
-                        ontouchstart={handleTouchStart}
-                        ontouchmove={handleTouchMove}
-                        ontouchend={handleTouchEnd}
+                        ontouchstart={stageSwipe.start}
+                        ontouchmove={stageSwipe.move}
+                        ontouchend={() => stageSwipe.end()}
                         role="group"
                         aria-label="Toy image viewer"
                     >
                         {#if sortedImageKeys.length > 0}
                             <ProgressiveToyImage
-                                href={fullResPath(currentImageKey)}
+                                href={getDownloadPath(currentImageKey)}
                                 imageIndex={currentImageKeyIndex}
                                 toyName={toy.name}
                                 thumbnailImageSet={currentThumbnailImageSet}
                                 standardImageSet={currentStandardImageSet}
-                                fullResolutionBase={currentFullResolutionBase}
+                                fullResolutionBase={getFullResolutionBase(currentImageKey)}
+                                placeholder={toy.placeholders?.[currentImageKey]}
                                 cachedResolution={currentCachedResolution}
                                 standardReady={standardImageReadyKey === currentImageKey}
                                 {getImagePath}
@@ -796,62 +294,8 @@
                             />
 
                             {#if sortedImageKeys.length > 1}
-                                <a
-                                    class="
-                                        absolute left-0 top-1/2 z-20 flex min-h-11 min-w-11 -translate-y-1/2
-                                        items-center justify-center rounded-r-md bg-black/30 p-2 text-white shadow-sm
-                                        transition-all duration-300 hover:bg-black/50 hover:shadow-md
-                                    "
-                                    href={getImagePagePath(getAdjacentImageKey(-1))}
-                                    onclick={(event) => runGalleryLinkAction(event, prevImage)}
-                                    onkeydown={(event) => runGalleryLinkAction(event, prevImage)}
-                                    aria-label="Previous image"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        class="h-4 w-4 sm:h-5 sm:w-5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                                    </svg>
-                                </a>
-                                <a
-                                    class="
-                                        absolute right-0 top-1/2 z-20 flex min-h-11 min-w-11 -translate-y-1/2
-                                        items-center justify-center rounded-l-md bg-black/30 p-2 text-white shadow-sm
-                                        transition-all duration-300 hover:bg-black/50 hover:shadow-md
-                                    "
-                                    href={getImagePagePath(getAdjacentImageKey(1))}
-                                    onclick={(event) => runGalleryLinkAction(event, nextImage)}
-                                    onkeydown={(event) => runGalleryLinkAction(event, nextImage)}
-                                    aria-label="Next image"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        class="h-4 w-4 sm:h-5 sm:w-5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </a>
-                                
-                                <div class="photo-tabs">
-                                    {#each sortedImageKeys as _, i}
-                                        <a
-                                                href={getImagePagePath(sortedImageKeys[i])}
-                                                class="photo-tab"
-                                                onclick={(event) => runGalleryLinkAction(event, () => currentImageKeyIndex = i)}
-                                                onkeydown={(event) => runGalleryLinkAction(event, () => currentImageKeyIndex = i)}
-                                                aria-label="View image {i+1}"
-                                                aria-current={i === currentImageKeyIndex ? 'true' : 'false'}>
-                                            {i + 1}
-                                        </a>
-                                    {/each}
-                                </div>
+                                {@render viewerNav(-1, 'viewer-nav-overlay viewer-nav-prev')}
+                                {@render viewerNav(1, 'viewer-nav-overlay viewer-nav-next')}
                             {/if}
                         {:else}
                             <div class="flex items-center justify-center h-full bg-black/60">
@@ -867,6 +311,7 @@
                     currentImageIndex={currentImageKeyIndex}
                     toyName={toy.name}
                     {getThumbnailSet}
+                    placeholders={toy.placeholders}
                     {getImagePath}
                     {getImagePagePath}
                     onselect={(event, index) => runGalleryLinkAction(event, () => currentImageKeyIndex = index)}
@@ -874,65 +319,38 @@
             </div>
 
 
-            <div class="detail-column">
+            <div class="detail-column" class:awaiting-notes={!data.notes}>
                 <ToyDetailInfo
-                    series={toy.series}
+                    {slug}
                     year={toy.year}
                     faction={toy.faction}
                     description={toy.description}
-                    content={contentComponent}
-                />
-
-                <ToyThumbnailRail
-                    variant="desktop"
-                    imageKeys={sortedImageKeys}
-                    currentImageIndex={currentImageKeyIndex}
-                    toyName={toy.name}
-                    {getThumbnailSet}
-                    {getImagePath}
-                    {getImagePagePath}
-                    onselect={(event, index) => runGalleryLinkAction(event, () => currentImageKeyIndex = index)}
+                    notes={data.notes}
+                    gallery={desktopRail}
                 />
             </div>
         </div>
 
 
-{#if isImageEnlarged && sortedImageKeys.length > 0}
+{#if isImageEnlarged && imageCount > 0}
     <ToyLightbox
         toyName={toy.name || 'Toy'}
         imageKeys={sortedImageKeys}
         {imageSets}
         activeIndex={enlargedImageIndex}
-        {zoomScale}
-        {zoomOffsetX}
-        {zoomOffsetY}
-        minZoom={MIN_ZOOM}
-        maxZoom={MAX_ZOOM}
+        {zoom}
         {fullResolutionRequested}
-        usesFullResolution={lightboxUsesFullResolution}
+        usesFullResolution={useFullResolution}
         {getImagePath}
         {getThumbnailSet}
-        getDownloadPath={fullResPath}
+        {getDownloadPath}
         onclose={closeEnlargedImage}
-        onbackdropclick={handleLightboxBackdropClick}
-        onprevious={prevEnlargedImage}
-        onnext={nextEnlargedImage}
-        onselect={selectEnlargedImage}
-        onzoomout={zoomOut}
-        onzoomin={zoomIn}
-        onresetzoom={resetZoom}
-        ondoubleclick={toggleZoom}
-        onwheel={handleZoomWheel}
-        ontouchstart={handleEnlargedTouchStart}
-        ontouchmove={handleEnlargedTouchMove}
-        ontouchend={handleEnlargedTouchEnd}
-        onpointerdown={handlePointerDown}
-        onpointermove={handlePointerMove}
-        onpointerend={handlePointerEnd}
+        onprevious={() => showEnlargedImage(step(enlargedImageIndex, -1))}
+        onnext={() => showEnlargedImage(step(enlargedImageIndex, 1))}
+        onselect={(index) => index !== enlargedImageIndex && showEnlargedImage(index)}
         onstandardresolutionload={handleStandardResolutionLoad}
         onfullresolutionload={handleFullResolutionLoad}
         onfullresolutionerror={handleFullResolutionError}
-        onrootready={handleLightboxRootReady}
     />
 {/if}
 
@@ -955,10 +373,10 @@
     .image-frame {
         position: relative;
         overflow: hidden;
-        background: rgba(0, 0, 0, 0.6);
-        border: 2px solid rgba(0, 0, 0, 0.9);
-        border-radius: 0.6rem;
-        box-shadow: 0 8px 0 rgba(0, 0, 0, 0.34);
+        background: #050308;
+        border: 4px solid var(--toys-ink, #050308);
+        border-radius: 0;
+        box-shadow: var(--toys-shadow-md, 5px 5px 0 #050308);
     }
 
     .image-stage {
@@ -972,58 +390,122 @@
         max-height: calc(100vh - 11rem);
         max-height: calc(100dvh - 11rem);
         min-height: 20rem;
-        border-radius: calc(0.6rem - 2px);
-        background: #050308;
+        border-radius: 0;
+        /* Letterbox ground: flat ink with a faint light halftone screen, so the
+           strips beside a narrow photo read as printed stage, not empty space. */
+        background-color: #050308;
+        background-image: radial-gradient(
+            circle,
+            color-mix(in srgb, #ffffff 10%, transparent) 1.1px,
+            transparent 1.2px
+        );
+        background-size: var(--toys-halftone-size, 8px) var(--toys-halftone-size, 8px);
     }
 
-    .photo-tabs {
+    /* Ink keyline: a resting inner stroke that inks the photo's edges into
+       the frame. */
+    .image-stage::after {
+        content: "";
         position: absolute;
-        inset: auto 0 0.8rem;
+        inset: 0;
+        z-index: 2;
+        box-shadow: inset 0 0 0 3px color-mix(in srgb, #050308, transparent 18%);
+        pointer-events: none;
+    }
+
+    /* Prev/next tabs: solid accent plates edge-mounted on the frame. Large
+       screens only; phones and tablets swipe the photo or tap the strip. */
+    .viewer-nav {
+        position: relative;
         z-index: 20;
         display: flex;
+        flex-shrink: 0;
+        align-items: center;
         justify-content: center;
-        gap: 0.45rem;
-        padding-inline: 0.75rem;
-    }
-
-    .photo-tab {
-        display: grid;
-        place-items: center;
         min-width: 2.75rem;
         min-height: 2.75rem;
-        color: #fff7f8;
-        background: #050308;
-        border: 3px solid #050308;
-        border-radius: 0.55rem;
-        box-shadow: 0 6px 0 rgba(0, 0, 0, 0.38);
-        font-family: Goldman, sans-serif;
-        font-size: 0.82rem;
-        font-weight: 800;
-        line-height: 1;
-        transition:
-            transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-            color 180ms ease,
-            background-color 180ms ease;
-    }
-
-    .photo-tab[aria-current='true'] {
+        padding: 0.5rem;
         color: #050308;
         background: var(--detail-accent);
-        transform: translateY(-2px);
+        border: 3px solid var(--toys-ink, #050308);
+        border-radius: 0;
+        box-shadow: var(--toys-shadow-sm, 3px 3px 0 #050308);
+        transition:
+            transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+            border-color 140ms ease,
+            background-color 140ms ease,
+            box-shadow 140ms ease;
     }
 
-    .photo-tab:focus-visible {
-        outline: 3px solid var(--detail-accent);
-        outline: 3px solid color-mix(in srgb, var(--detail-accent), white 18%);
+    /* Specular strip along the nav plate's top edge. */
+    .viewer-nav::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: var(--toys-spec-h, 3px);
+        background: var(--toys-spec, color-mix(in srgb, #ffffff 35%, transparent));
+        pointer-events: none;
+    }
+
+    /* Shade line along the nav plate's bottom edge. */
+    .viewer-nav::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 3px;
+        background: color-mix(in srgb, var(--detail-accent), var(--toys-ink, #050308) 30%);
+        pointer-events: none;
+    }
+
+    .viewer-nav-overlay {
+        display: none;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .viewer-nav-prev {
+        left: 0.6rem;
+    }
+
+    .viewer-nav-next {
+        right: 0.6rem;
+    }
+
+    @media (min-width: 64rem) {
+        .viewer-nav-overlay {
+            display: flex;
+        }
+    }
+
+    .viewer-nav:focus-visible {
+        outline: 3px solid var(--detail-ink);
         outline-offset: 3px;
     }
 
+    /* With a mouse the plates stay off the photo until the pointer (or
+       keyboard focus) is on the stage; touch keeps them visible. */
+    @media (hover: hover) and (pointer: fine) {
+        .viewer-nav-overlay {
+            opacity: 0;
+            transition-property: transform, border-color, background-color, box-shadow, opacity;
+        }
+
+        .image-stage:hover .viewer-nav-overlay,
+        .image-stage:focus-within .viewer-nav-overlay {
+            opacity: 1;
+        }
+    }
+
     @media (hover: hover) {
-        .photo-tab:hover {
-            color: #050308;
-            background: var(--detail-accent);
-            background: color-mix(in srgb, var(--detail-accent), white 18%);
-            transform: translateY(-2px);
+        .viewer-nav:hover {
+            background: color-mix(in srgb, var(--detail-accent), white 12%);
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 var(--toys-ink, #050308);
+        }
+
+        .viewer-nav-overlay:hover {
+            transform: translateY(-50%) translate(-1px, -1px);
         }
     }
 
@@ -1034,23 +516,9 @@
         min-height: 0;
     }
 
-    .detail-layout :global(.bg-gray-800\/80) {
-        background-color: rgba(5, 3, 8, 0.76);
-    }
-
-    .detail-layout :global(.border-black) {
-        border-color: rgba(0, 0, 0, 0.9);
-    }
-
     .detail-layout :global(.text-rose-300),
     .detail-layout :global(.text-rose-200) {
         color: var(--detail-accent);
-    }
-
-    .detail-layout :global(.border-rose-400),
-    .detail-layout :global(.border-rose-400\/50) {
-        border-color: var(--detail-accent);
-        border-color: color-mix(in srgb, var(--detail-accent), transparent 35%);
     }
 
     @media (min-width: 1024px) {
@@ -1068,6 +536,12 @@
             min-height: 0;
         }
 
+        /* Without notes, stretch to the photo's height so the empty notes
+           panel fills the column instead of trailing off. */
+        .detail-column.awaiting-notes {
+            align-self: stretch;
+        }
+
         .image-frame {
             flex: 0 1 auto;
             min-height: 0;
@@ -1080,13 +554,6 @@
             max-height: none;
             aspect-ratio: auto;
         }
-
-        .detail-column > :global(.hidden.lg\:flex) {
-            flex: 0 0 auto;
-            max-height: 7rem;
-            box-shadow: none;
-            overflow: visible;
-        }
     }
 
     @media (max-width: 640px) {
@@ -1097,12 +564,7 @@
         }
     }
 
-    @media (max-width: 340px) {
-        .image-frame { border-radius: 0.45rem; }
-    }
-
-
-    @media (prefers-reduced-motion: reduce) {
+        @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after {
             transition-duration: 0.01ms !important;
             animation-duration: 0.01ms !important;

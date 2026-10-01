@@ -24,3 +24,6 @@
 
 /pfp.png
   Cache-Control: public, max-age=7200, stale-while-revalidate=86400
+
+/optimized-articles/*
+  Cache-Control: public, max-age=31536000, immutable

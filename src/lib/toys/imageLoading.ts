@@ -1,3 +1,5 @@
+import { compareImageKeys, getExtension, getImageKey, isCardImage, isFullResolution, isThumbnail } from './images.ts';
+
 export interface PictureSources {
     avif?: string;
     webp?: string;
@@ -25,27 +27,6 @@ export interface ToyCollectionPrefetchSource {
 }
 
 export const FULL_RESOLUTION_IDLE_DELAY = 220;
-
-const getExtension = (filename: string): string =>
-    filename.split('.').pop()?.toLowerCase() || '';
-
-const getBaseFilename = (filename: string): string =>
-    filename.split('.').slice(0, -1).join('.');
-
-const compareImageKeys = (a: string, b: string): number => {
-    if (a === 'main') return -1;
-    if (b === 'main') return 1;
-
-    const numA = Number.parseInt(a.match(/^(\d+)/)?.[1] || '', 10);
-    const numB = Number.parseInt(b.match(/^(\d+)/)?.[1] || '', 10);
-    const hasNumA = !Number.isNaN(numA);
-    const hasNumB = !Number.isNaN(numB);
-
-    if (hasNumA && hasNumB && numA !== numB) return numA - numB;
-    if (hasNumA !== hasNumB) return hasNumA ? -1 : 1;
-
-    return a.localeCompare(b);
-};
 
 const selectPrefetchSource = (imageSet: string[], preferredExtension: string): string | undefined => {
     const matchingSource = imageSet.find(
@@ -89,17 +70,12 @@ export function getToyDetailPrefetchPaths(
     const thumbnailImageSets: Record<string, string[]> = {};
 
     for (const filename of filenames) {
-        if (/-full\.[^.]+$/i.test(filename) || /-card\.[^.]+$/i.test(filename)) continue;
-
-        const isThumbnail = /-thumb\.[^.]+$/i.test(filename);
-        const key = getBaseFilename(filename).replace(/-thumb$/i, '');
-        const imageSets = isThumbnail ? thumbnailImageSets : standardImageSets;
-        (imageSets[key] ||= []).push(filename);
+        if (isFullResolution(filename) || isCardImage(filename)) continue;
+        const imageSets = isThumbnail(filename) ? thumbnailImageSets : standardImageSets;
+        (imageSets[getImageKey(filename)] ||= []).push(filename);
     }
 
-    const primaryKey = primaryImage
-        ? getBaseFilename(primaryImage).replace(/-(?:thumb|card|full)$/i, '')
-        : '';
+    const primaryKey = primaryImage ? getImageKey(primaryImage) : '';
     const standardKeys = Object.keys(standardImageSets).sort(compareImageKeys);
     const mainKey = primaryKey && standardImageSets[primaryKey] ? primaryKey : standardKeys[0];
     const selectedFilenames = [
@@ -126,7 +102,7 @@ export function getToyCollectionPrefetchSources(
         if (!availableImages.includes(thumbnailImage)) return [];
 
         const extension = getExtension(thumbnailImage);
-        const imageKey = getBaseFilename(thumbnailImage).replace(/-thumb$/i, '');
+        const imageKey = getImageKey(thumbnailImage);
         const cardImage = `${imageKey}-card.${extension}`;
         const thumbnailPath = `/toys/${toy.slug}/${thumbnailImage}`;
         const cardPath = `/toys/${toy.slug}/${cardImage}`;

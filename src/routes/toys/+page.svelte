@@ -1,9 +1,14 @@
 <script lang="ts">
+    import { untrack } from 'svelte';
+    import { afterNavigate, replaceState } from '$app/navigation';
+    import { page } from '$app/state';
     import { getEmptyStateMessage, filterToys, getToyFacets } from '$lib/toys/filtering';
+    import { banners } from '$lib/toys/banner';
     import { getFactionTheme } from '$lib/toys/factions';
     import type { Toy } from '$lib/toys/types';
     import Nav from '$lib/components/site/Nav.svelte';
     import ScrollToTop from '$lib/components/toys/ScrollToTop.svelte';
+    import ToyBanner from '$lib/components/toys/ToyBanner.svelte';
     import ToyCollection from '$lib/components/toys/ToyCollection.svelte';
     import ToyShelfFilters from '$lib/components/toys/ToyShelfFilters.svelte';
     import ToyShelfHero from '$lib/components/toys/ToyShelfHero.svelte';
@@ -14,73 +19,93 @@
     const toyImagesMap: Record<string, string[]> = $derived(data.toyImagesMap || {});
     const facets = $derived(getToyFacets(toys));
 
-    function getInitialFilter(name: 'faction' | 'series' | 'search'): string {
+    function getInitialFilter(name: 'faction' | 'search'): string {
         return data.filters?.[name] || '';
     }
 
     let selectedFaction = $state(getInitialFilter('faction'));
-    let selectedSeries = $state(getInitialFilter('series'));
     let searchTerm = $state(getInitialFilter('search'));
 
+    let navigationReady = $state(false);
+    afterNavigate(() => {
+        navigationReady = true;
+        selectedFaction = page.url.searchParams.get('faction') || '';
+        searchTerm = page.url.searchParams.get('q') || '';
+    });
+    const shelfHref = $derived.by(() => {
+        const params = new URLSearchParams();
+        if (selectedFaction) params.set('faction', selectedFaction);
+        if (searchTerm) params.set('q', searchTerm);
+        const bannerId = page.url.searchParams.get('banner');
+        if (bannerId) params.set('banner', bannerId);
+        return '/toys' + (params.size ? '?' + params : '');
+    });
+    $effect(() => { if (!navigationReady) return; const href = shelfHref; untrack(() => replaceState(href + window.location.hash, {})); });
+    const matchingFacets = $derived(getToyFacets(filterToys(toys, { faction: '', search: searchTerm })));
     const filteredToys = $derived(filterToys(toys, {
         faction: selectedFaction,
-        series: selectedSeries,
         search: searchTerm
     }));
     const factionOptions = $derived(facets.factions.map((name) => ({
         name,
-        count: facets.factionCounts[name] || 0,
+        count: matchingFacets.factionCounts[name] || 0,
         theme: getFactionTheme(name)
     })));
     const pageFaction = $derived(selectedFaction || 'Mixed');
     const pageTheme = $derived(getFactionTheme(pageFaction));
     const emptyStateMessage = $derived(getEmptyStateMessage(searchTerm));
     const mixedTheme = getFactionTheme();
+    const hasBanner = banners.length > 0;
+    const isFiltered = $derived(!!(selectedFaction || searchTerm));
 
     function clearAllFilters() {
         selectedFaction = '';
-        selectedSeries = '';
         searchTerm = '';
     }
 </script>
 
 <svelte:head>
-    <link rel="preload" href="/fonts/Goldman-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <title>Toy Shelf · BreadTM</title>
 </svelte:head>
 
 <div
     id="toys-page"
+    class="toys-cel-wash"
     data-faction={pageFaction}
     style:--accent={pageTheme.chromeAccent}
     style:--accent-ink={pageTheme.chromeAccentInk}
-    style:--wash-a={pageTheme.washA}
-    style:--wash-b={pageTheme.washB}
-    style:--wash-c={pageTheme.washC}
     style:--page-field={pageTheme.field}
     style:--page-field-deep={pageTheme.fieldDeep}
     style:--page-grid-line={pageTheme.gridLine}
+    style:--halftone-tint={pageTheme.halftoneTint}
 >
     <div id="toys-content">
-        <Nav />
-        <main class="pb-10 sm:pb-16" id="toys-gallery">
-            <div class="toys-shell w-full mx-auto px-3 sm:px-5 lg:px-8">
-                <ToyShelfHero shown={filteredToys.length} total={toys.length} />
-                <ToyShelfFilters
-                    bind:search={searchTerm}
-                    bind:selectedSeries
-                    bind:selectedFaction
-                    series={facets.series}
-                    factions={factionOptions}
-                    total={toys.length}
-                    {mixedTheme}
-                />
-                <ToyCollection
-                    toys={filteredToys}
-                    total={toys.length}
-                    images={toyImagesMap}
-                    emptyMessage={emptyStateMessage}
-                    onreset={clearAllFilters}
-                />
+        <!-- Section accent, like Stats' green: the shelf tints the nav with
+            its title-stamp pink; detail pages switch to the toy's faction. -->
+        <Nav accent={mixedTheme.chromeAccent} />
+        <main class="toys-gallery pb-10 sm:pb-16" id="main-content">
+            <div class="toys-shell w-full mx-auto px-3 sm:px-5 lg:px-8" class:has-banner={hasBanner}>
+                <ToyShelfHero shown={filteredToys.length} total={toys.length} filtered={isFiltered} />
+                {#if hasBanner}
+                    <ToyBanner />
+                {/if}
+                <div class="shelf-main">
+                    <ToyShelfFilters
+                        bind:search={searchTerm}
+                        bind:selectedFaction
+                        factions={factionOptions}
+                        total={filterToys(toys, { faction: '', search: searchTerm }).length}
+                        {mixedTheme}
+                    />
+                    <ToyCollection
+                        returnHref={shelfHref}
+                        toys={filteredToys}
+                        total={toys.length}
+                        images={toyImagesMap}
+                        emptyMessage={emptyStateMessage}
+                        onreset={clearAllFilters}
+                    />
+                </div>
             </div>
         </main>
     </div>
@@ -98,57 +123,29 @@
         --muted: #eaf5ff;
         --accent: #ff4f9a;
         --accent-ink: #210016;
-        --wash-a: rgba(0, 166, 255, 0.22);
-        --wash-b: rgba(255, 79, 154, 0.17);
-        --wash-c: rgba(254, 218, 0, 0.15);
         --page-field: #090b1f;
         --page-field-deep: #2e2a78;
         --page-grid-line: #20255d;
+        --halftone-tint: #ff4f9a;
         color: var(--ink);
         background-color: color-mix(in srgb, var(--page-field), #050308 30%);
         background-image:
-            radial-gradient(
-                circle at 16% 0%,
-                color-mix(in srgb, var(--wash-a), transparent 64%),
-                transparent 26rem
-            ),
-            radial-gradient(
-                circle at 86% 9%,
-                color-mix(in srgb, var(--wash-b), transparent 70%),
-                transparent 28rem
-            ),
             linear-gradient(
-                color-mix(in srgb, var(--page-grid-line), transparent 72%) 1px,
+                color-mix(in srgb, var(--page-grid-line), transparent 65%) 1px,
                 transparent 1px
             ),
             linear-gradient(
                 90deg,
-                color-mix(in srgb, var(--page-grid-line), transparent 72%) 1px,
+                color-mix(in srgb, var(--page-grid-line), transparent 65%) 1px,
                 transparent 1px
             );
         background-size:
-            auto,
-            auto,
             var(--site-grid-size, 3.5rem) var(--site-grid-size, 3.5rem),
             var(--site-grid-size, 3.5rem) var(--site-grid-size, 3.5rem);
     }
 
-    #toys-page::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: 0;
-        background: linear-gradient(
-            180deg,
-            rgba(5, 3, 8, 0) 0%,
-            rgba(5, 3, 8, 0.3) 45%,
-            rgba(5, 3, 8, 0.5) 100%
-        );
-        pointer-events: none;
-    }
-
     #toys-content,
-    #toys-gallery {
+    .toys-gallery {
         position: relative;
         z-index: 1;
     }
@@ -157,9 +154,49 @@
         max-width: 90rem;
     }
 
+    .shelf-main {
+        min-width: 0;
+    }
+
+    /* The title always leads; below 64rem a banner (when one is configured)
+       sits between the title and the controls as a slim strip. */
+    .toys-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "hero"
+            "banner"
+            "shelf";
+    }
+
+    .toys-shell > :global(.toys-hero) {
+        grid-area: hero;
+    }
+
+    .toys-shell > :global(.toy-banner) {
+        grid-area: banner;
+    }
+
+    .shelf-main {
+        grid-area: shelf;
+    }
+
+    /* ≥64rem: banner becomes a vertical rail left of the title and shelf. */
+    @media (min-width: 64rem) {
+        .toys-shell.has-banner {
+            grid-template-columns: clamp(12rem, 15vw, 17rem) minmax(0, 1fr);
+            grid-template-areas:
+                "banner hero"
+                "banner shelf";
+            grid-template-rows: auto 1fr;
+            column-gap: clamp(1rem, 2vw, 1.5rem);
+            align-items: start;
+        }
+    }
+
     @media (max-width: 720px) {
         #toys-page {
-            background-size: auto, auto, 3rem 3rem, 3rem 3rem;
+            background-size: 3rem 3rem, 3rem 3rem;
         }
     }
 

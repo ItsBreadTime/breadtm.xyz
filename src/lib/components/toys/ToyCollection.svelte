@@ -4,12 +4,14 @@
     import ToyItem from './ToyItem.svelte';
 
     let {
+        returnHref = "/toys",
         toys,
         total,
         images,
         emptyMessage,
         onreset
     }: {
+        returnHref?: string;
         toys: Toy[];
         total: number;
         images: Record<string, string[]>;
@@ -20,18 +22,20 @@
 
 {#if toys.length > 0}
     <section class="toy-grid" aria-label={`Filtered toy collection, ${toys.length} items`}>
+        <h2 class="sr-only">Toys</h2>
         {#each toys as toy, index (toy.slug)}
-            <div class="toy-grid-item">
+            <div class="toy-grid-item" id={`toy-${toy.slug}`}>
                 <ToyItem
+                    {returnHref}
                     name={toy.name}
                     image={getBestImage(toy)}
                     slug={toy.slug}
                     faction={toy.faction}
-                    series={toy.series}
                     description={toy.description}
                     year={toy.year}
                     hasImages={!!images[toy.slug]?.length}
                     imageFiles={images[toy.slug] || []}
+                    placeholder={toy.placeholder}
                     {index}
                 />
             </div>
@@ -60,7 +64,7 @@
         display: flex;
         flex-wrap: wrap;
         align-items: stretch;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 0.8rem;
         padding: 0.3rem 0 1.5rem;
     }
@@ -74,23 +78,75 @@
         height: 100%;
     }
 
+    /* The card's chamfer clip-path swallows its own outline, so the keyboard
+       ring is drawn on the slot around it instead. */
+    .toy-grid-item:has(:global(.toy-card:focus-visible)) {
+        outline: 3px solid #ffffff;
+        outline-offset: 5px;
+    }
+
     .empty-state {
+        position: relative;
         display: grid;
         place-items: center;
         gap: 0.75rem;
         min-height: 18rem;
         padding: 2rem;
         color: var(--muted);
-        background: color-mix(in srgb, var(--page-field-deep), #050308 34%);
-        border: var(--site-outline-width, 4px) solid var(--site-outline, #050308);
-        border-radius: var(--site-radius, 0.65rem);
-        box-shadow: 0 0.45rem 0 var(--site-outline, #050308);
+        background: var(--toys-ink, #050308);
+        clip-path: polygon(
+            0 0,
+            calc(100% - var(--toys-cut, 14px)) 0,
+            100% var(--toys-cut, 14px),
+            100% 100%,
+            0 100%
+        );
+        filter: drop-shadow(var(--toys-shadow-lg, 7px 7px 0 #050308));
+        /* Rim light along the ink plate's bottom inner edge. */
+        box-shadow: inset 0 calc(-1 * var(--toys-rim-h, 2px)) 0 0 var(--toys-rim, color-mix(in srgb, #ffffff 18%, transparent));
         text-align: center;
+    }
+
+    /* Flat fill + halftone shade band, drawn inside the ink frame. */
+    .empty-state::before {
+        content: "";
+        position: absolute;
+        inset: var(--toys-bw-lg, 4px);
+        background: color-mix(in srgb, var(--page-field-deep), #050308 34%);
+        clip-path: polygon(
+            0 0,
+            calc(100% - max(var(--toys-cut, 14px) - var(--toys-bw-lg, 4px), 0px)) 0,
+            100% max(var(--toys-cut, 14px) - var(--toys-bw-lg, 4px), 0px),
+            100% 100%,
+            0 100%
+        );
+    }
+
+    .empty-state::after {
+        content: "";
+        position: absolute;
+        inset: auto var(--toys-bw-lg, 4px) var(--toys-bw-lg, 4px);
+        height: 0.6rem;
+        background-color: color-mix(in srgb, var(--page-field-deep), #050308 calc(34% + var(--toys-shade-mix, 30%)));
+        background-image:
+            var(--toys-halftone),
+            linear-gradient(color-mix(in srgb, var(--page-field-deep), #050308 calc(34% + var(--toys-shade-mix-2, 48%))) 0 0);
+        background-size:
+            var(--toys-halftone-size, 8px) var(--toys-halftone-size, 8px),
+            100% 3px;
+        background-position: 0 0, left bottom;
+        background-repeat: repeat, no-repeat;
+        pointer-events: none;
+    }
+
+    .empty-state > * {
+        position: relative;
+        z-index: 1;
     }
 
     .empty-state p {
         color: var(--ink);
-        font-family: Goldman, sans-serif;
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
         font-size: clamp(1.25rem, 4vw, 2rem);
     }
 
@@ -98,10 +154,11 @@
         padding: 0.1rem 0.35rem;
         color: #ffda65;
         background: rgba(0, 0, 0, 0.4);
-        border-radius: 0.35rem;
+        border-radius: 0;
     }
 
     .empty-state a {
+        position: relative;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -109,26 +166,41 @@
         padding: 0.45rem 0.75rem;
         color: var(--accent-ink);
         background: var(--accent);
-        border: 2px solid #050308;
-        border-radius: 999px;
-        box-shadow: 0 4px 0 #050308;
-        font-family: Goldman, sans-serif;
+        border: 3px solid var(--toys-ink, #050308);
+        border-radius: 0;
+        box-shadow: var(--toys-shadow-sm, 3px 3px 0 #050308);
+        font-family: Goldman, 'Goldman Fallback', sans-serif;
         font-size: 0.875rem;
         font-weight: 800;
         transition:
-            transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-            background-color 180ms ease;
+            transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+            box-shadow 140ms ease,
+            background-color 140ms ease;
+    }
+
+    /* Specular strip along the button's top edge. */
+    .empty-state a::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: var(--toys-spec-h, 3px);
+        background: var(--toys-spec, color-mix(in srgb, #ffffff 35%, transparent));
+        pointer-events: none;
     }
 
     .empty-state a:focus-visible {
-        outline: 3px solid color-mix(in srgb, var(--accent), white 15%);
-        outline-offset: 3px;
+        outline: none;
+        border-color: var(--accent);
+        box-shadow:
+            var(--toys-shadow-sm, 3px 3px 0 #050308),
+            inset 0 0 0 2px var(--accent);
     }
 
     @media (hover: hover) {
         .empty-state a:hover {
             background: color-mix(in srgb, var(--accent), white 10%);
-            transform: translateY(-1px);
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 var(--toys-ink, #050308);
         }
     }
 
@@ -161,7 +233,9 @@
         }
     }
 
-    @media (min-width: 64rem) and (orientation: landscape) {
+    /* 4-up waits for ≥80rem: above 64rem the banner rail narrows the content
+       column, and 4-up below 80rem crushes the meta chips. */
+    @media (min-width: 80rem) and (orientation: landscape) {
         .toy-grid {
             gap: 0.9rem;
         }

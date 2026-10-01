@@ -5,7 +5,9 @@
   import Contact from '$lib/components/home/sections/Contact.svelte';
 </script>
 
-<Nav />
+<svelte:head><title>BreadTM</title></svelte:head>
+
+<Nav accent="#3b82f6" />
 <main id="main-content">
   <Header />
   <StuffILike />

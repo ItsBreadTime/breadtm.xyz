@@ -6,8 +6,8 @@ export interface Toy {
     image?: string;
     primaryImage?: string;
     thumbnailImage?: string;
+    placeholder?: string;
     faction?: string;
-    series?: string;
     description?: string;
     year?: string;
 }

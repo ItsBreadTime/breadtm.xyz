@@ -16,7 +16,10 @@
                 src="projects/{name}.webp"
                 alt={name}
                 class="brightness-75 group-hover:brightness-100 transition-all duration-500 transform group-hover:scale-105"
+                width="1920"
+                height="1080"
                 loading="lazy"
+                decoding="async"
             />
         </div>
         <span class="text-teal-100 block p-4 bg-emerald-700/50 rounded-lg shadow-inner">

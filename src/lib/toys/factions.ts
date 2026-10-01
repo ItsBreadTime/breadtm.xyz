@@ -12,6 +12,7 @@ export interface FactionTheme {
     field: string;
     fieldDeep: string;
     gridLine: string;
+    halftoneTint: string;
     washA: string;
     washB: string;
     washC: string;
@@ -31,6 +32,7 @@ const mixedTheme: FactionTheme = {
     field: '#090b1f',
     fieldDeep: '#24214c',
     gridLine: '#20255d',
+    halftoneTint: '#ff4f9a',
     washA: 'rgba(0, 166, 255, 0.22)',
     washB: 'rgba(255, 79, 154, 0.17)',
     washC: 'rgba(254, 218, 0, 0.15)'
@@ -50,6 +52,7 @@ const autobotTheme: FactionTheme = {
     field: '#180609',
     fieldDeep: '#3f1a20',
     gridLine: '#3b0f15',
+    halftoneTint: '#ff6a5c',
     washA: 'rgba(255, 75, 75, 0.15)',
     washB: 'rgba(255, 128, 64, 0.075)',
     washC: 'rgba(255, 255, 255, 0.035)'
@@ -69,6 +72,7 @@ const decepticonTheme: FactionTheme = {
     field: '#100719',
     fieldDeep: '#302641',
     gridLine: '#2b1742',
+    halftoneTint: '#b891ff',
     washA: 'rgba(184, 145, 255, 0.16)',
     washB: 'rgba(111, 77, 161, 0.095)',
     washC: 'rgba(255, 79, 154, 0.045)'
@@ -88,6 +92,7 @@ const ikeatronTheme: FactionTheme = {
     field: '#06101f',
     fieldDeep: '#173654',
     gridLine: '#0b2b4d',
+    halftoneTint: '#feda00',
     washA: 'rgba(0, 88, 171, 0.17)',
     washB: 'rgba(254, 218, 0, 0.075)',
     washC: 'rgba(0, 255, 191, 0.04)'
@@ -126,6 +131,7 @@ export function getFactionTheme(faction?: string): FactionTheme {
         field: '#07151b',
         fieldDeep: '#173d49',
         gridLine: '#12414f',
+        halftoneTint: '#72d8f4',
         washA: 'rgba(114, 216, 244, 0.14)',
         washB: 'rgba(255, 79, 154, 0.055)',
         washC: 'rgba(255, 255, 255, 0.03)'

@@ -10,14 +10,16 @@
             ? "Uhhhh... Where are you going? It's not safe out there."
             : 'Something jammed while assembling this page. The safest exits are still below.'
     );
+    let inBlogs = $derived($page.url.pathname.startsWith('/blog'));
 
+    // The TM corrupts alongside the word, so each frame carries its own mark.
     const glitchFrames = [
-        'ERROR',
-        'ERROЯ',
-        '3RR0R',
-        'ERГOЯ',
-        'ERR0R',
-        'ERЯOЯ'
+        { word: 'ERROR', mark: 'TM' },
+        { word: 'ERROЯ', mark: 'T/V' },
+        { word: '3RR0R', mark: '7M' },
+        { word: 'ERГOЯ', mark: 'ΓM' },
+        { word: 'ERR0R', mark: 'TΛΛ' },
+        { word: 'ERЯOЯ', mark: 'Ƭ#' }
     ];
     let frame = $state(0);
     let glitching = $state(false);
@@ -51,158 +53,232 @@
     <meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="flex min-h-screen min-h-[100dvh] flex-col">
-    <Nav />
+<div class="errorpage flex min-h-screen min-h-[100dvh] flex-col">
+    <Nav accent="#ef4444" />
 
-    <section class="relative overflow-hidden flex-1" id="errorpage">
-        <div class="error-grid absolute inset-0 opacity-25 pointer-events-none"></div>
-
-        <div class="error-shell relative z-10 mx-auto max-w-3xl px-3 py-4 md:px-8 md:py-10">
-            <div class="flex h-20 items-center justify-center mb-4 md:h-28 md:mb-8">
-                <div class="rounded-md bg-black">
-                    <h1
-                        class="error-title bg-amber-200 text-amber-900 font-accent inline-block p-3 md:p-4 -translate-x-2 -translate-y-2 rounded-md text-2xl md:text-3xl font-extrabold tracking-tight"
-                    >
-                        <span
-                            class="glitch {glitching ? 'is-glitching' : ''}"
-                            aria-label="Error">{glitchFrames[frame]}</span
-                        ><sup class="font-bold text-red-700 font-features-sups">TM</sup>
-                    </h1>
-                </div>
-            </div>
-
-            <div
-                class="grid grid-cols-1 border-4 border-black rounded-lg overflow-hidden shadow-2xl"
+    <!-- Same skeleton as the home header: a flat field with the site grid,
+         a giant headline, then one ink-outlined split panel. -->
+    <main class="error-field relative flex-1 overflow-hidden" id="main-content">
+        <div class="error-grid absolute inset-0" aria-hidden="true"></div>
+        <div class="homepage-content relative z-10 max-w-6xl py-8 md:py-12 xl:py-16">
+            <h1
+                class="error-title mb-6 text-[clamp(3.75rem,13vw,8rem)] font-black leading-[0.98] tracking-[-0.03em] text-white md:mb-8"
             >
-                <div class="bg-black px-5 py-5 md:px-10 md:py-8 text-center">
-                    <div
-                        class="font-accent font-black text-red-500 leading-none select-none status-glow"
-                        style="font-size: clamp(4rem, 18vw, 8rem); letter-spacing: -0.04em;"
-                    >
-                        {status}
-                    </div>
-                    <p
-                        class="mt-3 text-lg md:text-2xl text-red-400 font-bold tracking-tight status-glow"
-                    >
-                        {displayMessage}
+                <span class="sr-only">Error</span>
+                <span aria-hidden="true">
+                    <!-- Every frame shares one grid cell, so the widest one
+                         reserves the space and the glitch never shifts layout.
+                         The TM lives inside each frame so it hugs whichever
+                         word is showing instead of the widest one. -->
+                    <span class="glitch {glitching ? 'is-glitching' : ''}">
+                        {#each glitchFrames as { word, mark }, i}
+                            <span class:is-current={i === frame}
+                                >{word}<sup class="glitch-mark font-bold font-features-sups">{mark}</sup></span
+                            >
+                        {/each}
+                    </span>
+                </span>
+            </h1>
+
+            <section class="fault-panel grid grid-cols-1 overflow-hidden md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+                <div class="status-cell flex items-center justify-center px-6 py-8 md:py-12">
+                    <p class="error-code tabular-nums" aria-label={`Status code ${status}`}>
+                        <span aria-hidden="true">{status}</span>
                     </p>
                 </div>
 
-                <div class="bg-decepticon text-violet-50 p-3 md:p-7 font-semibold">
-                    <p class="text-base md:text-xl leading-relaxed md:leading-8">
+                <div class="recovery-cell flex flex-col gap-4 p-5 text-red-50 sm:p-6 lg:p-8">
+                    <h2 class="text-balance text-3xl font-black leading-tight tracking-[-0.02em] text-white [overflow-wrap:anywhere] md:text-4xl">
+                        {displayMessage}
+                    </h2>
+                    <p class="max-w-[40rem] text-pretty text-lg font-semibold leading-snug lg:text-xl">
                         {recoveryCopy}
                     </p>
 
-                    <div
-                        class="error-actions mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:grid-cols-[1.05fr_1fr_auto] sm:items-center"
-                        aria-label="Recovery options"
-                    >
-                        <a
-                            class="min-h-11 flex items-center justify-center rounded-md border-2 border-black bg-yellow-200 px-3 py-2 text-center font-black text-black shadow-[3px_3px_0_#000] transition-transform duration-150 hover:-translate-y-0.5 hover:bg-yellow-100 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-yellow-200 active:translate-y-0"
-                            href="/"
-                        >
-                            Home base
-                        </a>
-                        <a
-                            class="min-h-11 flex items-center justify-center rounded-md bg-white px-3 py-2 text-center font-bold text-violet-950 transition-colors duration-150 hover:bg-violet-100 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
-                            href="/toys"
-                        >
-                            Toy shelf
-                        </a>
-                        <a
-                            class="col-span-2 min-h-11 flex items-center justify-center rounded-md border-2 border-violet-200/70 bg-violet-900/45 px-3 py-2 text-center font-bold text-violet-50 transition-colors duration-150 hover:bg-violet-900/65 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-violet-100 sm:col-span-1 sm:min-w-36"
-                            href="/#contacts"
-                        >
-                            Report link
-                        </a>
-                    </div>
+                    <nav class="mt-auto pt-2" aria-label="Recovery options">
+                        <div class="flex flex-col gap-3 sm:flex-row">
+                            <a class="recovery-link recovery-link-primary" href="/">
+                                <span aria-hidden="true">←</span>
+                                <span>Home base</span>
+                            </a>
+                            <a class="recovery-link" href={inBlogs ? '/blogs' : '/toys'}>
+                                <span>{inBlogs ? 'Back to blogs' : 'Toy shelf'}</span>
+                                <span aria-hidden="true">→</span>
+                            </a>
+                        </div>
+                    </nav>
                 </div>
-            </div>
+            </section>
         </div>
-    </section>
+    </main>
 </div>
 
 <style lang="postcss">
-    #errorpage {
-        background-color: theme(colors.autobot);
-        background-image: linear-gradient(
-                theme(colors.red.700) 0.1em,
-                transparent 0.1em
-            ),
-            linear-gradient(
-                90deg,
-                theme(colors.red.700) 0.1em,
-                transparent 0.1em
-            );
-        background-size: 4.5em 4.5em;
+    .errorpage ::selection {
+        background: theme(colors.yellow.200);
+        color: theme(colors.black);
+    }
+
+    .error-field {
+        background-color: theme(colors.red.600);
+        border-inline: 0 solid theme(colors.black);
+        border-bottom: 8px solid theme(colors.black);
+    }
+
+    @screen lg {
+        .error-field {
+            border-width: 0 8px 8px;
+        }
     }
 
     .error-grid {
-        background-image: linear-gradient(
-                theme(colors.red.800) 0.12em,
-                transparent 0.12em
-            ),
-            linear-gradient(
-                90deg,
-                theme(colors.red.800) 0.12em,
-                transparent 0.12em
-            );
-        background-size: 3.5em 3.5em;
+        opacity: 0.35;
+        background-image: linear-gradient(theme(colors.red.800) 0.1em, transparent 0.1em),
+            linear-gradient(90deg, theme(colors.red.800) 0.1em, transparent 0.1em);
+        background-size: var(--site-grid-size) var(--site-grid-size);
+    }
+
+    .error-title {
+        filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.3));
     }
 
     .glitch {
-        display: inline-block;
-        position: relative;
-        min-width: 6ch;
-        text-align: center;
-        white-space: nowrap;
-        transition: transform 0.12s ease-out;
+        display: inline-grid;
+        vertical-align: baseline;
     }
-    .glitch.is-glitching {
+
+    .glitch > span {
+        grid-area: 1 / 1;
+        visibility: hidden;
+        white-space: nowrap;
+    }
+
+    .glitch > span.is-current {
+        visibility: visible;
+    }
+
+    .glitch.is-glitching > span.is-current {
         animation: jitter 0.18s steps(2) infinite;
     }
 
-    .status-glow {
-        text-shadow: 0 0 0.5em rgba(239, 68, 68, 0.55), 0 0 1.4em rgba(239, 68, 68, 0.35);
+    /* Tucked against the last letter and tinted toward the field, so the mark
+       reads as part of the broken word rather than a label beside it. */
+    .glitch-mark {
+        /* inline-block so it can tear; sup's line-height: 0 would give it a
+           zero-height box that clip-path then clips away entirely. */
+        display: inline-block;
+        margin-left: 0.02em;
+        line-height: 1;
+        color: theme(colors.violet.200);
     }
 
-    @media (max-width: 340px) {
-        .error-shell {
-            padding-inline: 0.45rem;
-        }
+    .glitch.is-glitching .glitch-mark {
+        color: theme(colors.yellow.200);
+        text-shadow: -0.06em 0 0 theme(colors.red.950), 0.06em 0 0 theme(colors.violet.300);
+        animation: tear 0.14s steps(2) infinite;
+    }
 
-        .error-title {
-            padding: 0.65rem 0.85rem;
-            font-size: 1.35rem;
-        }
+    .fault-panel {
+        border: var(--site-bw-lg) solid var(--site-outline);
+        box-shadow: var(--site-shadow-lg);
+    }
 
-        .glitch {
-            min-width: 0;
-        }
+    /* The status cell is the panel's "portrait": black, gridded like the
+       home profile tile, with the code set in the headline's weight. */
+    .status-cell {
+        border-bottom: var(--site-bw-lg) solid var(--site-outline);
+        background-color: theme(colors.black);
+        background-image: linear-gradient(theme(colors.red.950) 0.2em, transparent 0.1em),
+            linear-gradient(90deg, theme(colors.red.950) 0.2em, transparent 0.1em);
+        background-size: 3em 3em;
+    }
 
-        .error-actions {
-            grid-template-columns: 1fr;
+    @screen md {
+        .status-cell {
+            border-right: var(--site-bw-lg) solid var(--site-outline);
+            border-bottom: 0;
         }
+    }
 
-        .error-actions > :global(a) {
-            grid-column: 1 / -1;
-            min-width: 0;
+    .error-code {
+        margin: 0;
+        color: theme(colors.red.500);
+        font-size: clamp(5rem, 22vw, 9rem);
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        line-height: 0.85;
+        text-shadow: 0.05em 0.05em 0 theme(colors.red.950);
+        user-select: none;
+    }
+
+    .recovery-cell {
+        background: theme(colors.red.800);
+    }
+
+    /* Site button: ink outline, hard shadow, lifts on hover, presses flat. */
+    .recovery-link {
+        display: inline-flex;
+        min-height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        border: var(--site-bw-md) solid var(--site-outline);
+        padding: 0.5rem 1rem;
+        background: theme(colors.white);
+        color: theme(colors.red.900);
+        box-shadow: var(--site-shadow-sm);
+        font-weight: 800;
+        transition: transform 110ms ease-out, box-shadow 110ms ease-out, background-color 110ms;
+    }
+
+    .recovery-link-primary {
+        background: theme(colors.yellow.200);
+        color: theme(colors.black);
+    }
+
+    @media (hover: hover) {
+        .recovery-link:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 var(--site-outline);
         }
+    }
+
+    .recovery-link:active {
+        transform: translate(3px, 3px);
+        box-shadow: 0 0 0 var(--site-outline);
+    }
+
+    .recovery-link:focus-visible {
+        outline: 3px solid theme(colors.white);
+        outline-offset: 3px;
     }
 
     @keyframes jitter {
         0% { transform: translate(0, 0); }
-        25% { transform: translate(-1px, 1px) skewX(-3deg); }
-        50% { transform: translate(1px, -1px) skewX(2deg); }
-        75% { transform: translate(-1px, 0) skewX(-1deg); }
+        25% { transform: translate(-2px, 2px) skewX(-3deg); }
+        50% { transform: translate(2px, -2px) skewX(2deg); }
+        75% { transform: translate(-2px, 0) skewX(-1deg); }
         100% { transform: translate(0, 0); }
     }
 
+    @keyframes tear {
+        0% { transform: translate(0, 0); clip-path: inset(0 0 0 0); }
+        33% { transform: translate(3px, -3px); clip-path: inset(0 0 55% 0); }
+        66% { transform: translate(-3px, 2px) skewX(8deg); clip-path: inset(40% 0 0 0); }
+        100% { transform: translate(0, 0); clip-path: inset(0 0 0 0); }
+    }
+
     @media (prefers-reduced-motion: reduce) {
-        .glitch,
-        .glitch.is-glitching {
-            animation: none;
+        .glitch > span,
+        .glitch-mark,
+        .recovery-link {
+            animation: none !important;
             transition: none;
+        }
+
+        .recovery-link:hover,
+        .recovery-link:active {
+            transform: none;
         }
     }
 </style>
