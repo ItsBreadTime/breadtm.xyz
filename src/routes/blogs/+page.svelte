@@ -137,7 +137,7 @@
 		<div class="journal-shell masthead-row">
 			<h1>Blogs</h1>
 			{#if !archiveEmpty}
-				<a href="/blogs/rss.xml" class="rss-link" aria-label="Subscribe to the BreadTM blog RSS feed"><Icon name="rss" size={19}/> RSS</a>
+				<a href="/blogs/rss.xml" class="rss-link" data-sveltekit-reload aria-label="Subscribe to the BreadTM blog RSS feed"><Icon name="rss" size={19}/> RSS</a>
 			{/if}
 		</div>
 	</div>
@@ -208,7 +208,7 @@
 					{/each}
 				</div>
 			{:else if !feature}
-				<section class="journal-empty"><h2>{filtered ? 'Nothing turned up.' : "There's nothing out there..."}</h2><p>{filtered ? 'Try another search, or come back to the whole journal.' : 'Perhaps next month?'}</p>{#if filtered}<a class="blog-button" href="/blogs" data-sveltekit-reload>Show all posts</a>{:else}<a class="blog-button" href="/blogs/rss.xml"><Icon name="rss" size={20}/> Follow via RSS</a>{/if}</section>
+				<section class="journal-empty"><h2>{filtered ? 'Nothing turned up.' : "There's nothing out there..."}</h2><p>{filtered ? 'Try another search, or come back to the whole journal.' : 'Perhaps next month?'}</p>{#if filtered}<a class="blog-button" href="/blogs" data-sveltekit-reload>Show all posts</a>{:else}<a class="blog-button" href="/blogs/rss.xml" data-sveltekit-reload><Icon name="rss" size={20}/> Follow via RSS</a>{/if}</section>
 			{/if}
 
 			<div class="archive-end" bind:this={sentinel}>
