@@ -178,6 +178,7 @@
 	.stamp {
 		grid-area: stamp;
 		justify-self: start;
+		width: fit-content;
 		margin: 0;
 		border: 4px solid var(--ink);
 		background: #2ecc8f;
