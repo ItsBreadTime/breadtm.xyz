@@ -11,6 +11,7 @@
 	import ViewerNav from './ViewerNav.svelte';
 	import ViewerToolbar from './ViewerToolbar.svelte';
 	import Sidebar from '$lib/components/site/Sidebar.svelte';
+	import { scrollToElement } from '../smoothScroll';
 
 	let { data }: { data: ViewerData } = $props();
 
@@ -144,20 +145,20 @@
 		jumping = true;
 		await tick();
 		const heading = headingFor(id);
-		if (heading) {
-			heading.scrollIntoView({ block: 'start' });
-			if (focus) heading.focus({ preventScroll: true });
-		}
+		// Smooth, not instant: an instant jump flashes the whole page on iPad (see scrollToElement).
+		const landed = heading ? scrollToElement(heading) : Promise.resolve();
+		if (heading && focus) heading.focus({ preventScroll: true });
 		stream.currentId = id;
 		if (push) pushState(stream.postHref(id), historyState(id));
 		stream.announcement = `Moved to ${showTitle(id) ?? stream.noun.one}.`;
 		await tick();
 		followNav();
-		setTimeout(() => {
+		// The drawer closes right away; the jump only counts as landed once the scroll has stopped.
+		void landed.then(() => setTimeout(() => {
 			jumping = false;
 			// The landing is stable now; resume the newer-body load the jump may have deferred.
 			void pumpNewer();
-		}, 500);
+		}, 500));
 	}
 
 	/** A deliberate selection: inside the window jump, at an edge extend, otherwise open a fresh contiguous window. */
@@ -362,11 +363,11 @@
 			jumping = true;
 			stream.windowIds = cached.includes(state.id) ? cached : [state.id];
 			stream.currentId = state.id;
-			void tick().then(() => {
+			void tick().then(async () => {
 				const heading = headingFor(state.id);
-				if (heading) heading.scrollIntoView({ block: 'start' });
-				else window.scrollTo(0, state.y ?? 0);
+				const landed = heading ? scrollToElement(heading) : (window.scrollTo(0, state.y ?? 0), Promise.resolve());
 				followNav();
+				await landed;
 				setTimeout(() => { jumping = false; }, 400);
 			});
 		};

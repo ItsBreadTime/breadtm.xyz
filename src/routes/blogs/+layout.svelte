@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Nav from '$lib/components/site/Nav.svelte';
+	import { smoothHashLinks } from '$lib/publishing/smoothScroll';
 	import '$lib/publishing/blog.css';
 	let { children } = $props();
 	let scene = $state<HTMLElement>();
@@ -17,7 +18,7 @@
 	});
 </script>
 <svelte:head><link rel="alternate" type="application/rss+xml" title="Bread's blog" href="/blogs/rss.xml"/></svelte:head>
-<div class="blog-scene" data-sveltekit-preload-data="off" data-sveltekit-preload-code="off" bind:this={scene}>
+<div class="blog-scene" {@attach smoothHashLinks} data-sveltekit-preload-data="off" data-sveltekit-preload-code="off" bind:this={scene}>
 	<div class="site-navigation"><Nav accent="#c9b8ff"/></div>
 	{@render children()}
 </div>

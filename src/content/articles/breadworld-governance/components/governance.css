@@ -82,8 +82,10 @@
 /* Without JavaScript the # anchor links the clause; with it, the copy button does the same job. */
 .blog-scene .gov-js .gov-text .gov-anchor { display:none; }
 .blog-scene .gov-text .gov-anchor { margin-left:10px; color:var(--muted); text-decoration:none; font-weight:600; opacity:0; }
-.blog-scene .gov-heading:is(:hover, :focus-within) .gov-anchor, .blog-scene .gov-heading:target .gov-anchor { opacity:1; }
-.blog-scene .gov-heading:target .gov-title { background:linear-gradient(transparent 60%, var(--honey) 60%); }
+/* data-scroll-target marks a heading or clause while an in-page link scrolls to it (smoothScroll.ts),
+   before it becomes :target; the old :target stands down meanwhile. */
+.blog-scene .gov-heading:is(:hover, :focus-within) .gov-anchor, .blog-scene:not([data-scrolling]) .gov-heading:target .gov-anchor, .blog-scene .gov-heading[data-scroll-target] .gov-anchor { opacity:1; }
+.blog-scene:not([data-scrolling]) .gov-heading:target .gov-title, .blog-scene .gov-heading[data-scroll-target] .gov-title { background:linear-gradient(transparent 60%, var(--honey) 60%); }
 .blog-scene .gov-heading .gov-copy { margin-left:10px; vertical-align:.15em; }
 @media (hover:none) { .blog-scene .gov-text .gov-anchor { opacity:1; } }
 /* Copy buttons wait to be wanted: a pointer shows them on hover or focus, a finger by tapping the heading or row. */
@@ -105,7 +107,7 @@
 .blog-scene .gov-text .gov-label { color:var(--muted); font-weight:750; font-variant-numeric:tabular-nums; text-decoration:none; }
 .blog-scene .gov-text a.gov-label:hover { color:var(--heading); text-decoration:underline; }
 .blog-scene .gov-text :is(.gov-clause, .gov-clauses > li) { scroll-margin-top:calc(var(--nav-h,72px) + 20px); }
-.blog-scene .gov-text :is(.gov-clause, .gov-clauses > li):target > .gov-label { color:var(--heading); background:var(--honey); }
+.blog-scene:not([data-scrolling]) .gov-text :is(.gov-clause, .gov-clauses > li):target > .gov-label, .blog-scene .gov-text :is(.gov-clause, .gov-clauses > li)[data-scroll-target] > .gov-label { color:var(--heading); background:var(--honey); }
 .blog-scene .gov-text .gov-clauses p { margin:0 0 .3em; }
 .blog-scene .gov-text .gov-clauses .gov-clause-lead { color:var(--heading); }
 .blog-scene .gov-text .gov-clauses > li + li { margin-top:.7em; }

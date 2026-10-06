@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Nav from '$lib/components/site/Nav.svelte';
+	import { smoothHashLinks } from '$lib/publishing/smoothScroll';
 	import '$lib/publishing/blog.css';
 	import '$lib/publishing/breadmoji/writes.css';
 	let { children } = $props();
@@ -17,7 +18,7 @@
 		return () => observer.disconnect();
 	});
 </script>
-<div class="blog-scene writes-scene" data-theme="light" data-sveltekit-preload-data="off" data-sveltekit-preload-code="off" bind:this={scene}>
+<div class="blog-scene writes-scene" {@attach smoothHashLinks} data-theme="light" data-sveltekit-preload-data="off" data-sveltekit-preload-code="off" bind:this={scene}>
 	<div class="site-navigation"><Nav accent="#ffd23f"/></div>
 	{@render children()}
 </div>
