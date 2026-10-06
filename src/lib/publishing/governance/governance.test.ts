@@ -209,10 +209,16 @@ test('no releases yet is an honest empty state', async () => {
 });
 
 test('a GitHub refusal is reported with its reason', async () => {
-	const fetch = async () => new Response('rate limited', { status: 403 });
-	const result = await loadGovernance({ fetch }, new URLSearchParams());
+	const limited = async () => new Response('{"message":"API rate limit exceeded"}', { status: 403, headers: { 'x-ratelimit-remaining': '0' } });
+	const result = await loadGovernance({ fetch: limited }, new URLSearchParams());
 	assert.equal(result.status, 'error');
-	assert.match(result.message!, /rate-limiting/);
+	assert.match(result.message!, /rate-limiting this site right now \(unauthenticated\)/);
+	clearGovernanceCache();
+	const refused = async () => new Response('{"message":"Bad credentials"}', { status: 401 });
+	assert.match((await loadGovernance({ fetch: refused, token: 'x' }, new URLSearchParams())).message!, /401: Bad credentials/);
+	clearGovernanceCache();
+	const forbidden = async () => new Response('{"message":"Resource not accessible by personal access token"}', { status: 403, headers: { 'x-ratelimit-remaining': '4999' } });
+	assert.match((await loadGovernance({ fetch: forbidden, token: 'x' }, new URLSearchParams())).message!, /403: Resource not accessible/);
 });
 
 test('the release list and release files are cached between requests', async () => {

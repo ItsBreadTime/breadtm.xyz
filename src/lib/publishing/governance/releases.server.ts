@@ -169,7 +169,15 @@ export async function listReleases(context: GovernanceContext): Promise<{ releas
 			listing = entry(previous.releases, previous.etag, fetchedAt);
 			return { releases: previous.releases, stale: false, fetchedAt };
 		}
-		if (!response.ok) return fallback(response.status === 403 || response.status === 429 ? 'GitHub is rate-limiting this site right now.' : `GitHub answered ${response.status}.`);
+		if (!response.ok) {
+			// GitHub uses 403 both for exhausted rate limits and for refused credentials; the headers tell them apart.
+			const limited = response.status === 429 || response.headers.get('x-ratelimit-remaining') === '0' || response.headers.has('retry-after');
+			let reason = '';
+			try { reason = String((await response.json() as { message?: unknown }).message ?? '').slice(0, 200); } catch { /* no JSON body */ }
+			console.error('governance: GitHub release list failed', { status: response.status, authenticated: Boolean(context.token), remaining: response.headers.get('x-ratelimit-remaining'), limit: response.headers.get('x-ratelimit-limit'), reason });
+			if (limited) return fallback(`GitHub is rate-limiting this site right now (${context.token ? 'authenticated' : 'unauthenticated'}).`);
+			return fallback(`GitHub answered ${response.status}${reason ? `: ${reason}` : '.'}`);
+		}
 		let raw: unknown;
 		let releases: ReleaseRef[];
 		try { raw = await response.json(); releases = parseReleases(raw); }
