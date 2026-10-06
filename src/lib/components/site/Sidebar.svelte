@@ -1,3 +1,5 @@
+<!-- Articles load this through a dynamic import, where external CSS would only arrive with JavaScript. -->
+<svelte:options css="injected"/>
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 

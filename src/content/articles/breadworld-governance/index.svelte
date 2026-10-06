@@ -5,7 +5,7 @@
 	import type { ProviderResult } from '$lib/publishing/types';
 	import type { DocumentKey, GovernanceData } from '$lib/publishing/governance/types';
 	import DocumentReader from './components/DocumentReader.svelte';
-	import './components/governance.css';
+	import { stylesheet } from './components/styles';
 	// The shared article shell already reports the provider's stale/empty/error status above this body.
 	let { data }: { data: unknown; provider: ProviderResult | null } = $props();
 
@@ -44,11 +44,14 @@
 	});
 </script>
 
+<svelte:head>{@html stylesheet}</svelte:head>
+
 {#snippet switcher()}
 	<nav class="gov-tabs" aria-label="Governing documents">
 		{#each tabs as tab}
 			{@const view = governance?.documents[tab.key]}
-			<a href={tabHref(tab.key)} aria-current={active === tab.key ? 'page' : undefined} onclick={event => choose(event, tab.key)}>
+			<!-- Without JavaScript both documents are on the page, so the plain link also jumps to its document. -->
+			<a href={`${tabHref(tab.key)}#gov-${tab.key}`} aria-current={active === tab.key ? 'page' : undefined} onclick={event => choose(event, tab.key)}>
 				<span>{tab.label}</span>
 				<small>{view ? `${view.release.candidate ? 'Ratification draft' : 'Release'} ${view.release.version}` : 'Not yet released'}</small>
 			</a>

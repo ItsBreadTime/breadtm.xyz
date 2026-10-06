@@ -48,6 +48,15 @@ const config = {
 
 	compilerOptions: {
 		runes: true
+	},
+
+	vitePlugin: {
+		// Articles load through a dynamic import, so SvelteKit cannot link their CSS into the
+		// server-rendered head; it would only arrive with JavaScript. Injected CSS is rendered
+		// into the head as <style> tags instead, so the page is styled on first paint and without JS.
+		dynamicCompileOptions({ filename }) {
+			if (filename.includes('/src/content/articles/')) return { css: 'injected' };
+		}
 	}
 };
 
