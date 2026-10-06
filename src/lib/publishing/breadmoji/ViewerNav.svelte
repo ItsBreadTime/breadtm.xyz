@@ -43,7 +43,7 @@
 				<h3 class="nav-month">{dateLabel(summary.publishedAt, { day: undefined, month: 'long' })}</h3>
 			{/if}
 			<a
-				class="nav-item" class:current={summary.id === stream.currentId} class:pending={summary.id === stream.pendingId} class:has-issue={!!series}
+				class="nav-item" class:current={summary.id === stream.currentId} class:pending={summary.id === stream.pendingId} class:failed={summary.id === stream.failedId} class:has-issue={!!series}
 				href={stream.postHref(summary.id)}
 				aria-current={summary.id === stream.currentId ? 'location' : undefined}
 				onclick={(event) => { event.preventDefault(); onselect(summary.id); }}
@@ -54,6 +54,8 @@
 					{dateLabel(summary.publishedAt, series ? {} : { year: undefined })} · {summary.author.displayName}
 					{#if !series && summary.anthology}<span class="nav-series">{summary.anthology.designator} #{summary.anthology.issue}</span>{/if}
 				</span>
+				{#if summary.id === stream.pendingId}<span class="nav-state nav-loading">Loading…</span>
+				{:else if summary.id === stream.failedId}<span class="nav-state nav-failed">Couldn’t load this {stream.noun.one}. Tap to try again.</span>{/if}
 			</a>
 		{/each}
 		{#if stream.status.olderTitles === 'loading'}<p class="nav-note" role="status">Loading older titles…</p>
@@ -135,6 +137,12 @@
 	.panel-nav .nav-item.current { scroll-initial-target: nearest; }
 	.nav-item.current .nav-title { font-weight: 800; color: var(--heading); }
 	.nav-item.pending .nav-title { opacity: 0.55; font-style: italic; }
+	.nav-state { display: block; margin-top: 4px; font-size: 12px; font-weight: 750; line-height: 1.35; color: var(--heading); }
+	/* An in-window jump settles in a frame; only a real fetch lives long enough to show this. */
+	.nav-loading { animation: nav-state-in 0s 300ms backwards; }
+	@keyframes nav-state-in { from { visibility: hidden; } }
+	.nav-item.failed { border-color: var(--rule); border-style: dashed; }
+	.nav-failed { color: #b3261e; }
 	.nav-title {
 		display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 		font-size: 15px; line-height: 1.3; font-weight: 650; color: var(--heading);

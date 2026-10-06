@@ -30,6 +30,8 @@ export class ViewerStream {
 	windowIds = $state<string[]>([]);
 	currentId = $state('');
 	pendingId = $state<string | null>(null);
+	/** A sidebar pick whose body could not be fetched; its list entry says so until the next pick. */
+	failedId = $state<string | null>(null);
 	status = $state<Record<Edge, EdgeStatus>>({ olderTitles: 'idle', newerTitles: 'idle', olderBodies: 'idle', newerBodies: 'idle' });
 	announcement = $state('');
 	#controllers = new Set<AbortController>();
@@ -73,6 +75,7 @@ export class ViewerStream {
 		this.windowIds = [data.post.id, ...data.following.map(post => post.id)];
 		this.currentId = data.post.id;
 		this.pendingId = null;
+		this.failedId = null;
 		this.status = { olderTitles: 'idle', newerTitles: 'idle', olderBodies: 'idle', newerBodies: 'idle' };
 		this.announcement = '';
 	}

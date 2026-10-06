@@ -265,10 +265,18 @@ export function sortRatings(rows: RankedCount[]): { label: string; value: number
 
 type Fetcher = typeof fetch;
 
+/** NewsSpeak can stall; past this a request gives up so readers get an error, not a hang. */
+const TIMEOUT_MS = 10_000;
+
+/** True when a NewsSpeak request was cut off by TIMEOUT_MS rather than refused. */
+export function isTimeout(error: unknown): boolean {
+	return error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError');
+}
+
 async function apiGet<T>(fetcher: Fetcher, path: string, params: Record<string, string | null>): Promise<T> {
 	const url = new URL(`${API_BASE}${path}`);
 	for (const [key, value] of Object.entries(params)) if (value) url.searchParams.set(key, value);
-	const response = await fetcher(url, { headers: { accept: 'application/json' } });
+	const response = await fetcher(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
 	if (!response.ok) throw new Error(`NewsSpeak ${path} answered ${response.status}`);
 	return (await response.json()) as T;
 }

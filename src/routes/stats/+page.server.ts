@@ -5,6 +5,7 @@ import {
 	fetchKindRepeats,
 	fetchStats,
 	genreRows,
+	isTimeout,
 	kindMix,
 	monthSeries,
 	parsePage,
@@ -83,7 +84,9 @@ async function loadStats({ url, fetch, setHeaders }: Parameters<PageServerLoad>[
 			next: null,
 			page,
 			pages: 1,
-			error: "NewsSpeak didn't answer. Try again in a bit.",
+			error: isTimeout(error)
+				? 'NewsSpeak took too long to answer, so the stats couldn’t load. It’s usually a short hiccup. Try again in a minute.'
+				: 'NewsSpeak didn’t answer, so the stats couldn’t load. Try again in a bit.',
 			beyond: null as number | null
 		};
 	}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { page } from '$app/state';
 	import { monthName, type BarDatum } from '$lib/stats/newsspeak';
 	import BarChart from '$lib/components/stats/BarChart.svelte';
 	import FilterChips from '$lib/components/stats/FilterChips.svelte';
@@ -128,7 +129,7 @@
 				<header class="panel-head"><h2>The ledger is unreachable</h2></header>
 				<div class="panel-body">
 					<p>{data.error}</p>
-					<a class="stats-button" href="/stats" data-sveltekit-reload>Retry</a>
+					<a class="stats-button" href={page.url.pathname + page.url.search} data-sveltekit-reload>Try again</a>
 				</div>
 			</div>
 		{/if}

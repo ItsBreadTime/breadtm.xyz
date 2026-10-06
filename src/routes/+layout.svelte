@@ -2,6 +2,7 @@
   import "../app.css";
   import { onMount } from 'svelte';
   import { page } from '$app/state';
+  import RouteLoading from '$lib/components/site/RouteLoading.svelte';
   import { fontPreloadOrder, prefetchLinkImage, warmFonts } from '$lib/utils/preload';
   let { children } = $props();
 
@@ -32,4 +33,5 @@
 <!-- Every page's <main> carries id="main-content". -->
 <a class="site-skip" href="#main-content">Skip to content</a>
 {@render children()}
+<RouteLoading />
 <style>.site-skip { position:fixed; top:-100px; left:16px; z-index:200; padding:12px 20px; background:#ffeb3b; color:#000; font-weight:800; } .site-skip:focus { top:8px; }</style>

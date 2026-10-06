@@ -166,6 +166,7 @@
 		if (id === stream.currentId && stream.windowIds.includes(id)) { if (drawerOpen) closeDrawer(); return; }
 		const gen = ++selectionGen;
 		stream.pendingId = id;
+		stream.failedId = null;
 		try {
 			if (stream.windowIds.includes(id)) { await jumpTo(id, focus, push); }
 			else {
@@ -181,7 +182,7 @@
 					if (!isReady(stream.bodies.get(id))) {
 						try { await stream.loadBodies([id], 'replace'); } catch { /* marked below */ }
 						if (gen !== selectionGen) return;
-						if (!isReady(stream.bodies.get(id))) { stream.announcement = `That ${stream.noun.one} could not be loaded.`; return; }
+						if (!isReady(stream.bodies.get(id))) { stream.failedId = id; stream.announcement = `That ${stream.noun.one} could not be loaded.`; return; }
 					} else stream.windowIds = [id];
 					await jumpTo(id, focus, push);
 					void appendNeighbours(stream.olderNeighbours(id));
