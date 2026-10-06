@@ -38,6 +38,8 @@ the same fields as JSON.
 | `cover` | Optional `{ src, alt, credit? }`. `src` must live under `/blogs/`. A spoilered post must also set `safe: true`. |
 | `spoilers` | Optional list of `{ work, scope? }`. A nonempty list activates the full-post gate. |
 | `toc` | Optional `false` to suppress the contents rail. |
+| `accent` | Optional `#rrggbb` colour for the post's card and masthead, instead of its first topic's colour. Pick a light fill: titles sit on it in black. |
+| `masthead` | Optional `compact` for a short title band (no date rail), for posts whose body should start near the top. Defaults to `full`. |
 | `fixture` | Set `true` only for local design fixtures. Fixtures are always excluded from production and from the feed. |
 
 ## Body formats
@@ -78,6 +80,16 @@ list and concealed payloads are replaced by a named website link in the feed.
 `provider.server.ts` receives only the opened post, after its spoiler gate. It
 returns serializable data in the documented status envelope and must not expose
 private fields. Credentials belong in server-only environment bindings.
+
+The default export receives `{ fetch, signal, searchParams, env }`:
+`searchParams` is a copy of the article URL's query (validate anything you read
+from it), and `env` holds the string bindings only (Cloudflare secrets in
+production, `.dev.vars` locally).
+
+A provider may also export `edits({ fetch, signal, env })`, returning extra edit
+timestamps from its live source (for example, release dates). They merge into
+the post's edit history, archive order, feed, and sitemap at request time. It
+gets three seconds; if it fails or is slow, the authored metadata is used alone.
 
 ## Local examples
 

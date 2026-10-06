@@ -1,8 +1,9 @@
-import { posts, revision } from 'virtual:publishing/catalog';
+import { liveCatalog } from '$lib/publishing/catalog.server';
 import { filterPosts, selectArchive } from '$lib/publishing/model';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, fetch, platform }) => {
+	const { posts, revision } = await liveCatalog({ fetch, env: platform?.env });
 	let notice = '';
 	let result;
 	try { result = selectArchive(posts, revision, url.searchParams); }

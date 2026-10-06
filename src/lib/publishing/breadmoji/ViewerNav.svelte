@@ -94,8 +94,9 @@
 	.side:has(input[value="series"]:checked) .side-posts { display: none; }
 	.side:not(:has(input[value="series"]:checked)) .side-series { display: none; }
 
+	/* The shared Sidebar caps its height; the list takes what the switch leaves and scrolls itself. */
 	.panel-nav {
-		max-height: calc(100dvh - var(--nav-h, 68px) - var(--toolbar-h, 66px) - 104px); overflow: auto;
+		flex: 1 1 auto; min-height: 0; overflow: auto;
 		padding: 4px 0 8px; scrollbar-color: var(--muted) var(--paper);
 	}
 	.drawer-nav { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-color: var(--muted) var(--paper); }

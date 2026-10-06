@@ -25,7 +25,9 @@ export function normalizePost(input: Record<string, unknown>, slug: string, kind
 	const cover = input.cover as Post['cover'] & { safe?: boolean };
 	if (cover && (!cover.src || !cover.alt || !cover.src.startsWith('/blogs/'))) throw new Error(`${slug}: cover requires a /blogs/ asset and alt text`);
 	if (cover && spoilers.length && cover.safe !== true) throw new Error(`${slug}: confirm cover.safe for a spoilered post`);
-	return { slug, title: String(input.title), description: String(input.description), published, edits, updated: edits[0] ?? null, effectiveDate: edits[0] ?? published, kind, topics: (input.topics ?? []) as string[], lang: String(input.lang ?? 'en'), ...(cover ? { cover: { src: cover.src, alt: cover.alt, credit: cover.credit } } : {}), spoilers, spoilerVersion: spoilerVersion(spoilers), fixture: input.fixture === true };
+	if (input.accent !== undefined && (typeof input.accent !== 'string' || !/^#[0-9a-f]{6}$/i.test(input.accent))) throw new Error(`${slug}: accent must be a #rrggbb colour`);
+	if (input.masthead !== undefined && !['full', 'compact'].includes(String(input.masthead))) throw new Error(`${slug}: masthead must be full or compact`);
+	return { slug, title: String(input.title), description: String(input.description), published, edits, updated: edits[0] ?? null, effectiveDate: edits[0] ?? published, kind, topics: (input.topics ?? []) as string[], lang: String(input.lang ?? 'en'), ...(cover ? { cover: { src: cover.src, alt: cover.alt, credit: cover.credit } } : {}), spoilers, spoilerVersion: spoilerVersion(spoilers), fixture: input.fixture === true, ...(input.accent ? { accent: String(input.accent).toLowerCase() } : {}), ...(input.masthead === 'compact' ? { masthead: 'compact' as const } : {}) };
 }
 
 // Parse the compiled Svelte tree rather than stripping spoiler text with regex.

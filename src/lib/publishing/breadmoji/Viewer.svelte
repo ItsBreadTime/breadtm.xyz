@@ -10,6 +10,7 @@
 	import ViewerPost from './ViewerPost.svelte';
 	import ViewerNav from './ViewerNav.svelte';
 	import ViewerToolbar from './ViewerToolbar.svelte';
+	import Sidebar from '$lib/components/site/Sidebar.svelte';
 
 	let { data }: { data: ViewerData } = $props();
 
@@ -411,7 +412,7 @@
 		{/if}
 
 		<div class="viewer-grid">
-			<aside class="posts-panel" aria-label="Browse">{@render browse('panel')}</aside>
+			<Sidebar label="Browse" class="posts-panel">{@render browse('panel')}</Sidebar>
 
 			<div class="stream" bind:this={streamEl}>
 				<div bind:this={topSentinel} class="stream-sentinel" aria-hidden="true"></div>
@@ -478,9 +479,9 @@
 
 	/* ── Sidebar: a paper panel; ViewerNav styles the lists inside ── */
 	.viewer-grid { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 32px; align-items: start; margin-top: 16px; }
-	.posts-panel {
-		position: sticky; top: calc(var(--nav-h, 68px) + var(--toolbar-h, 66px) + 16px);
-		border: 3px solid var(--rule); background: var(--paper); box-shadow: var(--zine-shadow-lg);
+	.viewer-grid {
+		--sidebar-top: calc(var(--nav-h, 68px) + var(--toolbar-h, 66px) + 16px);
+		--sidebar-border: 3px solid var(--rule); --sidebar-bg: var(--paper); --sidebar-shadow: var(--zine-shadow-lg); --sidebar-scrollbar: var(--muted);
 	}
 
 	/* ── Stream: each post is its own paper panel ───────────────── */
@@ -501,7 +502,7 @@
 		.viewer-grid { grid-template-columns: 250px minmax(0, 1fr); gap: 24px; }
 	}
 	@media (max-width: 999px) {
-		.posts-panel { display: none; }
+		.viewer-grid > :global(.posts-panel) { display: none; }
 		.viewer-grid { display: block; }
 	}
 	@media (max-width: 760px) {
@@ -518,7 +519,6 @@
 		.stream > :global(.stream-post + .stream-post) { margin-top: 20px; }
 	}
 	@media (max-height: 600px) {
-		.posts-panel { position: static; }
 		.viewer-shell { padding-bottom: 48px; }
 	}
 </style>

@@ -179,7 +179,7 @@
 			{/if}
 
 			{#if feature}
-				<article class="feature" class:has-cover={feature.cover} class:wide-cover={isWideCover(feature.cover)} id={`entry-${feature.slug}`} aria-busy={searching} style:--feature={topicColor(feature.topics[0])}>
+				<article class="feature" class:has-cover={feature.cover} class:wide-cover={isWideCover(feature.cover)} id={`entry-${feature.slug}`} aria-busy={searching} style:--feature={feature.accent ?? topicColor(feature.topics[0])}>
 					{#if feature.cover}<a class="feature-cover" href={entryHref(feature)} {...coverPrefetch(feature)} tabindex="-1" aria-hidden="true"><img src={feature.cover.src} srcset={feature.cover.srcset} style:background-image={feature.cover.placeholder} style:background-size="cover" style:background-position="center" sizes={FEATURE_COVER_SIZES} decoding="async" alt="" loading="eager" width={feature.cover.width} height={feature.cover.height}/></a>{/if}
 					<div class="feature-copy">
 						<p class="section-label">Latest</p>
@@ -288,7 +288,8 @@
 	.feature h2 a::after, .entry h3 a::after { content: ''; position: absolute; inset: -9px -7px -7px -9px; z-index: 1; }
 	.feature h2 a:focus-visible, .entry h3 a:focus-visible { outline: none; }
 	.feature h2 a:focus-visible::after, .entry h3 a:focus-visible::after { outline: 3px solid #6337d8; outline-offset: -6px; }
-	.feature h2 a:visited, .entry h3 a:visited { color: #4e435e; }
+	/* The feature sits on an accent fill, where a dimmed visited title loses contrast: it stays black. */
+	.entry h3 a:visited { color: #4e435e; }
 
 	/* The newest post leads the unfiltered archive. */
 	.feature { position: relative; display: grid; margin-bottom: 24px; background: var(--feature, #e6e3ef); border: 3px solid var(--site-outline); box-shadow: var(--site-shadow-lg); }

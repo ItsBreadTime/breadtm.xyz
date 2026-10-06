@@ -5,10 +5,10 @@
 	import EditHistory from './EditHistory.svelte';
 	import Icon from './Icon.svelte';
 	import PostTags from './PostTags.svelte';
-	let { post, back = '/blogs' }: { post: Post; back?: string } = $props();
+	let { post, back = '/blogs', compact = false }: { post: Post; back?: string; compact?: boolean } = $props();
 	const wide = $derived(isWideCover(post.cover));
 </script>
-<header class="article-header">
+<header class="article-header" class:compact>
 	<a class="back-button" href={back}><Icon name="arrow-left" size={19}/> Blogs</a>
 	<div class="article-card" class:has-cover={post.cover} class:wide-cover={wide}>
 		{#if post.cover}
@@ -18,7 +18,7 @@
 			</figure>
 		{/if}
 		<div class="article-card-body">
-			<div class="date-rail" aria-hidden="true"><strong>{dateLabel(post.published, { day: '2-digit', month: undefined, year: undefined })}</strong><span>{dateLabel(post.published, { day: undefined, month: 'short', year: undefined })}</span><span>{dateLabel(post.published, { day: undefined, month: undefined })}</span></div>
+			{#if !compact}<div class="date-rail" aria-hidden="true"><strong>{dateLabel(post.published, { day: '2-digit', month: undefined, year: undefined })}</strong><span>{dateLabel(post.published, { day: undefined, month: 'short', year: undefined })}</span><span>{dateLabel(post.published, { day: undefined, month: undefined })}</span></div>{/if}
 			<div class="article-title-group">
 				<PostTags {post}/>
 				<h1>{post.title}</h1>

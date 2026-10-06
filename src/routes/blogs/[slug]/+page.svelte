@@ -10,7 +10,7 @@
 	import type { Post } from '$lib/publishing/types';
 	let { data }: { data: PageData } = $props();
 	const Article = $derived(data.Article);
-	const tag = $derived(topicColor(data.post.topics[0]));
+	const tag = $derived(data.post.accent ?? topicColor(data.post.topics[0]));
 	let proseEl = $state<HTMLElement>();
 	let lightbox = $state<{ images: { src: string; alt: string }[]; index: number } | null>(null);
 
@@ -60,10 +60,10 @@
 </svelte:head>
 {#snippet providerStatus()}
 	{#if data.provider}
-		<div class="data-message" role="status">
+		<div class="data-message" class:quiet={data.provider.status === 'ready'} role="status">
 			{#if data.provider.status === 'error'}<p>{data.provider.message ?? 'Data is unavailable.'}</p><a href={`/blogs/${data.post.slug}`} data-sveltekit-reload>Retry loading data</a>
 			{:else if data.provider.status === 'empty'}<p>There is no data to display yet.</p>
-			{:else}<p>{data.provider.status === 'stale' ? 'Showing the last available data.' : 'Data snapshot'}{#if data.provider.updatedAt} · <time datetime={data.provider.updatedAt}>{dateLabel(data.provider.updatedAt, { hour: '2-digit', minute: '2-digit' })} UTC</time>{/if}</p>{/if}
+			{:else}<p>{data.provider.status === 'stale' ? 'Showing the last available data.' : 'Data snapshot'}{#if data.provider.updatedAt}{' · '}<time datetime={data.provider.updatedAt}>{dateLabel(data.provider.updatedAt, { hour: '2-digit', minute: '2-digit' })} UTC</time>{/if}</p>{/if}
 		</div>
 	{/if}
 {/snippet}
@@ -91,7 +91,7 @@
 <main id="main-content" lang={data.post.lang}>
 	{#key data.post.slug}
 		{#if data.post.kind === 'normal'}
-			<article class="article-wrap" style:--tag={tag}><ArticleHeader post={data.post} back={data.back}/>
+			<article class="article-wrap" style:--tag={tag}><ArticleHeader post={data.post} back={data.back} compact={data.post.masthead === 'compact'}/>
 				<div class="reading-grid"><div class="contents-column"><Contents headings={data.details.headings}/></div>
 					<!-- The prose wrapper only delegates activation to the images it decorates as buttons. -->
 					<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -100,7 +100,7 @@
 				{@render articleEnd()}
 			</article>
 		{:else}
-			<article style:--tag={tag}><div class="article-wrap"><ArticleHeader post={data.post} back={data.back}/><SpoilerNotice subjects={data.post.spoilers}/>{@render providerStatus()}</div>
+			<article style:--tag={tag}><div class="article-wrap"><ArticleHeader post={data.post} back={data.back} compact={data.post.masthead === 'compact'}/><SpoilerNotice subjects={data.post.spoilers}/>{@render providerStatus()}</div>
 				<div class="interactive-body"><Article data={data.provider?.data} provider={data.provider}/></div>
 				{#if data.details.fallback}<noscript><div class="interactive-frame prose">{@html data.details.fallback}</div></noscript>{/if}
 				{@render articleEnd('interactive-frame')}

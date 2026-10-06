@@ -11,5 +11,5 @@ declare module 'virtual:publishing/details' {
 }
 declare module 'virtual:publishing/feeds' { export const feeds: Record<string, string | null>; }
 declare module 'virtual:publishing/providers' {
-	export const providers: Record<string, () => Promise<{ default: import('./provider.server').ArticleProvider }>>;
+	export const providers: Record<string, () => Promise<import('./provider.server').ProviderModule>>;
 }

@@ -52,6 +52,15 @@
 .blog-scene .article-title-group h1 { color:#08080c; font-size:clamp(38px,5.2vw,76px); line-height:1.02; font-weight:900; letter-spacing:-.035em; text-wrap:balance; margin:0; overflow-wrap:break-word; }
 .blog-scene .article-deck { margin:0; color:#1d1826; font-size:clamp(19px,1.9vw,25px); line-height:1.4; max-width:50ch; text-wrap:pretty; }
 .blog-scene .article-meta { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 16px; color:#2b2533; font-size:14px; line-height:1.5; }
+/* Compact masthead: one short band, no date rail, so a reference document starts near the top. */
+.blog-scene .article-header.compact { margin-bottom:20px; }
+.blog-scene article > .article-wrap:has(> .compact) { padding-bottom:12px; }
+.blog-scene .compact .article-card { margin-top:12px; box-shadow:var(--site-shadow-md); }
+.blog-scene .compact .article-card-body { display:block; }
+.blog-scene .compact .article-title-group { padding:16px 22px 16px; gap:8px; }
+.blog-scene .compact .article-title-group h1 { font-size:clamp(28px,3.4vw,44px); line-height:1.06; letter-spacing:-.03em; }
+.blog-scene .compact .article-deck { font-size:18px; max-width:60ch; }
+.blog-scene .compact .article-meta { font-size:13px; }
 .blog-scene .edit-history { position:relative; display:inline-block; font-size:14px; line-height:1.5; color:#08080c; z-index:4; }
 .blog-scene .edit-history[open] { z-index:30; }
 .blog-scene .edit-history summary { display:flex; gap:5px; align-items:center; font-weight:700; text-decoration:underline; text-decoration-color:currentColor; text-underline-offset:5px; padding:3px 0; list-style:none; }
@@ -141,6 +150,8 @@
 .blog-scene .data-message { border:1px solid var(--rule); background:var(--notice); padding:16px 20px; margin:16px 0; font-size:15px; }
 .blog-scene .data-message p { margin:0 0 10px; }
 .blog-scene .data-message a { text-decoration:underline; color:var(--accent); }
+.blog-scene .data-message.quiet { margin:-8px 0 16px; padding:0; border:0; background:none; color:var(--muted); font-size:13px; }
+.blog-scene .data-message.quiet p { margin:0; }
 @media (min-width:1400px) { .blog-scene .article-wrap, .blog-scene .interactive-frame { width:1200px; } }
 @media (max-width:1000px) { .blog-scene .reading-grid { grid-template-columns:minmax(0,1fr) 210px; gap:28px; } .blog-scene .article-card.has-cover:not(.wide-cover) { grid-template-columns:minmax(0,1fr); } .blog-scene .article-card.has-cover:not(.wide-cover) .article-cover { border-right:0; border-bottom:3px solid var(--site-outline); } .blog-scene .spoiler-reveal { white-space:normal; } }
 @media (max-width:760px) {
@@ -154,6 +165,18 @@
 	.blog-scene .article-card-body .date-rail span { font-size:13px; }
 	.blog-scene .article-title-group { padding:16px 14px 18px; gap:10px; }
 	.blog-scene .article-title-group h1 { font-size:clamp(30px,8.5vw,42px); }
+	/* Compact masthead on a phone: the back link rides the tag line as a sticker, so the band is all title. */
+	.blog-scene .article-header.compact { position:relative; margin-bottom:14px; }
+	.blog-scene .compact .back-button { position:absolute; z-index:2; top:10px; right:10px; min-height:30px; padding:2px 8px 2px 6px; gap:5px; border-width:2px; font-size:13px; box-shadow:2px 2px 0 var(--site-outline); }
+	.blog-scene .compact .back-button svg { width:15px; height:15px; }
+	.blog-scene .compact .article-card { margin-top:0; box-shadow:var(--site-shadow-sm); }
+	.blog-scene .compact .article-title-group { padding:10px 12px 12px; gap:6px; }
+	.blog-scene .compact .post-tags { min-height:30px; align-content:center; gap:4px; padding-right:76px; }
+	.blog-scene .compact .post-tags > * { padding:0 5px; font-size:11px; }
+	.blog-scene .compact .article-title-group h1 { font-size:clamp(23px,6.6vw,28px); line-height:1.08; }
+	.blog-scene .compact .article-deck { font-size:15px; line-height:1.4; }
+	.blog-scene .compact .article-meta { font-size:12px; }
+	.blog-scene .article-wrap:has(> .compact) > .data-message.quiet { margin:-4px 0 12px; font-size:12px; }
 	.blog-scene .article-deck { font-size:17px; }
 	.blog-scene .article-meta { font-size:13px; gap:2px 12px; }
 	.blog-scene .reading-grid { display:block; }

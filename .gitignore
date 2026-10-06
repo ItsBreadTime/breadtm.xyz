@@ -6,6 +6,9 @@ node_modules
 .env
 .env.*
 !.env.example
+# Cloudflare local secrets (GITHUB_TOKEN, ...)
+.dev.vars
+.dev.vars.*
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 # pnpm project: npm's lockfile would drift from pnpm-lock.yaml.

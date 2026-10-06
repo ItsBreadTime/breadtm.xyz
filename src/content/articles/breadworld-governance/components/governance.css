@@ -1,0 +1,188 @@
+/* BreadWorld governance reader. The page takes the honey-and-cream palette of the printed PDF
+   (BWHoney, BWTint, BWLink in breadworld-governance.sty) on top of the blog's drawing rules:
+   ink outline + hard offset, square corners. */
+.blog-scene:has(.gov) {
+	--canvas:#f7efdf; --paper:#fffaf0; --heading:#1f1408; --ink:#3b2c18; --muted:#6b5638;
+	--rule:#1f1408; --accent:#974819; --notice:#f6e2c0; --honey:#f4bc45;
+}
+.blog-scene:has(.gov) ::selection { background:var(--honey); color:#1f1408; }
+.blog-scene:has(.gov) .post-tags .interactive { background:var(--heading); color:var(--honey); }
+.blog-scene:has(.gov) .date-rail { background:var(--accent); }
+.blog-scene:has(.gov) :is(.neighbour, .back-button) { background:var(--paper); }
+
+.blog-scene .gov { padding-bottom:8px; }
+.blog-scene .gov:not(.gov-js) .gov-copy { display:none; }
+.blog-scene :is(.gov-authority, .gov-banner, .gov-empty) a { color:var(--accent); text-decoration:underline; text-underline-offset:3px; }
+
+.blog-scene .gov-banner { margin:0 0 24px; padding:12px 16px; max-width:68ch; border:3px solid var(--site-outline); background:var(--paper); color:var(--heading); font-size:15px; line-height:1.5; box-shadow:var(--site-shadow-sm); }
+.blog-scene .gov-banner.warn { background:var(--honey); color:#1f1408; }
+.blog-scene .gov-banner.warn a { color:#1f1408; font-weight:750; }
+.blog-scene .gov-empty { margin:8px 0 0; font-size:18px; color:var(--heading); max-width:60ch; }
+.blog-scene .gov-missing { max-width:320px; margin:0 0 20px; border:3px solid var(--site-outline); background:var(--paper); box-shadow:var(--site-shadow-md); }
+
+/* Layout: the sidebar on the left travels with the page; the text reads on the right. */
+.blog-scene .gov-layout {
+	display:grid; grid-template-columns:272px minmax(0,1fr); gap:44px; align-items:start;
+	--sidebar-bg:var(--paper); --sidebar-scrollbar:var(--muted);
+}
+
+/* Sidebar, top: which document. Two halves of one switch; the current one is honey. */
+.blog-scene .gov-tabs { display:grid; grid-template-columns:1fr 1fr; border-bottom:3px solid var(--site-outline); }
+.blog-scene .gov-tabs a { display:flex; flex-direction:column; justify-content:center; gap:1px; min-height:56px; padding:8px 12px; color:var(--heading); text-decoration:none; }
+.blog-scene .gov-tabs a + a { border-left:3px solid var(--site-outline); }
+.blog-scene .gov-tabs a span { font-size:15px; font-weight:850; line-height:1.2; letter-spacing:-.01em; }
+.blog-scene .gov-tabs a small { font-size:12px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums; }
+.blog-scene .gov-tabs a[aria-current] { background:var(--honey); }
+.blog-scene .gov-tabs a[aria-current] small { color:#3b2c18; }
+.blog-scene .gov-tabs a:not([aria-current]):hover { background:var(--notice); }
+.blog-scene .gov-tabs a:focus-visible { outline-offset:-6px; }
+
+/* Sidebar, middle: version and the official files. */
+.blog-scene .gov-release { display:grid; gap:12px; padding:14px; border-bottom:3px solid var(--site-outline); }
+.blog-scene .gov-picker { display:grid; gap:4px; }
+.blog-scene .gov-picker label { font-size:13px; font-weight:750; color:var(--heading); }
+.blog-scene .gov-picker select { width:100%; min-height:44px; padding:6px 10px; border:2px solid var(--site-outline); background:#fff; color:#1f1408; font:inherit; font-size:14px; font-variant-numeric:tabular-nums; }
+.blog-scene .gov-downloads { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.blog-scene .gov .gov-button { position:relative; display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:6px 12px; border:2px solid var(--site-outline); background:#fff; color:#1f1408; font-size:14px; font-weight:750; text-decoration:none; box-shadow:var(--site-shadow-sm); }
+.blog-scene .gov .gov-button.primary { grid-column:1 / -1; background:var(--honey); }
+.blog-scene .gov .gov-button[hidden] { display:none; }
+.blog-scene .gov .gov-button:active { transform:translate(3px,3px); box-shadow:0 0 0 var(--site-outline); }
+
+/* Sidebar, bottom: the contents, unboxed; the sidebar's body does the scrolling. */
+.blog-scene .gov-side .article-contents { padding:10px 8px 12px; border:0; background:none; box-shadow:none; max-height:none; overflow:visible; }
+.blog-scene .gov-side .article-contents > p { margin:2px 6px 8px; }
+.blog-scene .gov-side .article-contents ol { gap:1px; }
+.blog-scene .gov-side .article-contents a { min-height:0; padding:6px 10px; font-size:14px; line-height:1.35; color:var(--ink); }
+.blog-scene .gov-side .article-contents .subheading a { padding-left:22px; font-size:13px; color:var(--muted); }
+.blog-scene .gov-side .article-contents a:hover { color:var(--heading); border-color:transparent; background:var(--notice); }
+.blog-scene .gov-side .article-contents a[aria-current] { background:var(--honey); border-color:var(--site-outline); color:#1f1408; }
+
+/* Document head, as in the PDF: title, a honey rule, then the release line. */
+.blog-scene .gov-doc-head { margin:0 0 32px; max-width:68ch; }
+.blog-scene .gov-text .gov-doc-head p { margin:0; }
+.blog-scene .gov-text .gov-doc-title { padding-bottom:12px; border-bottom:3px solid var(--honey); color:var(--heading); font-size:clamp(26px,2.6vw,34px); font-weight:850; line-height:1.15; letter-spacing:-.025em; text-wrap:balance; }
+.blog-scene .gov-text .gov-doc-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 16px; margin-top:12px !important; font-size:14px; color:var(--ink); }
+.blog-scene .gov-doc-meta strong { color:var(--heading); }
+.blog-scene .gov-doc-meta code { font-family:CommitMono,monospace; font-size:13px; background:none !important; padding:0 !important; }
+.blog-scene .gov-state { padding:1px 8px; border:2px solid var(--site-outline); background:var(--honey); color:#1f1408; font-size:12px; font-weight:800; }
+.blog-scene .gov-state.superseded { background:var(--paper); }
+.blog-scene .gov-state.draft { background:var(--paper); border-style:dashed; }
+.blog-scene .gov-text .gov-authority { margin-top:8px !important; color:var(--muted); font-size:14px; line-height:1.5; }
+
+/* The text itself: reference-document scale, smaller than a blog essay. */
+.blog-scene .gov-text { position:relative; z-index:1; font-size:18px; }
+.blog-scene .gov-text h2 { margin:1.6em 0 .6em; font-size:clamp(23px,2vw,28px); }
+.blog-scene .gov-text h3 { margin:1.5em 0 .4em; font-size:19px; }
+.blog-scene .gov-section:first-of-type h2 { margin-top:0; }
+.blog-scene .gov-section { scroll-margin-top:calc(var(--nav-h,72px) + 16px); }
+.blog-scene .gov-text .gov-heading { display:block; scroll-margin-top:calc(var(--nav-h,72px) + 20px); }
+.blog-scene .gov-text h2.gov-heading::before { display:none; }
+.blog-scene .gov-number { display:inline-block; min-width:1.6em; margin-right:10px; padding:0 6px; border:2px solid var(--site-outline); background:var(--honey); color:#1f1408; text-align:center; font-variant-numeric:tabular-nums; box-shadow:var(--site-shadow-sm); }
+.blog-scene .gov-text h3 .gov-number { min-width:0; margin-right:10px; padding:0; border:0; background:none; box-shadow:none; color:var(--muted); font-size:.9em; }
+/* Without JavaScript the # anchor links the clause; with it, the copy button does the same job. */
+.blog-scene .gov-js .gov-text .gov-anchor { display:none; }
+.blog-scene .gov-text .gov-anchor { margin-left:10px; color:var(--muted); text-decoration:none; font-weight:600; opacity:0; }
+.blog-scene .gov-heading:is(:hover, :focus-within) .gov-anchor, .blog-scene .gov-heading:target .gov-anchor { opacity:1; }
+.blog-scene .gov-heading:target .gov-title { background:linear-gradient(transparent 60%, var(--honey) 60%); }
+.blog-scene .gov-heading .gov-copy { margin-left:10px; vertical-align:.15em; }
+@media (hover:none) { .blog-scene .gov-text .gov-anchor { opacity:1; } }
+/* Copy buttons wait to be wanted: a pointer shows them on hover or focus, a finger by tapping the heading or row. */
+.blog-scene .gov-js :is(.gov-heading, .gov-id) .gov-copy { opacity:0; }
+.blog-scene .gov-js :is(.gov-heading, .gov-platform dl > div, .gov-id):is(:hover, :focus-within) .gov-copy { opacity:1; }
+@media (hover:none) {
+	.blog-scene .gov-js :is(.gov-heading, .gov-id) .gov-copy { visibility:hidden; }
+	.blog-scene .gov-js :is(.gov-heading, .gov-platform dl > div, .gov-id):is([data-reveal], :focus-within) .gov-copy { visibility:visible; opacity:1; }
+}
+
+/* Clause numbers and item labels hang in their own column, as in the PDF's gutter. */
+.blog-scene .gov-text { --gov-label:2.4em; }
+.blog-scene .gov-text .gov-clause { display:grid; grid-template-columns:var(--gov-label) minmax(0,1fr); }
+.blog-scene .gov-text ol.gov-clauses { list-style:none; padding-left:0; }
+.blog-scene .gov-text ol.gov-clauses.gov-indented { margin-left:var(--gov-label); }
+.blog-scene .gov-text ol.gov-clauses.gov-rules { --gov-label:3.1em; }
+.blog-scene .gov-text ol.gov-clauses > li { display:grid; grid-template-columns:var(--gov-label) minmax(0,1fr); padding-left:0; }
+.blog-scene .gov-text ol.gov-clauses > li::before { display:none; }
+.blog-scene .gov-text .gov-label { color:var(--muted); font-weight:750; font-variant-numeric:tabular-nums; text-decoration:none; }
+.blog-scene .gov-text a.gov-label:hover { color:var(--heading); text-decoration:underline; }
+.blog-scene .gov-text :is(.gov-clause, .gov-clauses > li) { scroll-margin-top:calc(var(--nav-h,72px) + 20px); }
+.blog-scene .gov-text :is(.gov-clause, .gov-clauses > li):target > .gov-label { color:var(--heading); background:var(--honey); }
+.blog-scene .gov-text .gov-clauses p { margin:0 0 .3em; }
+.blog-scene .gov-text .gov-clauses .gov-clause-lead { color:var(--heading); }
+.blog-scene .gov-text .gov-clauses > li + li { margin-top:.7em; }
+.blog-scene .gov-text .gov-note { padding:12px 16px; border:2px solid var(--site-outline); background:var(--notice); }
+
+/* Summary, as the PDF prints it: a quiet tinted block closing the preamble. */
+.blog-scene .gov-text .gov-summary { max-width:68ch; margin:8px 0 8px; padding:14px 20px 16px; border:2px solid var(--site-outline); background:var(--notice); }
+.blog-scene .gov-text .gov-summary-title { margin:0 0 6px; color:var(--heading); font-size:16px; font-weight:850; }
+.blog-scene .gov-text .gov-summary ul { margin:0; padding-left:1.1em; font-size:16px; line-height:1.55; }
+.blog-scene .gov-text .gov-summary li + li { margin-top:.2em; }
+.blog-scene .gov-text .gov-summary li::marker { color:var(--accent); }
+
+/* Platform identifiers: one label column shared by every row of every table. */
+.blog-scene .gov-platform { max-width:68ch; margin:0 0 18px; border:2px solid var(--site-outline); background:var(--paper); box-shadow:var(--site-shadow-sm); }
+.blog-scene .gov-text .gov-platform h4 { margin:0; padding:6px 14px; border-bottom:2px solid var(--site-outline); background:var(--honey); color:#1f1408; font-size:15px; font-weight:850; }
+.blog-scene .gov-platform dl { margin:0; padding:2px 14px 4px; }
+.blog-scene .gov-platform dl > div { display:grid; grid-template-columns:13.5rem minmax(0,1fr); align-items:center; gap:4px 16px; min-height:48px; padding:6px 0; font-size:15px; line-height:1.4; }
+.blog-scene .gov-platform dl > div + div { border-top:1px solid color-mix(in srgb, var(--rule) 22%, transparent); }
+.blog-scene .gov-platform :is(dt, dd) { margin:0; padding:0; }
+.blog-scene .gov-platform dt { font-size:12px; font-weight:750; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+.blog-scene .gov-platform dd { min-width:0; overflow-wrap:anywhere; color:var(--heading); }
+.blog-scene .gov-text .gov-platform :is(dd > code, .gov-id code) { padding:2px 6px; background:var(--notice); font-family:CommitMono,monospace; font-size:14px; font-variant-numeric:tabular-nums; }
+.blog-scene .gov-id { display:inline-flex; align-items:center; gap:8px; }
+.blog-scene .gov code::before, .blog-scene .gov code::after { content:none; }
+
+.blog-scene .gov-copy { position:relative; display:inline-grid; place-items:center; width:30px; height:30px; padding:0; border:2px solid var(--site-outline); background:#fff; color:#1f1408; vertical-align:middle; box-shadow:2px 2px 0 var(--site-outline); }
+.blog-scene .gov-copy::before { content:''; position:absolute; inset:-7px; }
+.blog-scene .gov-copy.done { background:var(--honey); }
+.blog-scene .gov-copy:active { transform:translate(2px,2px); box-shadow:none; }
+.blog-scene .gov-copy-status { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+.blog-scene .gov-table-wrap { max-width:100%; overflow-x:auto; margin:0 0 1.2em; border:2px solid var(--site-outline); box-shadow:var(--site-shadow-sm); }
+.blog-scene .gov-text table.gov-revisions { display:table; width:100%; margin:0; font-size:15px; border-collapse:collapse; background:var(--paper); }
+.blog-scene .gov-revisions :is(th,td) { padding:8px 14px; border:1px solid color-mix(in srgb, var(--rule) 22%, transparent); text-align:left; vertical-align:top; }
+.blog-scene .gov-revisions th { background:var(--notice); font-size:13px; }
+.blog-scene .gov-revisions code { font-family:CommitMono,monospace; font-size:13px; }
+
+/* Defined terms: dotted underline; the definition card opens on hover or keyboard focus. */
+.blog-scene .gov-term { position:relative; }
+.blog-scene .gov .gov-term > a { color:inherit; text-decoration:underline dotted; text-decoration-thickness:2px; text-underline-offset:4px; text-decoration-color:var(--accent); }
+.blog-scene .gov-term-card { position:absolute; left:0; top:calc(100% + 8px); z-index:20; display:none; width:max-content; max-width:min(340px,80vw); padding:12px 14px; border:3px solid var(--site-outline); background:var(--paper); color:var(--heading); box-shadow:var(--site-shadow-md); font-size:14px; font-weight:400; line-height:1.5; letter-spacing:normal; text-transform:none; white-space:normal; }
+.blog-scene .gov-term:is(:hover, :focus-within) .gov-term-card { display:block; }
+.blog-scene .gov-term-card strong { font-weight:850; }
+.blog-scene .gov-term-where { margin-left:8px; color:var(--muted); font-size:13px; font-weight:650; }
+.blog-scene .gov-term-text { display:block; margin-top:4px; }
+
+/* Phones: a tapped term opens this sheet with the definition alone, the jump to its clause, and a way out. */
+.blog-scene .gov-sheet { position:fixed; inset:auto 14px max(14px, env(safe-area-inset-bottom)); width:auto; max-width:none; max-height:min(70dvh, 520px); margin:0; padding:0; overflow:auto; border:3px solid var(--site-outline); background:var(--paper); color:var(--heading); box-shadow:var(--site-shadow-md); }
+.blog-scene .gov-sheet::backdrop { background:rgb(31 20 8 / .42); }
+.blog-scene .gov-sheet-body { display:grid; gap:6px; padding:14px 16px 16px; }
+.blog-scene .gov-sheet p { margin:0; }
+.blog-scene .gov-sheet-term strong { font-size:19px; font-weight:850; letter-spacing:-.01em; }
+.blog-scene .gov-sheet-text { font-size:16px; line-height:1.55; color:var(--ink); }
+.blog-scene .gov-sheet-actions { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; margin-top:8px; }
+.blog-scene .gov .gov-sheet .gov-button { min-height:44px; }
+.blog-scene .gov .gov-sheet .gov-button.primary { grid-column:auto; }
+
+@media (hover:hover) {
+	.blog-scene .gov .gov-button:hover { transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--site-outline); }
+}
+@media (prefers-reduced-motion:no-preference) {
+	.blog-scene :is(.gov .gov-button, .gov-copy) { transition:transform 110ms ease-out, box-shadow 110ms ease-out, background-color 110ms, opacity 110ms; }
+	.blog-scene .gov-sheet[open] { animation:gov-sheet-in 160ms ease-out; }
+	.blog-scene :is(.gov-tabs a, .gov-side .article-contents a) { transition:background-color 110ms ease-out; }
+}
+@keyframes gov-sheet-in { from { transform:translateY(16px); opacity:0; } }
+@media (prefers-reduced-motion:reduce) { .blog-scene :is(.gov .gov-button, .gov-copy) { transform:none !important; } }
+@media (max-width:1000px) {
+	.blog-scene .gov-layout { grid-template-columns:236px minmax(0,1fr); gap:28px; }
+}
+@media (max-width:760px) {
+	.blog-scene .gov-layout { display:block; }
+	.blog-scene .gov-side { margin:0 0 24px; box-shadow:var(--site-shadow-sm) !important; }
+	.blog-scene .gov-side .mobile-contents { margin:0; border:0; box-shadow:none; background:none; }
+	.blog-scene .gov-text { font-size:17px; }
+	.blog-scene .gov-doc-head { margin-bottom:24px; }
+	.blog-scene .gov-platform dl > div { grid-template-columns:minmax(0,1fr); gap:2px; padding:8px 0; }
+	.blog-scene .gov-term-card { position:fixed; left:14px; right:14px; top:auto; bottom:14px; width:auto; max-width:none; }
+	.blog-scene .gov-js .gov-term .gov-term-card { display:none; }
+}

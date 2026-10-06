@@ -63,3 +63,14 @@ export function topicColor(topic: string | undefined): string | undefined {
 	if (!topic) return undefined;
 	return TOPIC_COLORS[parseInt(fingerprint(topic.toLocaleLowerCase()), 36) % TOPIC_COLORS.length];
 }
+
+/** Fold dates from a post's live source (e.g. new releases) into its authored edit log. */
+export function withExtraEdits(post: Post, dates: string[]): Post {
+	const extra = dates.filter(date => Number.isFinite(Date.parse(date))).map(date => new Date(date).toISOString()).filter(date => date > post.published);
+	if (!extra.length) return post;
+	const edits = [...new Set([...post.edits, ...extra])].sort().reverse();
+	return { ...post, edits, updated: edits[0], effectiveDate: edits[0] };
+}
+export function sortCatalog(posts: Post[]): Post[] {
+	return [...posts].sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate) || a.slug.localeCompare(b.slug));
+}

@@ -16,6 +16,10 @@ export interface Post {
 	spoilers: SpoilerSubject[];
 	spoilerVersion: string;
 	fixture: boolean;
+	/** Overrides the first topic's colour for the post's card and masthead. */
+	accent?: string;
+	/** `compact` keeps the title band short so a reference document starts near the top. */
+	masthead?: 'compact';
 	/** Estimated reading time for Markdown posts. */
 	minutes?: number;
 }
