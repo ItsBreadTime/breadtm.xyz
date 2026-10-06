@@ -208,6 +208,13 @@ test('no releases yet is an honest empty state', async () => {
 	assert.deepEqual((result.data as GovernanceData).documents, { charter: null, rules: null });
 });
 
+test('a GitHub refusal is reported with its reason', async () => {
+	const fetch = async () => new Response('rate limited', { status: 403 });
+	const result = await loadGovernance({ fetch }, new URLSearchParams());
+	assert.equal(result.status, 'error');
+	assert.match(result.message!, /rate-limiting/);
+});
+
 test('the release list and release files are cached between requests', async () => {
 	const { fetch, calls } = await github([release('rules-v1.0')], { 'rules-v1.0': exported('rules', '1.0') });
 	await loadGovernance({ fetch }, new URLSearchParams());

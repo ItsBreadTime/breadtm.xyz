@@ -272,7 +272,14 @@ export function documentView(releases: ReleaseRef[], document: DocumentKey, requ
 const defaultRelease = (own: ReleaseRef[]) => own.find(release => !release.candidate) ?? own[0];
 
 export async function loadGovernance(context: GovernanceContext, params: URLSearchParams): Promise<ProviderResult> {
-	const { releases, stale, fetchedAt } = await listReleases(context);
+	let listed: Awaited<ReturnType<typeof listReleases>>;
+	try { listed = await listReleases(context); }
+	catch (error) {
+		// Say why (a rate limit, GitHub being down) rather than the shell's generic failure.
+		if (!(error instanceof GovernanceError)) throw error;
+		return { status: 'error', updatedAt: null, data: null, message: `The governing documents could not be loaded from GitHub: ${error.message}` };
+	}
+	const { releases, stale, fetchedAt } = listed;
 	const data: GovernanceData = { documents: { charter: null, rules: null }, problems: {} };
 	await Promise.all(DOCUMENTS.map(async document => {
 		const own = releases.filter(release => release.document === document);
