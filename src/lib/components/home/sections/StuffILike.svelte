@@ -18,6 +18,7 @@
                 >
                     <h3 class="rounded-lg text-4xl text-blue-200 font-bold">Movies</h3>
                     <hr class="my-2 bg-gray-500 border-0 h-px">
+                    <p>Edit from 2026-10-12: This section is <i>incredibly</i> outdated. It (and the entire homepage, really) will be updated eventually.</p>
                     <p>Movies are probably my favorite form of entertainment, mayhaps possibly. I try to enjoy movies, not critique them so my ratings can feel somewhat inflated. Basically just vibes.</p>
                     <p class="my-2 text-gray-400">Note: There may be <i>some</i> (minimal) spoilers in this section. More major spoilers are click to reveal. Also, this section was last updated in March 2026.</p>
                     <p class="my-2">I always try to be as spoiler free as possible, this includes: not watching trailers, reading synopses or reviews or any other relevant content. I also try to avoid looking at ratings for movies I'll definitely watch since I don't want a bad review to make me think negatively of the movie.</p>
